@@ -3,10 +3,10 @@
 A narrative-driven RPG roguelite combining node‑based progression, turn‑based combat, and visual‑novel choices with impactful dice mechanics. Built with Unity 6000.2.2f1.
 
 ## One‑page pitch
-You play as a boy falling into a surreal dream world: a colossal tower forged from cherished memories and childhood nightmares. Explore node‑based maps (à la Slay the Spire), make meaningful visual‑novel choices, and fight turn‑based battles where actions resolve via d20 rolls (hit/graze/crit/effects). Climb toward floor 100 to uncover the truth behind the dream and yourself.
+You play as a boy falling into a surreal dream world: a colossal tower forged from cherished memories and childhood nightmares. Explore node‑based maps (Slay-the-Spire inspire), make meaningful visual‑novel choices, and fight turn‑based battles where actions resolve via d20 rolls (hit/graze/crit/effects). Climb toward floor 100 to uncover the truth behind the dream and yourself.
 
 - **Genres**: RPG Roguelite, Turn‑based, Choice‑driven Visual Novel, Dice mechanics
-- **Platforms**: Windows PC, WebGL (demo)
+- **Platforms**: Windows PC
 - **Engine**: Unity 6000.2.2f1 (ea398eefe1c2)
 - **Team**: 5 students (prototype)
 
