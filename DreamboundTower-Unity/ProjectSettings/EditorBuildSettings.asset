@@ -12,8 +12,8 @@ EditorBuildSettings:
     path: Assets/Scenes/Setting.unity
     guid: 61068de26211e794a9ad99aecce457e8
   - enabled: 1
-    path: Assets/Scenes/Scene1.unity
-    guid: 5d47da56edf7cc849af450bf5f3b64f0
+    path: Assets/Scenes/DialogueDemo.unity
+    guid: e342402810dd6304f9c628b539fac558
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 668faf1ce7f83cf43a7f22d8ae6af9f4, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
