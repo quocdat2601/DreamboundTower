@@ -1,4 +1,7 @@
 EXTERNAL Name(charName)
+VAR heroName = ""          // khởi tạo rỗng
+VAR earthExploded = false  // khởi tạo false
+
 {Name("???")}
 Hello cau
 tui ten la skibidi-chan
@@ -17,26 +20,27 @@ Ban ten la gi?
 * [Toi ten la Dat]   -> choose_dat
 
 == choose_quang ==
-VAR heroName = "Quang"
-VAR earthExploded = true
-{Name(heroName)}
-Toi ten la {heroName}.
+~ heroName = "Quang"
+~ earthExploded = true
+{ Name(heroName) }   // gọi external function
+Tôi tên là {heroName}.
 -> after_choice
 
 == choose_dat ==
- heroName = "Dat"
- earthExploded = false
-{Name(heroName)}
-Toi ten la {heroName}.
+~ heroName = "Dat"
+~ earthExploded = false
+{ Name(heroName) }
+Tôi tên là {heroName}.
 -> after_choice
+
 
 == after_choice ==
 {Name("skibidi-chan")}
-Okay, tiep tuc nao...
+Okay, vay ra cau la {heroName} sao
 {earthExploded:
     Trái đất đã nổ tung!
 - else:
-Trái đất vẫn tồn tại. Câu chuyện tiếp tục...
+    cau cute vai
 }
 -> DONE
 

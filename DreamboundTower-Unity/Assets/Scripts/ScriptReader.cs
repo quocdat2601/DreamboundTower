@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Ink.Runtime;
 using TMPro;
+using System.Collections;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -18,13 +19,24 @@ public class ScriptReader : MonoBehaviour
     public TMP_Text dialogueBox; // Dialogue UI text.
     public TMP_Text nameTag;     // Speaker name UI (optional).
 
-
     [SerializeField]
     private GridLayoutGroup choiceHolder;
 
     [SerializeField]
     private Button choiceBasePrefab;
-    // Initialize story.
+
+    [Header("Text Animation")]
+    [SerializeField]
+    private float textSpeed = 0.05f; // Delay between characters (0.01=fast, 0.1=slow)
+    [SerializeField]
+    private bool skipAnimation = false; // Skip text animation completely
+
+    // Animation state variables
+    private Coroutine textAnimationCoroutine;
+    private string currentText = ""; // Full text being animated
+    private bool isAnimating = false; // Currently showing text animation
+
+    // Initialize story and display first line.
     void Start()
     {
         loadStory();
@@ -36,7 +48,14 @@ public class ScriptReader : MonoBehaviour
     {
         if (IsAdvancePressed())
         {
-            DisplayNextLine();
+            if (isAnimating)
+            {
+                SkipTextAnimation(); // First press: skip animation
+            }
+            else
+            {
+                DisplayNextLine(); // Second press: advance dialogue
+            }
         }
     }
 
@@ -71,26 +90,76 @@ public class ScriptReader : MonoBehaviour
     // Advance story one line and update UI; shows end marker if finished.
     public void DisplayNextLine()
     {
-        if (_StoryScript.canContinue) //CHECKING IF THERE IS CONTENT TO GO THROUGH
+        if (_StoryScript.canContinue)
         {
-            string text = _StoryScript.Continue(); //Get next line
-            text = text?.Trim(); //Remove white space from text
-            dialogueBox.text = text; //Display new text
+            string text = _StoryScript.Continue();
+            text = text?.Trim();
+            currentText = text;
+            
+            if (skipAnimation)
+            {
+                dialogueBox.text = text; // Show immediately if animation disabled
+            }
+            else
+            {
+                StartTextAnimation(text); // Start character-by-character animation
+            }
         }
         else if (_StoryScript.currentChoices.Count > 0)
         {
-            DisplayChoices();
-            //dialogueBox.text = "HET ROI";
+            DisplayChoices(); // Show choice buttons when available
         }
+    }
+
+    // Start text animation coroutine
+    private void StartTextAnimation(string text)
+    {
+        if (textAnimationCoroutine != null)
+        {
+            StopCoroutine(textAnimationCoroutine); // Stop previous animation
+        }
+        
+        isAnimating = true;
+        textAnimationCoroutine = StartCoroutine(AnimateText(text));
+    }
+
+    // Animate text character by character
+    private IEnumerator AnimateText(string text)
+    {
+        dialogueBox.text = "";
+        
+        for (int i = 0; i <= text.Length; i++)
+        {
+            if (!isAnimating) break; // Skip if animation was interrupted
+            
+            dialogueBox.text = text.Substring(0, i);
+            yield return new WaitForSeconds(textSpeed);
+        }
+        
+        isAnimating = false;
+        textAnimationCoroutine = null;
+    }
+
+    // Skip text animation and show full text
+    private void SkipTextAnimation()
+    {
+        if (textAnimationCoroutine != null)
+        {
+            StopCoroutine(textAnimationCoroutine);
+            textAnimationCoroutine = null;
+        }
+        
+        dialogueBox.text = currentText; // Show complete text immediately
+        isAnimating = false;
     }
 
     public void DisplayChoices()
     {
-        if (choiceHolder.GetComponentsInChildren<Button>().Length > 0) return; //check if button holder have choice in it.
+        if (choiceHolder.GetComponentsInChildren<Button>().Length > 0) return; // Already showing choices
         for (int i = 0; i < _StoryScript.currentChoices.Count; i++)
         {
             var choice = _StoryScript.currentChoices[i];
-            var button = CreateChoiceButton(choice.text); //Create a choice button
+            var button = CreateChoiceButton(choice.text);
 
             button.onClick.AddListener(() => OnClickChoiceButton(choice));
         }
@@ -122,7 +191,7 @@ public class ScriptReader : MonoBehaviour
         {
             foreach (var button in choiceHolder.GetComponentsInChildren<Button>())
             {
-                Destroy(button.gameObject);
+                Destroy(button.gameObject); // Clean up old choice buttons
             }
         }
     }
@@ -131,5 +200,17 @@ public class ScriptReader : MonoBehaviour
     {
         string speakerName = name;
         nameTag.text = speakerName;
+    }
+
+    // Public method to toggle animation (for settings menu)
+    public void SetSkipAnimation(bool skip)
+    {
+        skipAnimation = skip;
+    }
+
+    // Public method to set text speed (for settings menu)
+    public void SetTextSpeed(float speed)
+    {
+        textSpeed = speed;
     }
 }
