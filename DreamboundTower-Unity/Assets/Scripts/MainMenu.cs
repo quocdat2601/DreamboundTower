@@ -11,12 +11,12 @@ public class MainMenu : MonoBehaviour
     public Button settingsButton; // Button để mở settings
     
     [Header("Animation Settings")]
-    public float animationDuration = 0.3f;
-    public AnimationCurve scaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+    public float animationDuration = 0.3f; // Thời gian animation mở/đóng settings
+    public AnimationCurve scaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1); // Curve cho animation scale
     
-    private bool isSettingOpen = false;
-    private GameObject currentSettingMenu;
-    private Coroutine animationCoroutine;
+    private bool isSettingOpen = false; // Trạng thái settings đang mở hay đóng
+    private GameObject currentSettingMenu; // Reference đến setting menu hiện tại
+    private Coroutine animationCoroutine; // Coroutine đang chạy animation
     
     void Start()
     {
@@ -35,11 +35,12 @@ public class MainMenu : MonoBehaviour
     
     public void PlayGame()
     {
-        SceneManager.LoadSceneAsync(2); //Scene 1
+        SceneManager.LoadSceneAsync(1); // Load scene game chính (scene index 1)
     }
 
     public void Settings()
     {
+        // Toggle settings panel - mở nếu đang đóng, đóng nếu đang mở
         if (isSettingOpen)
         {
             CloseSettings();
@@ -57,7 +58,7 @@ public class MainMenu : MonoBehaviour
         // Hiển thị setting panel (transparent background)
         settingPanel.SetActive(true);
         
-        // Tạo setting menu từ prefab
+        // Tạo setting menu từ prefab và đặt vào panel
         currentSettingMenu = Instantiate(settingMenuPrefab, settingPanel.transform);
         
         // Force set offset về 0 để fill full parent
@@ -76,7 +77,7 @@ public class MainMenu : MonoBehaviour
             closeBtn.onClick.AddListener(CloseSettings);
         }
         
-        // Start animation
+        // Start animation mở settings
         if (animationCoroutine != null)
         {
             StopCoroutine(animationCoroutine);
@@ -90,7 +91,7 @@ public class MainMenu : MonoBehaviour
     {
         if (!isSettingOpen) return;
         
-        // Start close animation
+        // Start close animation và destroy menu
         if (animationCoroutine != null)
         {
             StopCoroutine(animationCoroutine);
@@ -102,9 +103,10 @@ public class MainMenu : MonoBehaviour
     {
         if (currentSettingMenu == null) yield break;
         
-        // Setup initial state
+        // Setup initial state - bắt đầu từ scale 0
         currentSettingMenu.transform.localScale = Vector3.zero;
         
+        // Animation scale từ 0 đến 1
         float elapsed = 0f;
         while (elapsed < animationDuration)
         {
@@ -124,6 +126,7 @@ public class MainMenu : MonoBehaviour
     {
         if (currentSettingMenu == null) yield break;
         
+        // Animation scale từ 1 về 0
         float elapsed = 0f;
         Vector3 startScale = currentSettingMenu.transform.localScale;
         
@@ -137,7 +140,7 @@ public class MainMenu : MonoBehaviour
             yield return null;
         }
         
-        // Destroy panel
+        // Destroy panel sau khi animation xong
         if (currentSettingMenu != null)
         {
             Destroy(currentSettingMenu);
@@ -156,6 +159,6 @@ public class MainMenu : MonoBehaviour
     
     public void Quit()
     {
-        Application.Quit();
+        Application.Quit(); // Thoát game
     }
 }
