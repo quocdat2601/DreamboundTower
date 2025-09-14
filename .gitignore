@@ -90,4 +90,52 @@ ServerData/
 [Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
 
 # Auto-generated scenes by play mode tests
-[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity* 
+[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Unity Package Manager
+[Aa]ssets/Packages/packages-lock.json
+Packages/packages-lock.json
+
+# Unity Cloud Build
+cloudbuild-manifest.json
+
+# Unity Collaborate
+[Aa]ssets/UnityCollaborateSettings.asset
+
+# Unity Analytics
+[Aa]ssets/UnityAnalyticsSettings.asset
+
+# Unity Ads
+[Aa]ssets/UnityAdsSettings.asset
+
+# Unity IAP
+[Aa]ssets/UnityIAPSettings.asset
+
+# Unity Cloud Diagnostics
+[Aa]ssets/UnityCloudDiagnosticsSettings.asset
+
+# Unity Performance Reporting
+[Aa]ssets/UnityPerformanceReportingSettings.asset
+
+# Unity Remote Config
+[Aa]ssets/UnityRemoteConfigSettings.asset
+
+# Unity Game Simulation
+[Aa]ssets/UnityGameSimulationSettings.asset
+
+# Unity XR
+[Aa]ssets/XR/
+
+# Project Settings (machine-specific)
+ProjectSettings/EditorBuildSettings.asset
+ProjectSettings/InkSettings.asset
+ProjectSettings/ShaderGraphSettings.asset 
