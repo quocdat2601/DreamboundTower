@@ -138,4 +138,8 @@ cloudbuild-manifest.json
 # Project Settings (machine-specific)
 ProjectSettings/EditorBuildSettings.asset
 ProjectSettings/InkSettings.asset
-ProjectSettings/ShaderGraphSettings.asset 
+ProjectSettings/ShaderGraphSettings.asset
+
+# Unity Recovery files
+[Aa]ssets/_Recovery/
+[Aa]ssets/_Recovery.meta 
