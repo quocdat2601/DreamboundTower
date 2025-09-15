@@ -1,6 +1,7 @@
 using System.Linq;
 using UnityEngine;
 using Newtonsoft.Json;
+using DG.Tweening;
 
 namespace Map
 {
@@ -11,8 +12,14 @@ namespace Map
 
         public Map CurrentMap { get; private set; }
 
+        private void Awake()
+        {
+            DOTween.Init();
+        }
+
         private void Start()
         {
+            // First, load the existing map
             if (PlayerPrefs.HasKey("Map"))
             {
                 string mapJson = PlayerPrefs.GetString("Map");
@@ -20,7 +27,7 @@ namespace Map
                 // using this instead of .Contains()
                 if (map.path.Any(p => p.Equals(map.GetBossNode().point)))
                 {
-                    // payer has already reached the boss, generate a new map
+                    // player has already reached the boss, generate a new map
                     GenerateNewMap();
                 }
                 else
@@ -33,6 +40,13 @@ namespace Map
             else
             {
                 GenerateNewMap();
+            }
+
+            // After map is loaded, check for pending completion from battle scenes
+            bool hasPendingCompletion = MapTravel.TryApplyPendingCompletion(this);
+            if (hasPendingCompletion)
+            {
+                Debug.Log("Applied pending node completion from battle scene");
             }
         }
 

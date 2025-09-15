@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
 using UnityEngine;
 
 namespace Map
@@ -50,11 +51,18 @@ namespace Map
         private void SendPlayerToNode(MapNode mapNode)
         {
             Locked = lockAfterSelecting;
-            mapManager.CurrentMap.path.Add(mapNode.Node.point);
+            
+            // For non-combat nodes, mark as completed immediately
+            if (mapNode.Node.nodeType != NodeType.MinorEnemy)
+            {
+                mapManager.CurrentMap.path.Add(mapNode.Node.point);
+                view.SetAttainableNodes();
+                view.SetLineColors();
+                mapNode.ShowSwirlAnimation();
+            }
+            
+            // Always save map before leaving scene
             mapManager.SaveMap();
-            view.SetAttainableNodes();
-            view.SetLineColors();
-            mapNode.ShowSwirlAnimation();
 
             DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
         }
@@ -69,18 +77,27 @@ namespace Map
             switch (mapNode.Node.nodeType)
             {
                 case NodeType.MinorEnemy:
+                    // Save where to return and which node is pending completion
+                    MapTravel.BeginNodeBattle(mapNode.Node.point, SceneManager.GetActiveScene().name, nameof(NodeType.MinorEnemy));
+                    SceneManager.LoadScene("MainGame", LoadSceneMode.Single);
                     break;
                 case NodeType.EliteEnemy:
+                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
                     break;
                 case NodeType.RestSite:
+                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
                     break;
                 case NodeType.Treasure:
+                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
                     break;
                 case NodeType.Store:
+                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
                     break;
                 case NodeType.Boss:
+                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
                     break;
                 case NodeType.Mystery:
+                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

@@ -35,7 +35,15 @@ public class MainMenu : MonoBehaviour
     
     public void PlayGame()
     {
-        SceneManager.LoadSceneAsync(1); // Load scene game chính (scene index 1)
+        SceneManager.LoadScene("DialogueDemo", LoadSceneMode.Single); // Load scene game dialogue
+    }
+    public void Next()
+    {
+        SceneManager.LoadScene("SampleScene", LoadSceneMode.Single); // Load scene map demo
+    }
+    public void BackToMainMenu()
+    {
+        SceneManager.LoadScene("MainMenu", LoadSceneMode.Single); // Load scene MainMenu
     }
 
     public void Settings()

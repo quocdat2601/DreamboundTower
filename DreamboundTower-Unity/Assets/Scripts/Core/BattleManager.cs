@@ -3,6 +3,8 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using Map;
 
 /// <summary>
 /// Battle system manager for turn-based combat
@@ -198,6 +200,9 @@ public class BattleManager : MonoBehaviour
         if (AllEnemiesDead())
         {
             Debug.Log("[BATTLE] Victory! All enemies defeated!");
+            // mark completed node and return to map
+            MapTravel.MarkBattleCompleted();
+            MapTravel.ReturnToMap();
             busy = false;
             yield break;
         }
