@@ -63,9 +63,8 @@ Thumbs.db
 # ---------------------------
 # ProjectSettings
 # ---------------------------
-# ✅ Keep ProjectSettings in repo (important for scenes/UI consistency)
+# Keep ProjectSettings in repo (important for scenes/UI consistency)
 !ProjectSettings/
 
-# Ignore only files that are machine-specific inside ProjectSettings
-ProjectSettings/ProjectVersion.txt
-ProjectSettings/EditorSettings.asset
+# Ignore only user settings folder (machine specific)
+UserSettings/
