@@ -54,12 +54,21 @@ namespace Map
             {
                 mapManager.CurrentMap.path.Add(point);
                 mapManager.SaveMap();
+                
+                // Check if this is a boss node completion - advance floor if so
+                Node completedNode = mapManager.CurrentMap.GetNode(point);
+                if (completedNode != null && completedNode.nodeType == NodeType.Boss)
+                {
+                    Debug.Log("Boss defeated from battle scene! Advancing floor...");
+                    mapManager.AdvanceFloor();
+                }
             }
 
             if (mapManager.view != null)
             {
                 mapManager.view.SetAttainableNodes();
                 mapManager.view.SetLineColors();
+                mapManager.view.UpdateFloorDisplay();
             }
 
             // clear pending

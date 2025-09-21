@@ -6,6 +6,13 @@ namespace Map
 {
     public static class MapGenerator
     {
+        // GDD Floor Region enum
+        public enum FloorRegion
+        {
+            Early,  // Floors 1-20
+            Mid,    // Floors 21-60  
+            Late    // Floors 61-100
+        }
         private static MapConfig config;
 
         private static List<float> layerDistances;
@@ -68,12 +75,52 @@ namespace Map
 
             for (int i = 0; i < config.GridWidth; i++)
             {
-                var supportedRandomNodeTypes =
-                    config.randomNodes.Where(t => config.nodeBlueprints.Any(b => b.nodeType == t)).ToList();
-                NodeType nodeType = Random.Range(0f, 1f) < layer.randomizeNodes && supportedRandomNodeTypes.Count > 0
-                    ? supportedRandomNodeTypes.Random()
-                    : layer.nodeType;
-                string blueprintName = config.nodeBlueprints.Where(b => b.nodeType == nodeType).ToList().Random().name;
+                NodeType nodeType;
+                string blueprintName;
+                
+                // GDD Implementation: Boss cố định ở node cuối cùng (floor 10)
+                if (layerIndex == config.layers.Count - 1 && i == config.GridWidth / 2)
+                {
+                    // Boss node ở cuối cùng, giữa layer
+                    nodeType = NodeType.Boss;
+                    
+                    // Get Boss Blueprint from configuration or use random default
+                    // For boss node, we need to calculate the absolute floor based on current zone
+                    // Since we're generating a map for a specific zone, we need to get the zone's boss floor
+                    int absoluteFloor = 10; // Default to floor 10 for zone 1
+                    
+                    // Try to get current zone from MapManager if available
+                    if (MapManager.Instance != null)
+                    {
+                        absoluteFloor = MapManager.Instance.currentZone * 10; // Zone 1 = Floor 10, Zone 2 = Floor 20, etc.
+                    }
+                    
+                    NodeBlueprint bossBlueprint = GetBossBlueprintForFloor(absoluteFloor);
+                    if (bossBlueprint != null)
+                    {
+                        blueprintName = bossBlueprint.name;
+                        Debug.Log($"Using configured boss blueprint: {blueprintName} for floor {absoluteFloor}");
+                    }
+                    else
+                    {
+                        // Fallback to random boss blueprint
+                        blueprintName = config.nodeBlueprints.Where(b => b.nodeType == NodeType.Boss).ToList().Random().name;
+                        Debug.Log($"No boss config found for floor {absoluteFloor}, using random: {blueprintName}");
+                    }
+                }
+                // Node đầu tiên mặc định là MinorEnemy (tất cả nodes ở layer 0)
+                else if (layerIndex == 0)
+                {
+                    nodeType = NodeType.MinorEnemy;
+                    blueprintName = config.nodeBlueprints.Where(b => b.nodeType == NodeType.MinorEnemy).ToList().Random().name;
+                }
+                else
+                {
+                    // GDD Node Type Probabilities theo Floor Region
+                    nodeType = GetNodeTypeByGDDProbabilities(layerIndex);
+                    blueprintName = config.nodeBlueprints.Where(b => b.nodeType == nodeType).ToList().Random().name;
+                }
+                
                 Node node = new Node(nodeType, blueprintName, new Vector2Int(i, layerIndex))
                 {
                     position = new Vector2(-offset + i * layer.nodesApartDistance, GetDistanceToLayer(layerIndex))
@@ -271,6 +318,125 @@ namespace Map
             path.Add(toPoint);
 
             return path;
+        }
+        
+        // GDD Node Type Probabilities Implementation
+        private static NodeType GetNodeTypeByGDDProbabilities(int layerIndex)
+        {
+            // Convert layer index to absolute floor (assuming 10 layers = 10 floors per zone)
+            int absoluteFloor = layerIndex + 1; // layerIndex is 0-based, floor is 1-based
+            
+            // Determine floor region
+            FloorRegion region;
+            if (absoluteFloor <= 20) region = FloorRegion.Early;
+            else if (absoluteFloor <= 60) region = FloorRegion.Mid;
+            else region = FloorRegion.Late;
+            
+            // GDD Node Type Probabilities by Floor Region
+            float randomValue = Random.Range(0f, 1f);
+            
+            switch (region)
+            {
+                case FloorRegion.Early: // Floors 1-20
+                    // Combat 55%, Event 20%, Rest 12%, Shop 8%, Treasure 5%
+                    if (randomValue < 0.55f) return NodeType.MinorEnemy;
+                    if (randomValue < 0.75f) return NodeType.Mystery; // Event
+                    if (randomValue < 0.87f) return NodeType.RestSite;
+                    if (randomValue < 0.95f) return NodeType.Store;
+                    return NodeType.Treasure;
+                    
+                case FloorRegion.Mid: // Floors 21-60
+                    // Combat 60%, Event 18%, Rest 10%, Shop 7%, Elite chance increases
+                    if (randomValue < 0.60f) 
+                    {
+                        // Elite chance increases with floor
+                        float eliteChance = Mathf.Min(0.25f, 0.05f + 0.002f * absoluteFloor);
+                        return Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
+                    }
+                    if (randomValue < 0.78f) return NodeType.Mystery; // Event
+                    if (randomValue < 0.88f) return NodeType.RestSite;
+                    if (randomValue < 0.95f) return NodeType.Store;
+                    return NodeType.Treasure;
+                    
+                case FloorRegion.Late: // Floors 61-100
+                    // Combat 65%, Event 12%, Rest 8%, Shop 5%, Treasure 5%
+                    if (randomValue < 0.65f) 
+                    {
+                        // Elite chance increases with floor
+                        float eliteChance = Mathf.Min(0.25f, 0.05f + 0.002f * absoluteFloor);
+                        return Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
+                    }
+                    if (randomValue < 0.77f) return NodeType.Mystery; // Event
+                    if (randomValue < 0.85f) return NodeType.RestSite;
+                    if (randomValue < 0.90f) return NodeType.Store;
+                    return NodeType.Treasure;
+                    
+                default:
+                    return NodeType.MinorEnemy;
+            }
+        }
+        
+        // Get Boss Blueprint for specific floor from configuration
+        private static NodeBlueprint GetBossBlueprintForFloor(int floorNumber)
+        {
+            if (config == null) return null;
+            
+            // First check boss floor configs (specific floor configuration)
+            if (config.bossFloorConfigs != null)
+            {
+                var bossConfig = config.bossFloorConfigs.FirstOrDefault(bc => bc.floorNumber == floorNumber);
+                if (bossConfig != null && bossConfig.bossBlueprint != null)
+                {
+                    return bossConfig.bossBlueprint;
+                }
+            }
+            
+            // Then check zone configs (zone-based configuration)
+            if (config.zoneConfigs != null)
+            {
+                int zoneNumber = (floorNumber - 1) / 10 + 1; // Convert floor to zone (1-10 = Zone 1, 11-20 = Zone 2, etc.)
+                var zoneConfig = config.zoneConfigs.FirstOrDefault(zc => zc.zoneNumber == zoneNumber);
+                if (zoneConfig != null && zoneConfig.zoneBossBlueprint != null)
+                {
+                    return zoneConfig.zoneBossBlueprint;
+                }
+            }
+            
+            // If no specific config found, return null (will use random fallback)
+            return null;
+        }
+        
+        // Debug method to test node probabilities
+        public static void DebugNodeProbabilities(int testRuns = 1000)
+        {
+            Debug.Log("=== GDD Node Type Probabilities Test ===");
+            
+            for (int floor = 1; floor <= 100; floor += 10)
+            {
+                FloorRegion region;
+                if (floor <= 20) region = FloorRegion.Early;
+                else if (floor <= 60) region = FloorRegion.Mid;
+                else region = FloorRegion.Late;
+                
+                var nodeCounts = new Dictionary<NodeType, int>();
+                
+                // Simulate node generation for this floor
+                for (int i = 0; i < testRuns; i++)
+                {
+                    // Temporarily set layer index for testing
+                    var nodeType = GetNodeTypeByGDDProbabilities(floor - 1);
+                    if (!nodeCounts.ContainsKey(nodeType))
+                        nodeCounts[nodeType] = 0;
+                    nodeCounts[nodeType]++;
+                }
+                
+                Debug.Log($"Floor {floor} ({region}):");
+                foreach (var kvp in nodeCounts)
+                {
+                    float percentage = (float)kvp.Value / testRuns * 100f;
+                    Debug.Log($"  {kvp.Key}: {percentage:F1}%");
+                }
+            }
         }
     }
 }

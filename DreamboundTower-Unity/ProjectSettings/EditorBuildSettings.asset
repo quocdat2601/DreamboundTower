@@ -7,16 +7,46 @@ EditorBuildSettings:
   m_Scenes:
   - enabled: 1
     path: Assets/Scenes/MainMenu.unity
-    guid: 8f6d50167cd634c44af03156244b9bfd
+    guid: 05dc02660697356419e42254a9854325
   - enabled: 1
     path: Assets/Scenes/DialogueDemo.unity
     guid: e342402810dd6304f9c628b539fac558
   - enabled: 1
     path: Assets/Scenes/MainGame.unity
-    guid: 3538f2e0985a1ef4889b362ea1d18dae
+    guid: 89f3a31a99c48124eab91db33dd5dcf3
   - enabled: 1
     path: Assets/Scenes/MapScene/SampleScene.unity
     guid: 9af102d050d08964c9ffbad75186f978
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone1.unity
+    guid: 7812bac038f4ef94d933f39dbd22ce14
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone2.unity
+    guid: 4026585d1f5c1214394503a6b029237c
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone3.unity
+    guid: 807efa4bf0b34dd4b837e66de5ce2011
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone4.unity
+    guid: 9fd46a6f463051340a90a0c60901f8fb
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone5.unity
+    guid: a761f83d90abfc94b95c602eb899cb13
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone6.unity
+    guid: bb7566ae4afa4d94780987ad74384f87
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone7.unity
+    guid: e2692de1b5485df45be00e88df902d73
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone8.unity
+    guid: e23728df8aec0d44eb467b918083c7ad
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone9.unity
+    guid: 3809faec969d7b94ebda7feafb0b5a94
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone10.unity
+    guid: e1c9a3b10b2e92049ad7c80aa3b42149
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 668faf1ce7f83cf43a7f22d8ae6af9f4, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}

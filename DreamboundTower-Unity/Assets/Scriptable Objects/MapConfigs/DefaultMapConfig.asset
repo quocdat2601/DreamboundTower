@@ -101,3 +101,12 @@ MonoBehaviour:
     nodesApartDistance: 2
     randomizePosition: 0.194
     randomizeNodes: 0
+  bossFloorConfigs:
+  - floorNumber: 10
+    bossBlueprint: {fileID: 11400000, guid: 9686a87dacea8254c959c4f1aec9941f, type: 2}
+  - floorNumber: 20
+    bossBlueprint: {fileID: 11400000, guid: 3cd24b2e276b6dc48a3c3842ff38a96c, type: 2}
+  zoneConfigs:
+  - zoneNumber: 2
+    zoneBossBlueprint: {fileID: 11400000, guid: 3cd24b2e276b6dc48a3c3842ff38a96c, type: 2}
+    zoneName: Spider Zone

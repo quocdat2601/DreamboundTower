@@ -52,14 +52,25 @@ namespace Map
         {
             Locked = lockAfterSelecting;
             
+            // TEMPORARY: For testing map progression, treat all nodes the same
             // For non-combat nodes, mark as completed immediately
-            if (mapNode.Node.nodeType != NodeType.MinorEnemy)
-            {
+            // if (mapNode.Node.nodeType != NodeType.MinorEnemy)
+            // {
                 mapManager.CurrentMap.path.Add(mapNode.Node.point);
                 view.SetAttainableNodes();
                 view.SetLineColors();
                 mapNode.ShowSwirlAnimation();
-            }
+                
+                // Update floor display based on current position
+                view.UpdateFloorDisplay();
+                
+                // Check if this is a boss node - advance floor if so
+                if (mapNode.Node.nodeType == NodeType.Boss)
+                {
+                    Debug.Log($"Boss defeated! Advancing floor...");
+                    mapManager.AdvanceFloor();
+                }
+            // }
             
             // Always save map before leaving scene
             mapManager.SaveMap();
@@ -77,9 +88,11 @@ namespace Map
             switch (mapNode.Node.nodeType)
             {
                 case NodeType.MinorEnemy:
+                    // TEMPORARY: Comment out scene transition for testing
                     // Save where to return and which node is pending completion
-                    MapTravel.BeginNodeBattle(mapNode.Node.point, SceneManager.GetActiveScene().name, nameof(NodeType.MinorEnemy));
-                    SceneManager.LoadScene("MainGame", LoadSceneMode.Single);
+                    // MapTravel.BeginNodeBattle(mapNode.Node.point, SceneManager.GetActiveScene().name, nameof(NodeType.MinorEnemy));
+                    // SceneManager.LoadScene("MainGame", LoadSceneMode.Single);
+                    Debug.Log("MinorEnemy node completed (scene transition disabled for testing)");
                     break;
                 case NodeType.EliteEnemy:
                     //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
