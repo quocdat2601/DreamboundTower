@@ -60,6 +60,8 @@ namespace Map
                     CurrentMap = map;
                     // player has not reached the boss yet, load the current map
                     view.ShowMap(map);
+                    // sync floor state from last visited node if any
+                    SyncFloorWithCurrentPath();
                 }
             }
             else
@@ -120,6 +122,9 @@ namespace Map
             CurrentMap = map;
             Debug.Log($"Generated new map for Zone {currentZone} ({GetCurrentZoneName()})");
             view.ShowMap(map);
+            // new map starts at floor 1 for this zone
+            currentFloor = 1;
+            SaveMap();
         }
         
         public void GenerateNewMapForZone(int zoneNumber)
@@ -262,6 +267,8 @@ namespace Map
             }
             else
             {
+                // keep state in sync
+                SaveMap();
                 // Update floor display for current zone
                 if (view != null)
                 {
@@ -298,12 +305,14 @@ namespace Map
                     UnityEditor.SceneManagement.EditorSceneManager.OpenScene(scenePath);
                     #endif
                 }
+                return;
             }
             else
             {
                 Debug.LogWarning($"No scene found for Zone {currentZone}! Staying in current scene.");
                 // Generate new map for current zone if no scene transition
                 GenerateNewMap();
+                return;
             }
         }
         
@@ -344,6 +353,25 @@ namespace Map
             }
             
             return GetZoneName(currentZone);
+        }
+
+        // Keep currentFloor in sync with the last visited node in this zone
+        private void SyncFloorWithCurrentPath()
+        {
+            if (CurrentMap == null) return;
+            if (CurrentMap.path == null || CurrentMap.path.Count == 0)
+            {
+                currentFloor = 1;
+                return;
+            }
+
+            Vector2Int lastPoint = CurrentMap.path[CurrentMap.path.Count - 1];
+            // node.point.y starts at 0 for first layer, so +1 → floor-in-zone (1..10)
+            int floorInZone = lastPoint.y + 1;
+            // clamp to [1, totalFloorsPerZone]
+            floorInZone = Mathf.Clamp(floorInZone, 1, totalFloorsPerZone);
+            currentFloor = floorInZone;
+            SaveMap();
         }
         
         // Debug/Test Methods

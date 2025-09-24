@@ -74,15 +74,7 @@ Zone/Floor System cho phép tạo nhiều zone với boss khác nhau, mỗi zone
    - `extraPaths`: 0
 4. **Layers:** Setup 10 layers (1 layer = 1 floor)
 
-### 2. Setup Zone Configurations
-
-#### A. Auto Setup (Recommended)
-1. Select MapManager trong scene
-2. Right-click MapManager component
-3. Chọn **"Setup Default Zone Configs"**
-4. System sẽ tự động tạo configurations cho Zone 1-10
-
-#### B. Manual Setup
+### 2. Setup Zone Configurations (Manual)
 1. Select MapConfig asset
 2. Expand **"Zone Configuration"**
 3. Add elements:
@@ -91,16 +83,11 @@ Zone/Floor System cho phép tạo nhiều zone với boss khác nhau, mỗi zone
    - **Element 2:** Zone Number = 3, Boss Blueprint = Executioner Boss, Zone Name = "Cave Zone"
    - **...**
 
-### 3. Setup Boss Configurations (Optional)
-
-#### Specific Floor Boss Config
-1. Select MapConfig asset
-2. Expand **"Boss Blueprint Configuration"**
-3. Add elements:
-   - **Element 0:** Floor Number = 10, Boss Blueprint = Skeleton Boss
-   - **Element 1:** Floor Number = 20, Boss Blueprint = Spider Boss
-   - **Element 2:** Floor Number = 30, Boss Blueprint = Executioner Boss
-   - **...**
+### 3. (Optional) Boss per-floor override
+Chỉ dùng khi muốn OVERRIDE boss mặc định theo floor cụ thể:
+1. Select MapConfig asset → **Boss Blueprint Configuration**
+2. Add per-floor nếu cần (ví dụ Floor 30 dùng boss khác với Zone 3):
+   - Nếu để trống, hệ thống sẽ dùng Zone Config tương ứng.
 
 ### 4. Setup Scenes (Zone1…Zone10)
 
@@ -166,6 +153,28 @@ Zone/Floor System cho phép tạo nhiều zone với boss khác nhau, mỗi zone
 1. Mở `Zone1` → Generate map → chơi tới Boss (floor 10) → hệ thống sẽ tự chuyển `Zone2`.
 2. Trong `Zone2`, chơi tới Boss (floor 20) → hệ thống tự chuyển `Zone3`.
 3. Lặp lại cho tới `Zone10`.
+
+## 🔒 Zone/Map hoạt động độc lập (Isolation)
+
+Để mỗi zone có map và tiến trình độc lập, hệ thống sử dụng 3 nguyên tắc sau:
+
+1) Scene → Zone detection
+- Tên scene phải theo dạng `ZoneN` (Zone1, Zone2, … Zone10).
+- `MapManager` đọc tên scene để set `currentZone = N` và reset `currentFloor = 1` nếu cần.
+
+2) Zone-specific save keys (PlayerPrefs)
+- Map và tiến trình được lưu theo key riêng cho từng zone, vì vậy các zone không ảnh hưởng nhau:
+  - `Zone{N}_Map`        → JSON của map cho zone N
+  - `Zone{N}_Floor`      → floor hiện tại (1–10) trong zone N
+  - `Zone{N}_SteadfastHeart` → số lần hồi Steadfast còn lại trong zone N
+- Ví dụ zone 2 sẽ dùng `Zone2_Map`, `Zone2_Floor`, `Zone2_SteadfastHeart` (không đụng vào zone 1).
+
+3) Khởi tạo & đồng bộ floor theo path
+- Khi generate map mới ở một zone: `currentFloor = 1`.
+- Khi load map đã có path: hệ thống tự đồng bộ `currentFloor` = layer của node cuối cùng trong `path` (y + 1).
+- Khi chọn node mới: `currentFloor` được cập nhật theo node vừa chọn và lưu ngay.
+
+Kết quả: Mỗi scene `ZoneN` sẽ luôn tải đúng map & tiến trình của zone N, không chia sẻ hay ghi đè lẫn nhau.
 
 ## 📁 File Structure
 

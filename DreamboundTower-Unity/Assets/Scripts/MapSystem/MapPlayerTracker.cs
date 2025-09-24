@@ -57,6 +57,11 @@ namespace Map
             // if (mapNode.Node.nodeType != NodeType.MinorEnemy)
             // {
                 mapManager.CurrentMap.path.Add(mapNode.Node.point);
+                // sync currentFloor with selected node's layer (y + 1)
+                int floorInZone = mapNode.Node.point.y + 1;
+                floorInZone = Mathf.Clamp(floorInZone, 1, mapManager.totalFloorsPerZone);
+                mapManager.SetCurrentZoneFloor(mapManager.currentZone, floorInZone);
+                mapManager.SaveMap();
                 view.SetAttainableNodes();
                 view.SetLineColors();
                 mapNode.ShowSwirlAnimation();
@@ -64,17 +69,23 @@ namespace Map
                 // Update floor display based on current position
                 view.UpdateFloorDisplay();
                 
-                // Check if this is a boss node - advance floor if so
+                // Check if this is a boss node - advance floor after animation delay to avoid DOTween errors
                 if (mapNode.Node.nodeType == NodeType.Boss)
                 {
-                    Debug.Log($"Boss defeated! Advancing floor...");
-                    mapManager.AdvanceFloor();
+                    DOTween.Sequence()
+                        .AppendInterval(enterNodeDelay)
+                        .OnComplete(() =>
+                        {
+                            Debug.Log("Boss defeated! Advancing floor...");
+                            mapManager.AdvanceFloor();
+                        });
                 }
             // }
             
             // Always save map before leaving scene
             mapManager.SaveMap();
 
+            // Delay scene handling to allow swirl animation to finish
             DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
         }
 
