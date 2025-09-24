@@ -7,7 +7,7 @@ Zone/Floor System cho phép tạo nhiều zone với boss khác nhau, mỗi zone
 ## 🏗️ Cấu trúc Zone/Floor
 
 ### Zone Structure
-- **Zone 1:** Floors 1-10 (Scene: MapScene hoặc Zone1)
+- **Zone 1:** Floors 1-10 (Scene: Zone1)
 - **Zone 2:** Floors 11-20 (Scene: Zone2)
 - **Zone 3:** Floors 21-30 (Scene: Zone3)
 - **Zone 4:** Floors 31-40 (Scene: Zone4)
@@ -102,32 +102,57 @@ Zone/Floor System cho phép tạo nhiều zone với boss khác nhau, mỗi zone
    - **Element 2:** Floor Number = 30, Boss Blueprint = Executioner Boss
    - **...**
 
-### 4. Setup Scenes
+### 4. Setup Scenes (Zone1…Zone10)
 
 #### A. Create Zone Scenes
-1. Tạo scenes: `Zone1`, `Zone2`, `Zone3`, ..., `Zone10`
-2. Copy MapObjects từ MapScene vào mỗi scene
-3. Setup MapManager trong mỗi scene
+1. Tạo các scenes: `Zone1`, `Zone2`, `Zone3`, …, `Zone10` (mỗi scene đại diện cho 1 zone = 10 floors)
+2. Trong mỗi scene, tạo GameObject `MapRoot` (hoặc dùng prefab) chứa:
+   - `MapManager` (component)
+   - `MapView` (component) + tham chiếu `MapManager`
+   - `MapObjects` (node prefab, line prefab, background nếu có)
+3. Assign `MapManager.config` tới `MapConfig` dùng chung (cùng 10 layers cho 10 floors của 1 zone)
 
 #### B. Add to Build Settings
 1. File → Build Settings
-2. Add scenes vào build:
-   - `Scenes/MapScene/SampleScene` (Zone 1)
-   - `Scenes/MapScene/Zone1` (Zone 1 alternative)
-   - `Scenes/MapScene/Zone2` (Zone 2)
-   - `Scenes/MapScene/Zone3` (Zone 3)
-   - **...**
+2. Add scenes: `Scenes/MapScene/Zone1` … `Scenes/MapScene/Zone10`
+3. Đặt `Zone1` là scene đầu vào nếu muốn bắt đầu ở Zone 1
 
-### 5. Setup MapManager
+#### C. Scene → Zone Mapping (tự động)
+- Hệ thống sẽ tự detect zone từ tên scene: `Zone2` → zone = 2, `Zone7` → zone = 7
+- Khi load scene `ZoneN`, `MapManager` sẽ set `currentZone = N`, `currentFloor = 1`
+- Mỗi scene chỉ quản lý map của zone tương ứng (không chia sẻ map giữa các scene)
+
+### 4.1. Cách hoạt động chuyển scene (Zone Transition)
+
+- Khi đánh boss ở floor cuối (floor 10 của zone hiện tại), `MapManager.AdvanceFloor()` sẽ:
+  - Tăng `currentFloor`
+  - Nếu `currentFloor > 10`: tăng `currentZone`, reset `currentFloor = 1`
+  - Gọi `TransitionToNextZone()` để load scene tiếp theo: `Zone{currentZone}`
+- Tên scene được xác định bởi: `GetSceneNameForZone(int zone) => $"Zone{zone}"` (Zone1…Zone10)
+- Dữ liệu map được lưu theo zone key: `Zone{zone}_Map`, floor theo `Zone{zone}_Floor`
+
+### 4.2. Setup Map cho từng Scene (ví dụ Zone1, Zone2)
+
+- `Zone1` (Floors 1–10):
+  - Trong `MapConfig.layers`: giữ 10 layers (mỗi layer = 1 floor)
+  - Boss floor (layer 10) sẽ được gán Boss theo `ZoneConfig` hoặc `BossFloorConfig` (xem mục 2 và 3)
+  - Khi vào `Zone1`, hệ thống sẽ load `Zone1_Map` nếu có, hoặc generate mới
+
+- `Zone2` (Floors 11–20):
+  - Dùng cùng `MapConfig` (10 layers)
+  - Boss sẽ lấy từ `ZoneConfig` (Zone2) hoặc `BossFloorConfig` (Floor 20)
+  - Hệ thống lưu/đọc `Zone2_Map`, `Zone2_Floor`
+
+### 5. Setup MapManager & MapView
 
 #### A. MapManager Component
 1. **Config:** Assign MapConfig asset
 2. **View:** Assign MapView component
 3. **Zone/Floor System:**
-   - `currentZone`: 1 (sẽ auto-detect từ scene)
-   - `currentFloor`: 1
-   - `totalFloorsPerZone`: 10
-   - `totalNodesPerFloor`: 5
+   - Không cần set tay `currentZone`/`currentFloor` (sẽ auto-detect từ scene name `ZoneN`)
+   - `totalFloorsPerZone`: 10 (mặc định)
+   - `totalNodesPerFloor`: 5 (tuỳ chọn hiển thị)
+4. **Scene transition:** Không cần viết code thêm. Hệ thống tự gọi `TransitionToNextZone()` khi qua boss floor.
 
 #### B. MapView Component
 1. **Floor Display:**
@@ -136,20 +161,11 @@ Zone/Floor System cho phép tạo nhiều zone với boss khác nhau, mỗi zone
    - `floorDisplayFontSize`: 24
    - `floorDisplayColor`: White
 
-## 🧪 Testing & Debug
+## 🧪 Testing
 
-### Debug Commands
-1. Right-click MapManager component:
-   - **"Debug Zone/Floor Info"** - Xem thông tin zone/floor
-   - **"Test Zone Progression"** - Test advance qua zone
-   - **"Test Zone Transition"** - Test chuyển scene
-   - **"Generate Map for Zone X"** - Generate map cho zone cụ thể
-
-### Test Flow
-1. **Zone 1:** Click nodes → Floor 1 → Floor 2 → ... → Floor 10 (Boss)
-2. **Boss defeated:** Auto transition to Zone 2
-3. **Zone 2:** Load với Spider Boss, Floor 11-20
-4. **Continue:** Zone 2 → Zone 3 → ... → Zone 10
+1. Mở `Zone1` → Generate map → chơi tới Boss (floor 10) → hệ thống sẽ tự chuyển `Zone2`.
+2. Trong `Zone2`, chơi tới Boss (floor 20) → hệ thống tự chuyển `Zone3`.
+3. Lặp lại cho tới `Zone10`.
 
 ## 📁 File Structure
 
@@ -196,20 +212,10 @@ case FloorRegion.Early:
     // ...
 ```
 
-### Custom Scene Names
-Edit `GetSceneNameForZone()` method trong MapManager:
-```csharp
-private string GetSceneNameForZone(int zoneNumber)
-{
-    switch (zoneNumber)
-    {
-        case 1: return "MapScene";
-        case 2: return "Zone2";
-        case 3: return "Zone3";
-        // Add more...
-    }
-}
-```
+### Scene Naming
+Mỗi scene phải đặt tên chính xác `Zone1`, `Zone2`, …, `Zone10`. `MapManager` sẽ dùng tên này để:
+- Detect zone hiện tại (`ZoneN` → `currentZone = N`)
+- Tự chuyển scene khi hoàn thành zone (`LoadScene("Zone{next}")`)
 
 ## 🐛 Troubleshooting
 
@@ -243,18 +249,10 @@ private string GetSceneNameForZone(int zoneNumber)
 - Ensure `GetSceneNameForZone()` method đúng
 - Check `TransitionToNextZone()` logic
 
-### Debug Commands
-```csharp
-// In MapManager
-[ContextMenu("Debug Zone/Floor Info")]
-public void DebugZoneFloorInfo()
-
-[ContextMenu("Test Zone Transition")]
-public void TestZoneTransition()
-
-[ContextMenu("Setup Default Zone Configs")]
-public void SetupDefaultZoneConfigs()
-```
+### Debug Commands (tuỳ chọn dành cho dev)
+- Right-click `MapManager` trong Inspector:
+  - `Debug Zone/Floor Info`
+  - `Setup Default Zone Configs`
 
 ## 📝 Notes
 
