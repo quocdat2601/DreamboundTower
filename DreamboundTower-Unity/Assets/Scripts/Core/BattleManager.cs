@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Linq;
 using UnityEngine;
+using Presets;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using Map;
@@ -33,6 +34,20 @@ public class BattleManager : MonoBehaviour
 
     [Header("Combat")]
     public float attackDelay = 0.35f;
+    [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP.")]
+    public int hpUnit = 10;
+    [Header("Debug / Overrides")]
+    [Tooltip("If true, combat ignores map payload and uses the template below.")]
+    public bool overrideUseTemplate = false;
+    [Tooltip("Template to sample stats from.")]
+    public Presets.EnemyTemplateSO overrideTemplate;
+    [Tooltip("Floor used when sampling from template.")]
+    public int overrideFloor = 1;
+
+    [Tooltip("If true, use the custom stats and kind below (bypasses template and map payload).")]
+    public bool overrideUseCustomStats = false;
+    public Presets.EnemyKind overrideKind = Presets.EnemyKind.Normal;
+    public Presets.StatBlock overrideStats;
     
     [Header("UI References")]
     public Slider playerHealthBar;  // Drag the big health bar from PlayerStatusSection here
@@ -80,6 +95,27 @@ public class BattleManager : MonoBehaviour
         if (enemySlots == null) return;
         enemyInstances = new GameObject[enemySlots.Length];
 
+        // Load resolved combat config written by the Map scene
+        var cfg = Resources.Load<CombatConfigSO>("CombatConfig");
+        if (cfg == null)
+        {
+            // try PlayerPrefs fallback
+            int kind, hp, str, def, mana, intel, agi, absFloor; string arch;
+            if (Map.MapTravel.TryReadAndClearPendingEnemy(out kind, out hp, out str, out def, out mana, out intel, out agi, out absFloor, out arch))
+            {
+                cfg = ScriptableObject.CreateInstance<CombatConfigSO>();
+                cfg.enemyKind = (Presets.EnemyKind)kind;
+                cfg.enemyStats.HP = hp; cfg.enemyStats.STR = str; cfg.enemyStats.DEF = def;
+                cfg.enemyStats.MANA = mana; cfg.enemyStats.INT = intel; cfg.enemyStats.AGI = agi;
+                cfg.absoluteFloor = absFloor; cfg.enemyArchetypeId = arch;
+                Debug.Log($"[BATTLE] Loaded enemy from PlayerPrefs fallback: floor={absFloor}, kind={(Presets.EnemyKind)kind}, HP={hp} STR={str} DEF={def}");
+            }
+            else
+            {
+                Debug.LogWarning("[BATTLE] CombatConfig not found in Resources and no pending enemy in PlayerPrefs. Use inspector overrides if desired.");
+            }
+        }
+
         for (int i = 0; i < enemySlots.Length; i++)
         {
             if (enemyPrefab == null || enemySlots[i] == null) continue;
@@ -89,9 +125,59 @@ public class BattleManager : MonoBehaviour
             e.transform.localScale = Vector3.one;
             e.name = "Enemy_" + i;
             enemyInstances[i] = e;
+
+            // Decision order: custom stats → template → map payload
+            if (overrideUseCustomStats)
+            {
+                var fake = ScriptableObject.CreateInstance<CombatConfigSO>();
+                fake.enemyKind = overrideKind;
+                fake.enemyStats = overrideStats;
+                fake.absoluteFloor = Mathf.Max(1, overrideFloor);
+                fake.enemyArchetypeId = "OverrideCustom";
+                ApplyEnemyStatsFromConfig(e, fake);
+            }
+            else if (overrideUseTemplate && overrideTemplate != null)
+            {
+                var fake = ScriptableObject.CreateInstance<CombatConfigSO>();
+                fake.enemyKind = overrideTemplate.kind;
+                fake.absoluteFloor = Mathf.Max(1, overrideFloor);
+                fake.enemyArchetypeId = overrideTemplate.name;
+                fake.enemyStats = overrideTemplate.GetStatsAtFloor(fake.absoluteFloor);
+                ApplyEnemyStatsFromConfig(e, fake);
+            }
+            else if (cfg != null)
+            {
+                ApplyEnemyStatsFromConfig(e, cfg);
+            }
         }
     }
     #endregion
+
+    void ApplyEnemyStatsFromConfig(GameObject enemyGO, CombatConfigSO cfg)
+    {
+        if (enemyGO == null || cfg == null) return;
+        var ch = enemyGO.GetComponent<Character>();
+        if (ch == null)
+        {
+            Debug.LogWarning("[BATTLE] Enemy prefab missing Character component. Stats not applied.");
+            return;
+        }
+
+        // Map preset stats → Character fields (simple mapping: HP→maxHP, STR→attack, DEF→defense)
+        int scaledHP = Mathf.Max(1, cfg.enemyStats.HP * Mathf.Max(1, hpUnit));
+        ch.baseMaxHP = scaledHP;
+        ch.baseAttackPower = Mathf.Max(0, cfg.enemyStats.STR);
+        ch.baseDefense = Mathf.Max(0, cfg.enemyStats.DEF);
+
+        ch.ResetToBaseStats();
+        ch.currentHP = ch.maxHP;
+
+        // Full stat dump for verification
+        Debug.Log(
+            $"[BATTLE] Enemy init @ floor {cfg.absoluteFloor} | Kind={cfg.enemyKind} | Archetype={cfg.enemyArchetypeId}\n" +
+            $"RAW   HP={cfg.enemyStats.HP} STR={cfg.enemyStats.STR} DEF={cfg.enemyStats.DEF} MANA={cfg.enemyStats.MANA} INT={cfg.enemyStats.INT} AGI={cfg.enemyStats.AGI}\n" +
+            $"FINAL HP={ch.maxHP} (hpUnit={hpUnit}) ATK={ch.attackPower} DEF={ch.defense}");
+    }
 
     #region Selection UI
     // auto-add Button listeners for enemy slots so clicks call SelectEnemy(index)

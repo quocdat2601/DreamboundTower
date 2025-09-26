@@ -85,6 +85,9 @@ namespace Map
             // Always save map before leaving scene
             mapManager.SaveMap();
 
+            // Resolve enemy preset for next combat (normal/elite/boss)
+            TryWriteCombatPreset(mapNode);
+
             // Delay scene handling to allow swirl animation to finish
             DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
         }
@@ -101,9 +104,9 @@ namespace Map
                 case NodeType.MinorEnemy:
                     // TEMPORARY: Comment out scene transition for testing
                     // Save where to return and which node is pending completion
-                    // MapTravel.BeginNodeBattle(mapNode.Node.point, SceneManager.GetActiveScene().name, nameof(NodeType.MinorEnemy));
-                    // SceneManager.LoadScene("MainGame", LoadSceneMode.Single);
-                    Debug.Log("MinorEnemy node completed (scene transition disabled for testing)");
+                    MapTravel.BeginNodeBattle(mapNode.Node.point, SceneManager.GetActiveScene().name, nameof(NodeType.MinorEnemy));
+                    SceneManager.LoadScene("MainGame", LoadSceneMode.Single);
+                    //Debug.Log("MinorEnemy node completed (scene transition disabled for testing)");
                     break;
                 case NodeType.EliteEnemy:
                     //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
@@ -126,6 +129,46 @@ namespace Map
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private void TryWriteCombatPreset(MapNode mapNode)
+        {
+            if (mapNode == null || mapManager == null) return;
+            Presets.EnemyTemplateSO template = null;
+            switch (mapNode.Node.nodeType)
+            {
+                case NodeType.MinorEnemy:
+                    template = mapManager.normalTemplate; break;
+                case NodeType.EliteEnemy:
+                    template = mapManager.eliteTemplate; break;
+                case NodeType.Boss:
+                    template = mapManager.bossTemplate; break;
+                default:
+                    return;
+            }
+            if (template == null)
+            {
+                Debug.LogWarning("[MAP] Enemy template not assigned on MapManager for node type " + mapNode.Node.nodeType);
+                return;
+            }
+
+            int floorInZone = mapNode.Node.point.y + 1;
+            int absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + floorInZone;
+
+            var cfg = Resources.Load<Presets.CombatConfigSO>("CombatConfig");
+            if (cfg == null)
+            {
+                Debug.LogWarning("[MAP] Resources/CombatConfig.asset not found. Create one via Create → Presets → CombatConfig and place under Assets/Resources.");
+                return;
+            }
+            var stats = template.GetStatsAtFloor(absoluteFloor);
+            cfg.enemyKind = template.kind;
+            cfg.enemyStats = stats;
+            cfg.absoluteFloor = absoluteFloor;
+            cfg.enemyArchetypeId = template.name;
+            // Also mirror to PlayerPrefs to be scene-load safe
+            MapTravel.SetPendingEnemy((int)template.kind, stats.HP, stats.STR, stats.DEF, stats.MANA, stats.INT, stats.AGI, absoluteFloor, template.name);
+            Debug.Log($"[MAP] Wrote CombatConfig: floor={absoluteFloor}, kind={cfg.enemyKind}, archetype={cfg.enemyArchetypeId}, HP={stats.HP} STR={stats.STR} DEF={stats.DEF}");
         }
 
         private void PlayWarningThatNodeCannotBeAccessed()

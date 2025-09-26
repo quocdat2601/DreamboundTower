@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d384fef01dce3d47a4f4e5b5f3a29da, type: 3}
+  m_Name: Mage Config
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.ClassPresetSO
+  id: class_mage
+  displayName: Mage
+  passiveName: Arcane Overflow
+  passiveDescription: +10% max Mana, +5% magic power.
+  activeNames:
+  - Arcane Burst
+  activeCooldowns: 04000000
+  activeManaCosts: 0c000000
+  activeDescriptions:
+  - AoE INT-based attack (SkillBase=24). Applies Burn = 6% of damage per turn for
+    2 turns.

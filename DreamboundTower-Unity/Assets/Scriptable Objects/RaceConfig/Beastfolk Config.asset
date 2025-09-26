@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a47fec276ce0244c9a4217e4b8e10bc, type: 3}
+  m_Name: Beastfolk Config
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.RacePresetSO
+  id: race_beastfolk
+  displayName: Beastfolk
+  baseStats:
+    HP: 10
+    STR: 11
+    DEF: 9
+    MANA: 7
+    INT: 9
+    AGI: 14
+  passiveName: Feral Reflexes
+  passiveDescription: +8% dodge bonus (stacks with AGI scaling).
+  activeName: Pounce
+  activeCooldown: 3
+  activeManaCost: 4
+  activeDescription: Next attack deals +40% damage and strikes first.
