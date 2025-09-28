@@ -28,3 +28,7 @@ MonoBehaviour:
   activeManaCost: 8
   activeDescription: Shield equal to 15% MaxHP for 2 turns; reflect 20% physical
     damage.
+  clericSprite: {fileID: -2572804619931805125, guid: a1d062b98ca42df4488f49ab0f49d3e9, type: 3}
+  mageSprite: {fileID: 5839915548940572796, guid: c5d3abcfe5d25564884e7c91f24d069b, type: 3}
+  rogueSprite: {fileID: -9050718878485639971, guid: 7dc7674b16569444db72cb8105ca03bf, type: 3}
+  warriorSprite: {fileID: 8702521736016951390, guid: 9d19d41ca0df61948bc18f3856609eeb, type: 3}

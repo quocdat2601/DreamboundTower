@@ -27,3 +27,7 @@ MonoBehaviour:
   activeCooldown: 6
   activeManaCost: 0
   activeDescription: Restore 25% MaxHP; immune to stun for 1 turn.
+  clericSprite: {fileID: -6240872867883727191, guid: 670c2e2d87ca8574fa5b7456cae38778, type: 3}
+  mageSprite: {fileID: 7099623788919544657, guid: acf19284dde75544fbab2cb57770b363, type: 3}
+  rogueSprite: {fileID: 3367775319995336745, guid: 619c3e50fb74b7b44b24367b5f7c7a17, type: 3}
+  warriorSprite: {fileID: -2197138532104619536, guid: af8003e728ed3c447815a331e1e69843, type: 3}

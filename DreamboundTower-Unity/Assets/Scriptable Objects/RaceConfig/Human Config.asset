@@ -27,3 +27,7 @@ MonoBehaviour:
   activeCooldown: 5
   activeManaCost: 0
   activeDescription: Recover 10% MaxHP and gain +10% damage for 2 turns.
+  clericSprite: {fileID: 1350988106599333187, guid: 12f24eb159258394e84e18c933573d65, type: 3}
+  mageSprite: {fileID: 3981692578837126391, guid: d3f985af3ea1c9e4ba3f97aa3745c343, type: 3}
+  rogueSprite: {fileID: 8523479326416698493, guid: 0be371a77ca2e1549bdd7ba30c8965cf, type: 3}
+  warriorSprite: {fileID: -1755407613584059112, guid: 380e73a2389f95d4d8875bcdc10b15d0, type: 3}

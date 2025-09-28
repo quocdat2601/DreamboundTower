@@ -19,6 +19,9 @@ MonoBehaviour:
   activeNames:
   - Sanctified Strike
   - Sanctuary Ward
+  activeSkillIcons:
+  - {fileID: 0}
+  - {fileID: 5527117462476026276, guid: 3fcb4158b82d07443b4cad9d990c9009, type: 3}
   activeCooldowns: 0300000005000000
   activeManaCosts: 080000000a000000
   activeDescriptions:

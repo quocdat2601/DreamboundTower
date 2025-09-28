@@ -18,6 +18,8 @@ MonoBehaviour:
   passiveDescription: +10% max Mana, +5% magic power.
   activeNames:
   - Arcane Burst
+  activeSkillIcons:
+  - {fileID: 5883999996907969394, guid: f723258e37345664581eb52e197a918e, type: 3}
   activeCooldowns: 04000000
   activeManaCosts: 0c000000
   activeDescriptions:

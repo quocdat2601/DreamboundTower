@@ -18,6 +18,8 @@ MonoBehaviour:
   passiveDescription: +6% dodge, +5% damage vs targets with DEF < 5.
   activeNames:
   - Flurry Strike
+  activeSkillIcons:
+  - {fileID: -8582376783789590509, guid: cce400af541e5224595678e850f9d8dc, type: 3}
   activeCooldowns: 03000000
   activeManaCosts: 00000000
   activeDescriptions:

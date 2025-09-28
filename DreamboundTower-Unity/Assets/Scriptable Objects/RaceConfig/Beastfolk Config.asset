@@ -27,3 +27,7 @@ MonoBehaviour:
   activeCooldown: 3
   activeManaCost: 4
   activeDescription: Next attack deals +40% damage and strikes first.
+  clericSprite: {fileID: 5998064244621191556, guid: 36990586d93793c4c9a3df97ebc2e483, type: 3}
+  mageSprite: {fileID: -537780385801117772, guid: 8791951c9ae8c384ebb8a0b29f2d8092, type: 3}
+  rogueSprite: {fileID: 6727547095001092757, guid: 9b4012e09620f7e4594e3833216d7823, type: 3}
+  warriorSprite: {fileID: -7198698914046026805, guid: 115a51696ce1e3446bb654c4699f2c2b, type: 3}

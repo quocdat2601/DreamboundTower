@@ -27,3 +27,7 @@ MonoBehaviour:
   activeCooldown: 4
   activeManaCost: 6
   activeDescription: Heavy STR-based physical attack (SkillBase=45). Recoil 5% MaxHP.
+  clericSprite: {fileID: 2853569469468017370, guid: c5092cb73eb0f5040bd2269dba271864, type: 3}
+  mageSprite: {fileID: 2620067799875098489, guid: 0436633aabf57dd43b15e3c460d1368b, type: 3}
+  rogueSprite: {fileID: -4569850758236665517, guid: 980a3f9dd72f4614b834f2ce9e92d97f, type: 3}
+  warriorSprite: {fileID: 4598574739232409015, guid: 5198c7ae512f62643907cdd6d4c0d5c8, type: 3}
