@@ -15,6 +15,8 @@ MonoBehaviour:
   id: celestial_radiant_shield
   displayName: Radiant Shield
   icon: {fileID: 7104247893010565702, guid: 13d61c823632aae4fb2a2aa5f3876252, type: 3}
+  descriptionTemplate: Apply a shield that absorbs {shield_amount} damage (15% MaxHP)
+    for 2 turns. The shield reflects 20% of physical damage back to the attacker.
   resource: 1
   cost: 8
   baseDamage: 0
@@ -22,10 +24,3 @@ MonoBehaviour:
   scalingPercent: 0
   cooldown: 5
   target: 2
-  isAoE: 0
-  applyStatusIds:
-  - buff_shield_15_2t
-  - buff_reflect_20_2t
-  procChance: 1
-  description: Apply a shield equal to 15% of your MaxHP for 2 turns. The shield
-    reflects 20% of physical damage back to the attacker.

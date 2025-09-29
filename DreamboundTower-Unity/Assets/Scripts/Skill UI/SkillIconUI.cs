@@ -1,70 +1,52 @@
-﻿using UnityEngine;
+﻿// File: SkillIconUI.cs
+using UnityEngine;
 using UnityEngine.UI;
 
 public class SkillIconUI : MonoBehaviour
 {
     public Button iconButton;
     public Image iconImage;
+    public GameObject highlightBorder; // Thêm tham chiếu đến viền vàng
 
-    // Thay vì lưu một loại cụ thể, chúng ta lưu các thông tin chung
-    private string skillName;
-    private string skillDescription;
-    private int skillManaCost;
-    private int skillCooldown;
-    private bool isPassive;
-
+    private BaseSkillSO currentSkillSO;
     private CharacterSelectionManager selectionManager;
 
-    // Hàm Setup cho Active Skill (SkillData)
-    public void Setup(SkillData dataSO, CharacterSelectionManager manager)
+    public void Setup(BaseSkillSO dataSO, CharacterSelectionManager manager)
     {
-        this.selectionManager = manager;
+        currentSkillSO = dataSO;
+        selectionManager = manager;
 
-        // Lưu trữ thông tin từ SO
-        this.skillName = dataSO.displayName;
-        this.skillDescription = dataSO.description;
-        this.skillManaCost = dataSO.cost;
-        this.skillCooldown = dataSO.cooldown;
-        this.isPassive = false; // Đánh dấu đây là Active skill
-
-        if (dataSO.icon != null)
+        if (dataSO != null && dataSO.icon != null)
         {
             iconImage.sprite = dataSO.icon;
         }
 
         iconButton.onClick.RemoveAllListeners();
         iconButton.onClick.AddListener(OnClick);
-    }
 
-    // Hàm Setup cho Passive Skill (PassiveSkillData)
-    public void Setup(PassiveSkillData dataSO, CharacterSelectionManager manager)
-    {
-        this.selectionManager = manager;
-
-        // Lưu trữ thông tin từ SO
-        this.skillName = dataSO.displayName;
-        this.skillDescription = dataSO.description;
-        this.isPassive = true; // Đánh dấu đây là Passive skill
-
-        // Các giá trị không áp dụng cho Passive
-        this.skillManaCost = 0;
-        this.skillCooldown = 0;
-
-        if (dataSO.icon != null)
-        {
-            iconImage.sprite = dataSO.icon;
-        }
-
-        iconButton.onClick.RemoveAllListeners();
-        iconButton.onClick.AddListener(OnClick);
+        SetSelected(false); // Mặc định tắt highlight
     }
 
     private void OnClick()
     {
-        if (selectionManager != null)
+        if (selectionManager != null && currentSkillSO != null)
         {
-            // Gửi lại toàn bộ thông tin đã lưu cho Manager
-            selectionManager.DisplaySkillDetails(skillName, skillDescription, skillManaCost, skillCooldown, isPassive);
+            selectionManager.DisplaySkillDetails(currentSkillSO);
         }
+    }
+
+    // Hàm để bật/tắt viền vàng
+    public void SetSelected(bool isSelected)
+    {
+        if (highlightBorder != null)
+        {
+            highlightBorder.SetActive(isSelected);
+        }
+    }
+
+    // Hàm để manager có thể lấy tên skill để so sánh
+    public string GetSkillName()
+    {
+        return currentSkillSO != null ? currentSkillSO.displayName : "";
     }
 }

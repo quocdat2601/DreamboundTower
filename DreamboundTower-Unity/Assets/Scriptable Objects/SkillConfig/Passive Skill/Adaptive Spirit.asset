@@ -15,5 +15,6 @@ MonoBehaviour:
   id: human_passive_adaptive_spirit
   displayName: Adaptive Spirit
   icon: {fileID: -8438415007518732391, guid: 83d7d0ea26e199245a8922b520c0d10d, type: 3}
-  description: Start with 2 extra attribute points to assign.
-  modifiers: []
+  descriptionTemplate: Start with 2 extra attribute points to assign.
+  modifiers:
+  - {fileID: 0}

@@ -7,6 +7,7 @@ using System.Linq;
 
 public class CharacterSelectionManager : MonoBehaviour
 {
+    // ... (toàn bộ các biến tham chiếu giữ nguyên) ...
     [Header("UI Panels")]
     public GameObject raceSelectionPanel;
     public GameObject classSelectionPanel;
@@ -14,6 +15,8 @@ public class CharacterSelectionManager : MonoBehaviour
 
     [Header("UI Buttons")]
     public Button nextButton;
+    public List<Button> raceButtons;
+    public List<Button> classButtons;
 
     [Header("Stats Display")]
     public TextMeshProUGUI hpValueText;
@@ -28,15 +31,9 @@ public class CharacterSelectionManager : MonoBehaviour
     public Transform skillIconContainer;
     public TextMeshProUGUI skillNameText;
     public TextMeshProUGUI skillDescriptionText;
-
-    [Tooltip("Kéo GameObject cha 'ManaCostBar' vào đây")]
     public GameObject manaCostBarObject;
-    [Tooltip("Kéo GameObject cha 'CooldownBar' vào đây")]
     public GameObject cooldownBarObject;
-
-    [Tooltip("Kéo TextMeshPro 'ManaCostValue' vào đây")]
     public TextMeshProUGUI manaCostValueText;
-    [Tooltip("Kéo TextMeshPro 'CD_Value' vào đây")]
     public TextMeshProUGUI cooldownValueText;
 
     [Header("Character Display")]
@@ -44,6 +41,7 @@ public class CharacterSelectionManager : MonoBehaviour
 
     private RacePresetSO selectedRace;
     private ClassPresetSO selectedClass;
+    private List<SkillIconUI> spawnedSkillIcons = new List<SkillIconUI>();
 
     void Start()
     {
@@ -52,7 +50,6 @@ public class CharacterSelectionManager : MonoBehaviour
         nextButton.interactable = false;
     }
 
-    // ... (Các hàm SelectRace, SelectClass, UpdateCharacterInfoDisplay, UpdateStatsDisplay, UpdateCharacterSprite giữ nguyên) ...
     public void SelectRace(RacePresetSO race)
     {
         selectedRace = race;
@@ -60,6 +57,13 @@ public class CharacterSelectionManager : MonoBehaviour
         characterInfoPanel.SetActive(false);
         nextButton.interactable = false;
         classSelectionPanel.SetActive(true);
+
+        // Cập nhật highlight cho các nút Race
+        UpdateSelectionHighlight(raceButtons, selectedRace.displayName);
+
+        // --- DÒNG SỬA LỖI ---
+        // Tắt tất cả highlight của các nút Class
+        UpdateSelectionHighlight(classButtons, "");
     }
 
     public void SelectClass(ClassPresetSO charClass)
@@ -68,8 +72,11 @@ public class CharacterSelectionManager : MonoBehaviour
         characterInfoPanel.SetActive(true);
         UpdateCharacterInfoDisplay();
         CheckIfReadyToProceed();
+
+        UpdateSelectionHighlight(classButtons, selectedClass.displayName);
     }
 
+    // ... (Các hàm còn lại không thay đổi) ...
     void UpdateCharacterInfoDisplay()
     {
         if (selectedRace == null || selectedClass == null) return;
@@ -77,7 +84,6 @@ public class CharacterSelectionManager : MonoBehaviour
         UpdateCharacterSprite();
         UpdateSkillDisplay();
     }
-
     void UpdateStatsDisplay()
     {
         StatBlock stats = selectedRace.baseStats;
@@ -88,7 +94,6 @@ public class CharacterSelectionManager : MonoBehaviour
         intValueText.text = stats.INT.ToString();
         agiValueText.text = stats.AGI.ToString();
     }
-
     void UpdateCharacterSprite()
     {
         Sprite spriteToShow = null;
@@ -101,81 +106,89 @@ public class CharacterSelectionManager : MonoBehaviour
         }
         characterSpriteHolder.sprite = spriteToShow;
     }
-
     void UpdateSkillDisplay()
     {
         foreach (Transform child in skillIconContainer)
         {
             Destroy(child.gameObject);
         }
+        spawnedSkillIcons.Clear();
 
-        List<object> allSkills = new List<object>();
+        List<BaseSkillSO> allSkills = new List<BaseSkillSO>();
         if (selectedRace.passiveSkill) allSkills.Add(selectedRace.passiveSkill);
         if (selectedClass.passiveSkill) allSkills.Add(selectedClass.passiveSkill);
         if (selectedRace.activeSkill) allSkills.Add(selectedRace.activeSkill);
-        if (selectedClass.activeSkills != null)
-        {
-            foreach (var skill in selectedClass.activeSkills)
-            {
-                if (skill) allSkills.Add(skill);
-            }
-        }
+        if (selectedClass.activeSkills != null) allSkills.AddRange(selectedClass.activeSkills.Where(s => s != null));
 
         var sortedSkills = allSkills.OrderByDescending(skill => skill is PassiveSkillData);
 
-        foreach (var skill in sortedSkills)
+        foreach (var skillSO in sortedSkills)
         {
-            if (skill is PassiveSkillData passive) CreateSkillIcon(passive);
-            else if (skill is SkillData active) CreateSkillIcon(active);
+            CreateSkillIcon(skillSO);
         }
 
         if (sortedSkills.Any())
         {
-            var firstSkill = sortedSkills.First();
-            if (firstSkill is PassiveSkillData passive)
-            {
-                DisplaySkillDetails(passive.displayName, passive.description, 0, 0, true);
-            }
-            else if (firstSkill is SkillData active)
-            {
-                DisplaySkillDetails(active.displayName, active.description, active.cost, active.cooldown, false);
-            }
+            DisplaySkillDetails(sortedSkills.First());
         }
-    }
-
-    private void CreateSkillIcon(SkillData skillSO)
-    {
-        if (skillSO == null) return;
-        GameObject skillIconGO = Instantiate(skillIconPrefab, skillIconContainer);
-        skillIconGO.GetComponent<SkillIconUI>().Setup(skillSO, this);
-    }
-
-    private void CreateSkillIcon(PassiveSkillData skillSO)
-    {
-        if (skillSO == null) return;
-        GameObject skillIconGO = Instantiate(skillIconPrefab, skillIconContainer);
-        skillIconGO.GetComponent<SkillIconUI>().Setup(skillSO, this);
-    }
-
-    public void DisplaySkillDetails(string name, string description, int manaCost, int cooldown, bool isPassive)
-    {
-        skillNameText.text = name;
-
-        string prefix = isPassive ? "PASSIVE:" : "ACTIVE:";
-        skillDescriptionText.text = $"<b>{prefix}</b> {description}";
-
-        // Sử dụng các tham chiếu GameObject cha để ẩn/hiện
-        manaCostBarObject.SetActive(!isPassive);
-        cooldownBarObject.SetActive(!isPassive);
-
-        if (!isPassive)
+        else
         {
-            // Sử dụng các tham chiếu Text con để set giá trị
-            manaCostValueText.text = manaCost.ToString();
-            cooldownValueText.text = cooldown.ToString();
+            // Nếu không có skill nào, xóa trắng thông tin
+            skillNameText.text = "";
+            skillDescriptionText.text = "";
+            manaCostBarObject.SetActive(false);
+            cooldownBarObject.SetActive(false);
         }
     }
+    private void CreateSkillIcon(BaseSkillSO skillSO)
+    {
+        GameObject skillIconGO = Instantiate(skillIconPrefab, skillIconContainer);
+        SkillIconUI skillUI = skillIconGO.GetComponent<SkillIconUI>();
+        skillUI.Setup(skillSO, this);
+        spawnedSkillIcons.Add(skillUI);
+    }
+    public void DisplaySkillDetails(BaseSkillSO dataSO)
+    {
+        if (dataSO == null) return;
 
+        skillNameText.text = dataSO.displayName;
+
+        foreach (var iconUI in spawnedSkillIcons)
+        {
+            bool isSelected = iconUI.GetSkillName() == dataSO.displayName;
+            iconUI.SetSelected(isSelected);
+        }
+
+        if (dataSO is SkillData activeSkill)
+        {
+            string dynamicDescription = TooltipFormatter.GenerateDescription(activeSkill, selectedRace.baseStats);
+            skillDescriptionText.text = $"<b>ACTIVE:</b> {dynamicDescription}";
+            manaCostBarObject.SetActive(true);
+            cooldownBarObject.SetActive(true);
+            manaCostValueText.text = activeSkill.cost.ToString();
+            cooldownValueText.text = activeSkill.cooldown.ToString();
+        }
+        else if (dataSO is PassiveSkillData passiveSkill)
+        {
+            skillDescriptionText.text = $"<b>PASSIVE:</b> {passiveSkill.descriptionTemplate}";
+            manaCostBarObject.SetActive(false);
+            cooldownBarObject.SetActive(false);
+        }
+    }
+    private void UpdateSelectionHighlight(List<Button> buttons, string selectedDisplayName)
+    {
+        foreach (var button in buttons)
+        {
+            var buttonText = button.GetComponentInChildren<TextMeshProUGUI>();
+            var highlight = button.transform.Find("HighlightBorder");
+
+            if (buttonText != null && highlight != null)
+            {
+                bool isSelected = buttonText.text.Equals(selectedDisplayName, System.StringComparison.OrdinalIgnoreCase);
+                highlight.gameObject.SetActive(isSelected);
+            }
+        }
+    }
     void CheckIfReadyToProceed()
     {
         if (selectedRace != null && selectedClass != null)
@@ -183,7 +196,6 @@ public class CharacterSelectionManager : MonoBehaviour
             nextButton.interactable = true;
         }
     }
-
     public void ConfirmSelection()
     {
         Debug.Log($"Confirmed! Race: {selectedRace.displayName}, Class: {selectedClass.displayName}.");

@@ -15,6 +15,8 @@ MonoBehaviour:
   id: undead_bone_resurge
   displayName: Bone Resurge
   icon: {fileID: 2511625997598199734, guid: 5bd81aaa0144f674d9f6202a5e8c7258, type: 3}
+  descriptionTemplate: Immediately restore {heal_amount} HP (25% MaxHP) and gain
+    immunity to stun for 1 turn.
   resource: 0
   cost: 0
   baseDamage: 0
@@ -22,9 +24,3 @@ MonoBehaviour:
   scalingPercent: 0
   cooldown: 6
   target: 2
-  isAoE: 0
-  applyStatusIds:
-  - buff_stun_immunity_1t
-  procChance: 1
-  description: Immediately restore 25% of your MaxHP and gain immunity to stun for
-    1 turn.

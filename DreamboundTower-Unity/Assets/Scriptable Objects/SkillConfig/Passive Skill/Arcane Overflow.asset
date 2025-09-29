@@ -15,5 +15,7 @@ MonoBehaviour:
   id: mage_passive_arcane_overflow
   displayName: Arcane Overflow
   icon: {fileID: -4523893915137669948, guid: 4fbe953eeae2ce34d8c70d36680fbe38, type: 3}
-  description: Increases maximum Mana by 10% and spell power by 5%.
-  modifiers: []
+  descriptionTemplate: Increases maximum Mana by 10% and spell power by 5%.
+  modifiers:
+  - {fileID: 11400000, guid: a6039e5ce34d0d54a80f41bc20c7c71d, type: 2}
+  - {fileID: 11400000, guid: bf44bff593784814f8a0bc03e803411a, type: 2}

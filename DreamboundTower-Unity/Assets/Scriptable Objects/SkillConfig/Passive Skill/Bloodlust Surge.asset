@@ -15,7 +15,6 @@ MonoBehaviour:
   id: demon_passive_bloodlust_surge
   displayName: Bloodlust Surge
   icon: {fileID: -1378841791308571016, guid: 50f7a8eff3c03364f871efc5ef28f7eb, type: 3}
-  description: 'Gain +5% physical damage when below 50% HP.
-
-'
-  modifiers: []
+  descriptionTemplate: Gain +5% physical damage when below 50% HP.
+  modifiers:
+  - {fileID: 11400000, guid: 716be726316368247ad396e925445676, type: 2}

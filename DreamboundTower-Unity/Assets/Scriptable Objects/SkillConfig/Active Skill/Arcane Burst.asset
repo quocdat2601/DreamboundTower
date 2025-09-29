@@ -15,6 +15,8 @@ MonoBehaviour:
   id: mage_arcane_burst
   displayName: Arcane Burst
   icon: {fileID: 5883999996907969394, guid: f723258e37345664581eb52e197a918e, type: 3}
+  descriptionTemplate: Deals {damage} magic damage to all enemies and applies Burn
+    for 2 turns.
   resource: 1
   cost: 12
   baseDamage: 24
@@ -22,8 +24,3 @@ MonoBehaviour:
   scalingPercent: 1
   cooldown: 4
   target: 1
-  isAoE: 1
-  applyStatusIds:
-  - debuff_burn_2t
-  procChance: 1
-  description: Deals magic damage to all enemies and applies Burn for 2 turns.

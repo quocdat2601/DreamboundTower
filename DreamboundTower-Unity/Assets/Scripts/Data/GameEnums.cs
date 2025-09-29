@@ -6,22 +6,13 @@ namespace Assets.Scripts.Data
 {
     public enum StatType
     {
-        // Chỉ số gốc
-        HP,
-        STR,
-        DEF,
-        MANA,
-        INT,
-        AGI,
-
-        // Chỉ số phụ (dành cho hiệu ứng)
+        STR, INT, DEF, HP, MANA, AGI, None,
+        ManaRegenPercent,      // % hồi năng lượng
         PhysicalDamagePercent, // % sát thương vật lý
         MagicDamagePercent,    // % sát thương phép
         LifestealPercent,      // % hút máu
         DodgeChance,           // % né tránh
-        DamageReduction,       // % giảm sát thương
-
-        None
+        DamageReduction        // % giảm sát thương
     }
 
     // Enum này định nghĩa cách hiệu ứng được áp dụng: cộng vào hay nhân lên.

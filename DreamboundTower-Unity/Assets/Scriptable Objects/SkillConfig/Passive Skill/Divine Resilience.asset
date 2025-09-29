@@ -15,8 +15,8 @@ MonoBehaviour:
   id: cleric_passive_divine_resilience
   displayName: Divine Resilience
   icon: {fileID: 22016665180567176, guid: 6182eb89ef92c2341b23544ce98bd738, type: 3}
-  description: 'When HP is at or below 35%, gain +12% damage reduction and +6% lifesteal.
-
-
-'
-  modifiers: []
+  descriptionTemplate: When HP is at or below 35%, gain +12% damage reduction and
+    +6% lifesteal.
+  modifiers:
+  - {fileID: 11400000, guid: 63327a2f923bccc4fbf6e6f8270a12e2, type: 2}
+  - {fileID: 11400000, guid: 304d3b420cab70e4c8969c6e0160e1ee, type: 2}

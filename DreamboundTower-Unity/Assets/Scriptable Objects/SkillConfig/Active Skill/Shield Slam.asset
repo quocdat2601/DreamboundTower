@@ -15,6 +15,8 @@ MonoBehaviour:
   id: warrior_shield_slam
   displayName: Shield Slam
   icon: {fileID: 8596996755651271570, guid: 76b0e16fd2b75d644b2b19f3b68609dc, type: 3}
+  descriptionTemplate: Deals {damage} physical damage. Has a 30% chance to Stun the
+    target for 1 turn. Deals +25% damage to already stunned targets.
   resource: 1
   cost: 8
   baseDamage: 30
@@ -22,9 +24,3 @@ MonoBehaviour:
   scalingPercent: 1
   cooldown: 3
   target: 0
-  isAoE: 0
-  applyStatusIds:
-  - debuff_stun_1t
-  procChance: 0.3
-  description: Deals physical damage. Has a 30% chance to Stun the target for 1 turn.
-    Deals +25% damage to already stunned targets.

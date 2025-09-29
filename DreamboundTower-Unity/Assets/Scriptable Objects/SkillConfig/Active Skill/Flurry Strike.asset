@@ -15,6 +15,8 @@ MonoBehaviour:
   id: rogue_flurry_strike
   displayName: Flurry Strike
   icon: {fileID: -8582376783789590509, guid: cce400af541e5224595678e850f9d8dc, type: 3}
+  descriptionTemplate: Execute 3 quick attacks, each dealing {damage} damage. Each
+    hit that lands heals you for 25% of the damage dealt.
   resource: 0
   cost: 0
   baseDamage: 12
@@ -22,9 +24,3 @@ MonoBehaviour:
   scalingPercent: 1
   cooldown: 3
   target: 2
-  isAoE: 0
-  applyStatusIds:
-  - 
-  procChance: 1
-  description: Execute 3 quick attacks. Each hit heals you for 25% of the damage
-    dealt.

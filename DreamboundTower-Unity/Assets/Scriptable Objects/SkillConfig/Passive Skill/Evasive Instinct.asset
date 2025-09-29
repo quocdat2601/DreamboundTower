@@ -15,8 +15,7 @@ MonoBehaviour:
   id: rogue_passive_evasive_instinct
   displayName: Evasive Instinct
   icon: {fileID: -1578355331318229976, guid: 29616675e0b6529448dd4fe08f4139fb, type: 3}
-  description: 'Gain an additional +6% dodge chance. Deal +5% damage to enemies with
-    low DEF.
-
-'
-  modifiers: []
+  descriptionTemplate: Gain an additional +6% dodge chance. Deal +5% damage to enemies
+    with low DEF.
+  modifiers:
+  - {fileID: 11400000, guid: 304d3b420cab70e4c8969c6e0160e1ee, type: 2}

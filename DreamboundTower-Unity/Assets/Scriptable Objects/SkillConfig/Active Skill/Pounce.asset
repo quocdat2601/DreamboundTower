@@ -15,6 +15,8 @@ MonoBehaviour:
   id: beastfolk_pounce
   displayName: Pounce
   icon: {fileID: -6857212927279405191, guid: 46eaf8290aa72284ebc1d1b33072a2d9, type: 3}
+  descriptionTemplate: Your next attack this turn will deal +40% damage and is guaranteed
+    to strike first.
   resource: 1
   cost: 4
   baseDamage: 0
@@ -22,10 +24,3 @@ MonoBehaviour:
   scalingPercent: 0
   cooldown: 3
   target: 2
-  isAoE: 0
-  applyStatusIds:
-  - buff_next_attack_40
-  - buff_initiative_guaranteed
-  procChance: 1
-  description: Your next attack this turn will deal +40% damage and is guaranteed
-    to strike first.

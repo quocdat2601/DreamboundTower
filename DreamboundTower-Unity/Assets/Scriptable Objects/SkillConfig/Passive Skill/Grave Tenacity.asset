@@ -15,5 +15,6 @@ MonoBehaviour:
   id: undead_passive_grave_tenacity
   displayName: Grave Tenacity
   icon: {fileID: 638812846081454693, guid: c7382b1f5a81f6f4f85bd8f356e822c8, type: 3}
-  description: 5% of all damage dealt is returned as HP (Lifesteal).
-  modifiers: []
+  descriptionTemplate: 5% of all damage dealt is returned as HP (Lifesteal).
+  modifiers:
+  - {fileID: 11400000, guid: 2c4668713732e44438bb16f43e716f34, type: 2}

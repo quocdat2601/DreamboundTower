@@ -15,5 +15,7 @@ MonoBehaviour:
   id: warrior_passive_iron_will
   displayName: Iron Will
   icon: {fileID: 5281271348720822717, guid: 5ee8dbb0c4737084eba504259c4fcc7d, type: 3}
-  description: Reduces incoming physical damage from non-boss enemies by 10%.
-  modifiers: []
+  descriptionTemplate: Reduces incoming physical damage from non-boss enemies by
+    10%.
+  modifiers:
+  - {fileID: 11400000, guid: e2aba5d278c0c5c48b54f34a5e079fc6, type: 2}

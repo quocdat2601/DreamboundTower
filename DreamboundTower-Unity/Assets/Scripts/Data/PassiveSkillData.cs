@@ -1,17 +1,10 @@
 ﻿// File: PassiveSkillData.cs
 using UnityEngine;
-using System.Collections.Generic; // Rất quan trọng, cần để dùng List<>
+using System.Collections.Generic;
 
 [CreateAssetMenu(menuName = "DBT/Passive Skill")]
-public class PassiveSkillData : ScriptableObject
+public class PassiveSkillData : BaseSkillSO // Kế thừa từ BaseSkillSO
 {
-    public string id = "passive_id";
-    public string displayName = "Passive Name";
-    public Sprite icon = null;
-
-    [TextArea(2, 3)]
-    public string description;
-
-    // Một skill bị động bây giờ sẽ là một danh sách các hiệu ứng.
+    // Lớp này chỉ có thêm danh sách modifier, các trường khác đã có từ lớp cha
     public List<StatModifierSO> modifiers;
 }

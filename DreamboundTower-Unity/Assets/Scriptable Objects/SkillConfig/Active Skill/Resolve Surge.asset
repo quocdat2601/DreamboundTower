@@ -15,6 +15,8 @@ MonoBehaviour:
   id: human_resolve_surge
   displayName: Resolve Surge
   icon: {fileID: -8433709602813933090, guid: 285f288d1febf3f44bb623fad0d34cb6, type: 3}
+  descriptionTemplate: Immediately recover {heal_amount} HP (10% MaxHP) and gain
+    +10% damage for 2 turns.
   resource: 0
   cost: 0
   baseDamage: 0
@@ -22,8 +24,3 @@ MonoBehaviour:
   scalingPercent: 0
   cooldown: 5
   target: 2
-  isAoE: 0
-  applyStatusIds:
-  - buff_damage_10_2t
-  procChance: 1
-  description: Immediately recover 10% MaxHP and gain +10% damage for 2 turns.
