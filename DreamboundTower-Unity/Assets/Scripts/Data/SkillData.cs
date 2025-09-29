@@ -1,8 +1,8 @@
 using UnityEngine;
 
 public enum ResourceType { None, Mana }
-public enum StatType { STR, INT, DEF, HP, MANA, AGI }
-public enum TargetType { SingleEnemy, AllEnemies, Self, Ally }
+public enum StatType { STR, INT, DEF, HP, MANA, AGI, None }
+public enum TargetType { SingleEnemy, AllEnemies, Self, Ally, AllAlly }
 
 [CreateAssetMenu(menuName = "DBT/Skill")]
 public class SkillData : ScriptableObject

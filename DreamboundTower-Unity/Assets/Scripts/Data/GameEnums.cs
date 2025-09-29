@@ -1,0 +1,39 @@
+﻿// File: GameEnums.cs
+
+// Enum này định nghĩa TẤT CẢ các loại chỉ số có thể bị thay đổi trong game.
+// Chúng ta thêm các chỉ số % mới vào đây.
+namespace Assets.Scripts.Data
+{
+    public enum StatType
+    {
+        // Chỉ số gốc
+        HP,
+        STR,
+        DEF,
+        MANA,
+        INT,
+        AGI,
+
+        // Chỉ số phụ (dành cho hiệu ứng)
+        PhysicalDamagePercent, // % sát thương vật lý
+        MagicDamagePercent,    // % sát thương phép
+        LifestealPercent,      // % hút máu
+        DodgeChance,           // % né tránh
+        DamageReduction,       // % giảm sát thương
+
+        None
+    }
+
+    // Enum này định nghĩa cách hiệu ứng được áp dụng: cộng vào hay nhân lên.
+    public enum ModifierType
+    {
+        Additive,       // Cộng dồn (ví dụ: +10 STR)
+        Multiplicative  // Nhân theo % (ví dụ: +10% STR)
+    }
+
+    // Enum này bạn đã có, nhưng để ở đây cho dễ quản lý
+    public enum ResourceType { None, Mana }
+
+    // Enum này bạn đã có
+    public enum TargetType { SingleEnemy, AllEnemies, Self, Ally, AllAlly }
+}

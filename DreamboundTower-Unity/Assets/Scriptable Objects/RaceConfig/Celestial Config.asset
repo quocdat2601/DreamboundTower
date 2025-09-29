@@ -21,13 +21,8 @@ MonoBehaviour:
     MANA: 12
     INT: 13
     AGI: 6
-  passiveName: Divine Resonance
-  passiveDescription: +5% magic damage, +5% mana regen per turn.
-  activeName: ' Radiant Shield'
-  activeCooldown: 5
-  activeManaCost: 8
-  activeDescription: Shield equal to 15% MaxHP for 2 turns; reflect 20% physical
-    damage.
+  passiveSkill: {fileID: 11400000, guid: 4d9ee119af972394484d5649fb9bf4b5, type: 2}
+  activeSkill: {fileID: 11400000, guid: b7204dde02debb145ad877591ea1e199, type: 2}
   clericSprite: {fileID: -2572804619931805125, guid: a1d062b98ca42df4488f49ab0f49d3e9, type: 3}
   mageSprite: {fileID: 5839915548940572796, guid: c5d3abcfe5d25564884e7c91f24d069b, type: 3}
   rogueSprite: {fileID: -9050718878485639971, guid: 7dc7674b16569444db72cb8105ca03bf, type: 3}

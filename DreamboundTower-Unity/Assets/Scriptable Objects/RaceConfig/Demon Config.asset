@@ -21,12 +21,8 @@ MonoBehaviour:
     MANA: 8
     INT: 11
     AGI: 7
-  passiveName: Bloodlust Surge
-  passiveDescription: +5% physical damage when below 50% HP.
-  activeName: Rage Break
-  activeCooldown: 4
-  activeManaCost: 6
-  activeDescription: Heavy STR-based physical attack (SkillBase=45). Recoil 5% MaxHP.
+  passiveSkill: {fileID: 11400000, guid: cbffef9c0c0b00d469189a5f5e82048c, type: 2}
+  activeSkill: {fileID: 11400000, guid: da1bc15dafe1ee948bab5564121ce00d, type: 2}
   clericSprite: {fileID: 2853569469468017370, guid: c5092cb73eb0f5040bd2269dba271864, type: 3}
   mageSprite: {fileID: 2620067799875098489, guid: 0436633aabf57dd43b15e3c460d1368b, type: 3}
   rogueSprite: {fileID: -4569850758236665517, guid: 980a3f9dd72f4614b834f2ce9e92d97f, type: 3}

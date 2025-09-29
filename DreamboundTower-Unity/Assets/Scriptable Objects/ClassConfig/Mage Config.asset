@@ -14,14 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Presets.ClassPresetSO
   id: class_mage
   displayName: Mage
-  passiveName: Arcane Overflow
-  passiveDescription: +10% max Mana, +5% magic power.
-  activeNames:
-  - Arcane Burst
-  activeSkillIcons:
-  - {fileID: 5883999996907969394, guid: f723258e37345664581eb52e197a918e, type: 3}
-  activeCooldowns: 04000000
-  activeManaCosts: 0c000000
-  activeDescriptions:
-  - AoE INT-based attack (SkillBase=24). Applies Burn = 6% of damage per turn for
-    2 turns.
+  passiveSkill: {fileID: 11400000, guid: 993162ab417f9d040a6a082805981ab8, type: 2}
+  activeSkills:
+  - {fileID: 11400000, guid: c28d66ddc5f003e49839e2a0cd242daf, type: 2}

@@ -10,7 +10,7 @@ namespace Presets
         public string displayName;
 
         [Header("Skills")]
-        public SkillData passiveSkill;
+        public PassiveSkillData passiveSkill;
         public SkillData[] activeSkills; // Một mảng các SkillData SO
     }
 }

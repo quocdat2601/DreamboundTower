@@ -14,13 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Presets.ClassPresetSO
   id: class_rogue
   displayName: Rogue
-  passiveName: Evasive Instinct
-  passiveDescription: +6% dodge, +5% damage vs targets with DEF < 5.
-  activeNames:
-  - Flurry Strike
-  activeSkillIcons:
-  - {fileID: -8582376783789590509, guid: cce400af541e5224595678e850f9d8dc, type: 3}
-  activeCooldowns: 03000000
-  activeManaCosts: 00000000
-  activeDescriptions:
-  - Three STR-based attacks (SkillBase=12 each). Each hit heals 25% of damage dealt.
+  passiveSkill: {fileID: 11400000, guid: abe0c3bef661cbb40b99cbac6105dc5f, type: 2}
+  activeSkills:
+  - {fileID: 11400000, guid: fd3c62e5d41199f4d9559f530e24ff58, type: 2}

@@ -21,12 +21,8 @@ MonoBehaviour:
     MANA: 7
     INT: 9
     AGI: 14
-  passiveName: Feral Reflexes
-  passiveDescription: +8% dodge bonus (stacks with AGI scaling).
-  activeName: Pounce
-  activeCooldown: 3
-  activeManaCost: 4
-  activeDescription: Next attack deals +40% damage and strikes first.
+  passiveSkill: {fileID: 11400000, guid: 3f7a34ef6cf52d24d86926e2445dc29c, type: 2}
+  activeSkill: {fileID: 11400000, guid: ff736449deec5974f87e016090dcbcb5, type: 2}
   clericSprite: {fileID: 5998064244621191556, guid: 36990586d93793c4c9a3df97ebc2e483, type: 3}
   mageSprite: {fileID: -537780385801117772, guid: 8791951c9ae8c384ebb8a0b29f2d8092, type: 3}
   rogueSprite: {fileID: 6727547095001092757, guid: 9b4012e09620f7e4594e3833216d7823, type: 3}

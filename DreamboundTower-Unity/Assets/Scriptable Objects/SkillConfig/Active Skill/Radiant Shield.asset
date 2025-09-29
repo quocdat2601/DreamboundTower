@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b18cb1b2b3ac244c9bcbbdcc046a493, type: 3}
+  m_Name: Radiant Shield
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  id: celestial_radiant_shield
+  displayName: Radiant Shield
+  icon: {fileID: 7104247893010565702, guid: 13d61c823632aae4fb2a2aa5f3876252, type: 3}
+  resource: 1
+  cost: 8
+  baseDamage: 0
+  scalingStat: 6
+  scalingPercent: 0
+  cooldown: 5
+  target: 2
+  isAoE: 0
+  applyStatusIds:
+  - buff_shield_15_2t
+  - buff_reflect_20_2t
+  procChance: 1
+  description: Apply a shield equal to 15% of your MaxHP for 2 turns. The shield
+    reflects 20% of physical damage back to the attacker.

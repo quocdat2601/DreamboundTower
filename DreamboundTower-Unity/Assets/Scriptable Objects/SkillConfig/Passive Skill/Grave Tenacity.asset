@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b8664fa0e6496444b00de3b0802ec97, type: 3}
+  m_Name: Grave Tenacity
+  m_EditorClassIdentifier: Assembly-CSharp::PassiveSkillData
+  id: undead_passive_grave_tenacity
+  displayName: Grave Tenacity
+  icon: {fileID: 638812846081454693, guid: c7382b1f5a81f6f4f85bd8f356e822c8, type: 3}
+  description: 5% of all damage dealt is returned as HP (Lifesteal).
+  modifiers: []

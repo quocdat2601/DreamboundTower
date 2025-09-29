@@ -6,16 +6,51 @@ public class SkillIconUI : MonoBehaviour
     public Button iconButton;
     public Image iconImage;
 
-    private SkillData currentSkillSO; // Đổi từ struct thành class SO
+    // Thay vì lưu một loại cụ thể, chúng ta lưu các thông tin chung
+    private string skillName;
+    private string skillDescription;
+    private int skillManaCost;
+    private int skillCooldown;
+    private bool isPassive;
+
     private CharacterSelectionManager selectionManager;
 
-    // Hàm Setup bây giờ nhận vào một SkillData ScriptableObject
+    // Hàm Setup cho Active Skill (SkillData)
     public void Setup(SkillData dataSO, CharacterSelectionManager manager)
     {
-        currentSkillSO = dataSO;
-        selectionManager = manager;
+        this.selectionManager = manager;
 
-        if (dataSO != null && dataSO.icon != null)
+        // Lưu trữ thông tin từ SO
+        this.skillName = dataSO.displayName;
+        this.skillDescription = dataSO.description;
+        this.skillManaCost = dataSO.cost;
+        this.skillCooldown = dataSO.cooldown;
+        this.isPassive = false; // Đánh dấu đây là Active skill
+
+        if (dataSO.icon != null)
+        {
+            iconImage.sprite = dataSO.icon;
+        }
+
+        iconButton.onClick.RemoveAllListeners();
+        iconButton.onClick.AddListener(OnClick);
+    }
+
+    // Hàm Setup cho Passive Skill (PassiveSkillData)
+    public void Setup(PassiveSkillData dataSO, CharacterSelectionManager manager)
+    {
+        this.selectionManager = manager;
+
+        // Lưu trữ thông tin từ SO
+        this.skillName = dataSO.displayName;
+        this.skillDescription = dataSO.description;
+        this.isPassive = true; // Đánh dấu đây là Passive skill
+
+        // Các giá trị không áp dụng cho Passive
+        this.skillManaCost = 0;
+        this.skillCooldown = 0;
+
+        if (dataSO.icon != null)
         {
             iconImage.sprite = dataSO.icon;
         }
@@ -26,9 +61,10 @@ public class SkillIconUI : MonoBehaviour
 
     private void OnClick()
     {
-        if (selectionManager != null && currentSkillSO != null)
+        if (selectionManager != null)
         {
-            selectionManager.DisplaySkillDetails(currentSkillSO);
+            // Gửi lại toàn bộ thông tin đã lưu cho Manager
+            selectionManager.DisplaySkillDetails(skillName, skillDescription, skillManaCost, skillCooldown, isPassive);
         }
     }
 }

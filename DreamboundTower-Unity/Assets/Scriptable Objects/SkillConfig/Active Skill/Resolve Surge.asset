@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b18cb1b2b3ac244c9bcbbdcc046a493, type: 3}
+  m_Name: Resolve Surge
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  id: human_resolve_surge
+  displayName: Resolve Surge
+  icon: {fileID: -8433709602813933090, guid: 285f288d1febf3f44bb623fad0d34cb6, type: 3}
+  resource: 0
+  cost: 0
+  baseDamage: 0
+  scalingStat: 6
+  scalingPercent: 0
+  cooldown: 5
+  target: 2
+  isAoE: 0
+  applyStatusIds:
+  - buff_damage_10_2t
+  procChance: 1
+  description: Immediately recover 10% MaxHP and gain +10% damage for 2 turns.

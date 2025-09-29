@@ -13,7 +13,7 @@ namespace Presets
         public StatBlock baseStats;
 
         [Header("Skills")]
-        public SkillData passiveSkill;
+        public PassiveSkillData passiveSkill;
         public SkillData activeSkill;
 
         [Header("Character Portraits")]

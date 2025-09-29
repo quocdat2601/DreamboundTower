@@ -2,10 +2,11 @@
 using UnityEngine.UI;
 using TMPro;
 using Presets;
+using System.Collections.Generic;
+using System.Linq;
 
 public class CharacterSelectionManager : MonoBehaviour
 {
-    // ... (các biến tham chiếu giữ nguyên không đổi) ...
     [Header("UI Panels")]
     public GameObject raceSelectionPanel;
     public GameObject classSelectionPanel;
@@ -27,8 +28,16 @@ public class CharacterSelectionManager : MonoBehaviour
     public Transform skillIconContainer;
     public TextMeshProUGUI skillNameText;
     public TextMeshProUGUI skillDescriptionText;
-    public TextMeshProUGUI skillManaCostText;
-    public TextMeshProUGUI skillCooldownText;
+
+    [Tooltip("Kéo GameObject cha 'ManaCostBar' vào đây")]
+    public GameObject manaCostBarObject;
+    [Tooltip("Kéo GameObject cha 'CooldownBar' vào đây")]
+    public GameObject cooldownBarObject;
+
+    [Tooltip("Kéo TextMeshPro 'ManaCostValue' vào đây")]
+    public TextMeshProUGUI manaCostValueText;
+    [Tooltip("Kéo TextMeshPro 'CD_Value' vào đây")]
+    public TextMeshProUGUI cooldownValueText;
 
     [Header("Character Display")]
     public Image characterSpriteHolder;
@@ -43,6 +52,7 @@ public class CharacterSelectionManager : MonoBehaviour
         nextButton.interactable = false;
     }
 
+    // ... (Các hàm SelectRace, SelectClass, UpdateCharacterInfoDisplay, UpdateStatsDisplay, UpdateCharacterSprite giữ nguyên) ...
     public void SelectRace(RacePresetSO race)
     {
         selectedRace = race;
@@ -62,7 +72,6 @@ public class CharacterSelectionManager : MonoBehaviour
 
     void UpdateCharacterInfoDisplay()
     {
-        // ... (hàm này không đổi) ...
         if (selectedRace == null || selectedClass == null) return;
         UpdateStatsDisplay();
         UpdateCharacterSprite();
@@ -71,7 +80,6 @@ public class CharacterSelectionManager : MonoBehaviour
 
     void UpdateStatsDisplay()
     {
-        // ... (hàm này không đổi) ...
         StatBlock stats = selectedRace.baseStats;
         hpValueText.text = stats.HP.ToString();
         strValueText.text = stats.STR.ToString();
@@ -83,7 +91,6 @@ public class CharacterSelectionManager : MonoBehaviour
 
     void UpdateCharacterSprite()
     {
-        // ... (hàm này không đổi) ...
         Sprite spriteToShow = null;
         switch (selectedClass.id)
         {
@@ -102,40 +109,70 @@ public class CharacterSelectionManager : MonoBehaviour
             Destroy(child.gameObject);
         }
 
-        // Tạo icon cho các skill, bây giờ chỉ cần truyền SO vào
-        if (selectedRace.passiveSkill) CreateSkillIcon(selectedRace.passiveSkill);
-        if (selectedClass.passiveSkill) CreateSkillIcon(selectedClass.passiveSkill);
-        if (selectedRace.activeSkill) CreateSkillIcon(selectedRace.activeSkill);
-        foreach (var skill in selectedClass.activeSkills)
+        List<object> allSkills = new List<object>();
+        if (selectedRace.passiveSkill) allSkills.Add(selectedRace.passiveSkill);
+        if (selectedClass.passiveSkill) allSkills.Add(selectedClass.passiveSkill);
+        if (selectedRace.activeSkill) allSkills.Add(selectedRace.activeSkill);
+        if (selectedClass.activeSkills != null)
         {
-            if (skill) CreateSkillIcon(skill);
+            foreach (var skill in selectedClass.activeSkills)
+            {
+                if (skill) allSkills.Add(skill);
+            }
         }
 
-        // Mặc định hiển thị skill đầu tiên
-        if (selectedRace.passiveSkill) DisplaySkillDetails(selectedRace.passiveSkill);
+        var sortedSkills = allSkills.OrderByDescending(skill => skill is PassiveSkillData);
+
+        foreach (var skill in sortedSkills)
+        {
+            if (skill is PassiveSkillData passive) CreateSkillIcon(passive);
+            else if (skill is SkillData active) CreateSkillIcon(active);
+        }
+
+        if (sortedSkills.Any())
+        {
+            var firstSkill = sortedSkills.First();
+            if (firstSkill is PassiveSkillData passive)
+            {
+                DisplaySkillDetails(passive.displayName, passive.description, 0, 0, true);
+            }
+            else if (firstSkill is SkillData active)
+            {
+                DisplaySkillDetails(active.displayName, active.description, active.cost, active.cooldown, false);
+            }
+        }
     }
 
     private void CreateSkillIcon(SkillData skillSO)
     {
+        if (skillSO == null) return;
         GameObject skillIconGO = Instantiate(skillIconPrefab, skillIconContainer);
         skillIconGO.GetComponent<SkillIconUI>().Setup(skillSO, this);
     }
 
-    public void DisplaySkillDetails(SkillData dataSO)
+    private void CreateSkillIcon(PassiveSkillData skillSO)
     {
-        skillNameText.text = dataSO.displayName;
-        skillDescriptionText.text = dataSO.description;
+        if (skillSO == null) return;
+        GameObject skillIconGO = Instantiate(skillIconPrefab, skillIconContainer);
+        skillIconGO.GetComponent<SkillIconUI>().Setup(skillSO, this);
+    }
 
-        // Skill bị động thường không có cost và cooldown
-        bool isPassive = dataSO.cost == 0 && dataSO.cooldown == 0;
+    public void DisplaySkillDetails(string name, string description, int manaCost, int cooldown, bool isPassive)
+    {
+        skillNameText.text = name;
 
-        skillManaCostText.gameObject.SetActive(!isPassive);
-        skillCooldownText.gameObject.SetActive(!isPassive);
+        string prefix = isPassive ? "PASSIVE:" : "ACTIVE:";
+        skillDescriptionText.text = $"<b>{prefix}</b> {description}";
+
+        // Sử dụng các tham chiếu GameObject cha để ẩn/hiện
+        manaCostBarObject.SetActive(!isPassive);
+        cooldownBarObject.SetActive(!isPassive);
 
         if (!isPassive)
         {
-            skillManaCostText.text = $"Mana: {dataSO.cost}";
-            skillCooldownText.text = $"CD: {dataSO.cooldown}";
+            // Sử dụng các tham chiếu Text con để set giá trị
+            manaCostValueText.text = manaCost.ToString();
+            cooldownValueText.text = cooldown.ToString();
         }
     }
 

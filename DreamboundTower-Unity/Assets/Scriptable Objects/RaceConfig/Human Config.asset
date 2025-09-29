@@ -21,12 +21,8 @@ MonoBehaviour:
     MANA: 10
     INT: 10
     AGI: 10
-  passiveName: Adaptive Spirit
-  passiveDescription: ' Start with +2 spare points for allocation.'
-  activeName: ' Resolve Surge'
-  activeCooldown: 5
-  activeManaCost: 0
-  activeDescription: Recover 10% MaxHP and gain +10% damage for 2 turns.
+  passiveSkill: {fileID: 11400000, guid: 996494f9e60c3be4bbbeef644450436e, type: 2}
+  activeSkill: {fileID: 11400000, guid: c8ded6ec502730841adbaa564661387d, type: 2}
   clericSprite: {fileID: 1350988106599333187, guid: 12f24eb159258394e84e18c933573d65, type: 3}
   mageSprite: {fileID: 3981692578837126391, guid: d3f985af3ea1c9e4ba3f97aa3745c343, type: 3}
   rogueSprite: {fileID: 8523479326416698493, guid: 0be371a77ca2e1549bdd7ba30c8965cf, type: 3}

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b18cb1b2b3ac244c9bcbbdcc046a493, type: 3}
+  m_Name: Flurry Strike
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  id: rogue_flurry_strike
+  displayName: Flurry Strike
+  icon: {fileID: -8582376783789590509, guid: cce400af541e5224595678e850f9d8dc, type: 3}
+  resource: 0
+  cost: 0
+  baseDamage: 12
+  scalingStat: 0
+  scalingPercent: 1
+  cooldown: 3
+  target: 2
+  isAoE: 0
+  applyStatusIds:
+  - 
+  procChance: 1
+  description: Execute 3 quick attacks. Each hit heals you for 25% of the damage
+    dealt.

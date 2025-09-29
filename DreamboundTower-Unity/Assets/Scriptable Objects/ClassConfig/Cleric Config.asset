@@ -14,16 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Presets.ClassPresetSO
   id: class_cleric
   displayName: Cleric
-  passiveName: Divine Resilience
-  passiveDescription: "t \u226435% HP: +12% damage reduction and +6% lifesteal."
-  activeNames:
-  - Sanctified Strike
-  - Sanctuary Ward
-  activeSkillIcons:
-  - {fileID: 0}
-  - {fileID: 5527117462476026276, guid: 3fcb4158b82d07443b4cad9d990c9009, type: 3}
-  activeCooldowns: 0300000005000000
-  activeManaCosts: 080000000a000000
-  activeDescriptions:
-  - INT-based attack (SkillBase=28), heal self for 20% damage dealt.
-  - Shield 15% MaxHP for 2 turns, cleanse 1 debuff, outgoing heals +10%.
+  passiveSkill: {fileID: 11400000, guid: 84a65122a22eb6e41bf3e4c9ae87e9fe, type: 2}
+  activeSkills:
+  - {fileID: 11400000, guid: c3fc199a8611bfd4c8e43b4c1b6b0919, type: 2}
+  - {fileID: 11400000, guid: 5d8bddfc547441846954f9cab984a1b6, type: 2}
