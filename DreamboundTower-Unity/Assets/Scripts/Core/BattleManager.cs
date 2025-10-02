@@ -72,21 +72,69 @@ public class BattleManager : MonoBehaviour
     #region Spawning
     void SpawnPlayer()
     {
-        if (playerPrefab == null || playerSlot == null) return;
-        playerInstance = Instantiate(playerPrefab, playerSlot, false);
-        var rect = playerInstance.GetComponent<RectTransform>();
-        if (rect != null) rect.anchoredPosition = Vector2.zero;
-        playerInstance.transform.localScale = Vector3.one;
-        
-        // Connect the big health bar to the player's Character component
-        var playerChar = playerInstance.GetComponent<Character>();
-        if (playerChar != null && playerHealthBar != null)
+        // Thay vì tạo mới, chúng ta sẽ tìm người chơi do GameManager mang sang
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
-            playerChar.hpSlider = playerHealthBar;
+            playerInstance = GameManager.Instance.playerInstance;
+
+            // Gắn người chơi vào vị trí trên UI
+            playerInstance.transform.SetParent(playerSlot, false);
+            playerInstance.transform.localPosition = Vector3.zero;
+            playerInstance.transform.localScale = Vector3.one;
+
+            // Kích hoạt lại người chơi nếu nó bị ẩn
+            playerInstance.SetActive(true);
+
+            // Kết nối lại thanh máu và các UI khác
+            var playerChar = playerInstance.GetComponent<Character>();
+            if (playerChar != null && playerHealthBar != null)
+            {
+                playerChar.hpSlider = playerHealthBar;
+            }
+
+            // --- THÊM LOG ĐỂ KIỂM TRA STATS ---
+            if (playerChar != null)
+            {
+                Debug.Log($"[BATTLE] Player Spawned. Stats: HP={playerChar.maxHP}, STR={playerChar.attackPower}, DEF={playerChar.defense}, MANA={playerChar.mana}, INT={playerChar.intelligence}, AGI={playerChar.agility}");
+                PlayerSkills playerSkills = playerInstance.GetComponent<PlayerSkills>();
+                if (playerSkills != null)
+                {
+                    // Log các skill bị động
+                    foreach (var pSkill in playerSkills.passiveSkills)
+                    {
+                        Debug.Log($"[BATTLE] Player has Passive Skill: {pSkill.displayName}");
+                    }
+                    // Log các skill chủ động
+                    foreach (var aSkill in playerSkills.activeSkills)
+                    {
+                        Debug.Log($"[BATTLE] Player has Active Skill: {aSkill.displayName}");
+                    }
+                }
+            }
         }
-        else if (playerChar != null && playerHealthBar == null)
+        else
         {
-            Debug.LogWarning("Player Health Bar is not assigned in BattleManager!");
+            // Fallback: Nếu không tìm thấy người chơi từ GameManager (ví dụ: test scene trực tiếp)
+            // thì tạo một người chơi mẫu.
+            Debug.LogWarning("Player instance from GameManager not found. Spawning a default player for testing.");
+            if (playerPrefab == null || playerSlot == null)
+            {
+                playerInstance = Instantiate(playerPrefab, playerSlot, false);
+                var rect = playerInstance.GetComponent<RectTransform>();
+                if (rect != null) rect.anchoredPosition = Vector2.zero;
+                playerInstance.transform.localScale = Vector3.one;
+
+                // Connect the big health bar to the player's Character component
+                var playerChar = playerInstance.GetComponent<Character>();
+                if (playerChar != null && playerHealthBar != null)
+                {
+                    playerChar.hpSlider = playerHealthBar;
+                }
+                else if (playerChar != null && playerHealthBar == null)
+                {
+                    Debug.LogWarning("Player Health Bar is not assigned in BattleManager!");
+                }
+            }
         }
     }
 

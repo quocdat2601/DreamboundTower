@@ -1,9 +1,10 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
-using Presets;
+﻿using Presets;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class CharacterSelectionManager : MonoBehaviour
 {
@@ -42,6 +43,9 @@ public class CharacterSelectionManager : MonoBehaviour
     private RacePresetSO selectedRace;
     private ClassPresetSO selectedClass;
     private List<SkillIconUI> spawnedSkillIcons = new List<SkillIconUI>();
+
+    [Header("Scene Transition")]
+    public string nextSceneName = "MapScene"; // Tên scene tiếp theo của bạn
 
     void Start()
     {
@@ -196,8 +200,16 @@ public class CharacterSelectionManager : MonoBehaviour
             nextButton.interactable = true;
         }
     }
+
     public void ConfirmSelection()
     {
-        Debug.Log($"Confirmed! Race: {selectedRace.displayName}, Class: {selectedClass.displayName}.");
+        if (selectedRace == null || selectedClass == null) return;
+
+        GameManager.Instance.selectedRace = selectedRace;
+        GameManager.Instance.selectedClass = selectedClass;
+
+        // Ra lệnh cho GameManager tạo nhân vật và sau đó tải scene
+        GameManager.Instance.InitializePlayerCharacter();
+        GameManager.Instance.LoadNextScene(nextSceneName); // Sử dụng tên scene bạn đã đặt
     }
 }

@@ -6405,7 +6405,7 @@ MonoBehaviour:
   selectedRace: {fileID: 0}
   selectedClass: {fileID: 0}
   playerInstance: {fileID: 0}
-  playerPrefab: {fileID: 5219465382312568686, guid: a27e2eb3858100042940cd56a1935089, type: 3}
+  playerPrefab: {fileID: 0}
 --- !u!4 &1684435587
 Transform:
   m_ObjectHideFlags: 0
