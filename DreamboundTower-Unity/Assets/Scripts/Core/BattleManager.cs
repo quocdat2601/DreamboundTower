@@ -186,6 +186,11 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
+    //Get baseStats of player
+    public Character GetPlayerCharacter()
+    {
+        return playerCharacter;
+    }
 
     // Spawns enemies based on overrides or data passed from the map
     void SpawnEnemies()
@@ -277,7 +282,7 @@ public class BattleManager : MonoBehaviour
 
     #region Player Actions
 
-    // Called by BattleSkillIconUI when a skill button is clicked
+    // Called by SkillIconUI when a skill button is clicked
     public void OnPlayerSelectSkill(BaseSkillSO skill)
     {
         if (!playerTurn || busy) return;
@@ -287,6 +292,13 @@ public class BattleManager : MonoBehaviour
             selectedSkill = activeSkill;
             // TODO: Highlight selected skill, maybe show targeting UI cursor
         }
+    }
+
+    public void OnPlayerDeselectSkill()
+    {
+        Debug.Log("Player deselected skill.");
+        selectedSkill = null;
+        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
     }
 
     // Called from the UI Attack button's OnClick event
