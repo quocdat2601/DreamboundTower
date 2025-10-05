@@ -138,6 +138,9 @@ MonoBehaviour:
   iconButton: {fileID: 2175426964700590881}
   iconImage: {fileID: 4091527961574456584}
   highlightBorder: {fileID: 6752213397603553059}
+  OnSkillClicked:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &6752213397603553059
 GameObject:
   m_ObjectHideFlags: 0

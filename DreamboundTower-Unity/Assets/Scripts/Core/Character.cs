@@ -105,7 +105,7 @@ public class Character : MonoBehaviour
     }
 
 
-    void UpdateHPUI()
+    public void UpdateHPUI()
     {
         float t = (float)currentHP / maxHP;
 

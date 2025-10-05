@@ -1,20 +1,28 @@
 ﻿// File: SkillIconUI.cs
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events; // Rất quan trọng, cần để dùng UnityEvent
+
+// Định nghĩa một Event mới có thể truyền dữ liệu BaseSkillSO đi
+[System.Serializable]
+public class SkillClickEvent : UnityEvent<BaseSkillSO> { }
 
 public class SkillIconUI : MonoBehaviour
 {
+    [Header("Components")]
     public Button iconButton;
     public Image iconImage;
-    public GameObject highlightBorder; // Thêm tham chiếu đến viền vàng
+    public GameObject highlightBorder;
+
+    [Header("Events")]
+    public SkillClickEvent OnSkillClicked; // "Tín hiệu" sẽ được phát đi
 
     private BaseSkillSO currentSkillSO;
-    private CharacterSelectionManager selectionManager;
 
-    public void Setup(BaseSkillSO dataSO, CharacterSelectionManager manager)
+    // Hàm Setup bây giờ không cần manager nữa
+    public void Setup(BaseSkillSO dataSO)
     {
         currentSkillSO = dataSO;
-        selectionManager = manager;
 
         if (dataSO != null && dataSO.icon != null)
         {
@@ -24,18 +32,18 @@ public class SkillIconUI : MonoBehaviour
         iconButton.onClick.RemoveAllListeners();
         iconButton.onClick.AddListener(OnClick);
 
-        SetSelected(false); // Mặc định tắt highlight
+        SetSelected(false);
     }
 
     private void OnClick()
     {
-        if (selectionManager != null && currentSkillSO != null)
+        // Khi được click, phát ra tín hiệu và gửi kèm dữ liệu skill
+        if (currentSkillSO != null)
         {
-            selectionManager.DisplaySkillDetails(currentSkillSO);
+            OnSkillClicked.Invoke(currentSkillSO);
         }
     }
 
-    // Hàm để bật/tắt viền vàng
     public void SetSelected(bool isSelected)
     {
         if (highlightBorder != null)
@@ -44,7 +52,6 @@ public class SkillIconUI : MonoBehaviour
         }
     }
 
-    // Hàm để manager có thể lấy tên skill để so sánh
     public string GetSkillName()
     {
         return currentSkillSO != null ? currentSkillSO.displayName : "";

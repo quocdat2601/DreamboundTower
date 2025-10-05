@@ -148,7 +148,13 @@ public class CharacterSelectionManager : MonoBehaviour
     {
         GameObject skillIconGO = Instantiate(skillIconPrefab, skillIconContainer);
         SkillIconUI skillUI = skillIconGO.GetComponent<SkillIconUI>();
-        skillUI.Setup(skillSO, this);
+
+        // Setup cho icon như bình thường
+        skillUI.Setup(skillSO);
+
+        // Đăng ký lắng nghe: Khi icon này được click, hãy gọi hàm DisplaySkillDetails
+        skillUI.OnSkillClicked.AddListener(DisplaySkillDetails);
+
         spawnedSkillIcons.Add(skillUI);
     }
     public void DisplaySkillDetails(BaseSkillSO dataSO)

@@ -9,135 +9,185 @@ using Map;
 
 /// <summary>
 /// Battle system manager for turn-based combat
-/// 
-/// USAGE:
-/// - Manages battle flow and turn order
-/// - Handles player and enemy actions
-/// - Manages battle UI and visual feedback
-/// - Integrates with equipment system for stat bonuses
-/// 
-/// SETUP:
-/// 1. Attach to battle scene GameObject
-/// 2. Assign player and enemy slot transforms
-/// 3. Assign player and enemy prefabs
-/// 4. System automatically manages battle flow
 /// </summary>
 public class BattleManager : MonoBehaviour
 {
+    #region Variables
+
     [Header("Slots (UI Transforms)")]
-    public Transform playerSlot;      // assign PlayerSlot (Transform)
-    public Transform[] enemySlots;    // assign EnemySlot transforms
+    public Transform playerSlot;       // assign PlayerSlot (Transform)
+    public Transform[] enemySlots;     // assign EnemySlot transforms
 
     [Header("Prefabs")]
-    public GameObject playerPrefab;   // UI prefab for player
-    public GameObject enemyPrefab;    // UI prefab for enemies
+    public GameObject playerPrefab;    // UI prefab for player
+    public GameObject enemyPrefab;     // UI prefab for enemies
 
     [Header("Combat")]
     public float attackDelay = 0.35f;
     [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP.")]
     public int hpUnit = 10;
-    [Header("Debug / Overrides")]
+
+    // --- UPDATED SECTION ---
+    [Header("Debug / Player Overrides")]
+    [Tooltip("Default Race data if no GameManager is found")]
+    public RacePresetSO fallbackRace;
+    [Tooltip("Default Class data if no GameManager is found")]
+    public ClassPresetSO fallbackClass;
+    [Tooltip("If checked, custom stats below will be used instead of fallback Race/Class stats")]
+    public bool overridePlayerStats = false;
+    public StatBlock customPlayerStats;
+    // -----------------------
+
+    [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
     public bool overrideUseTemplate = false;
     [Tooltip("Template to sample stats from.")]
-    public Presets.EnemyTemplateSO overrideTemplate;
+    public EnemyTemplateSO overrideTemplate;
     [Tooltip("Floor used when sampling from template.")]
     public int overrideFloor = 1;
-
     [Tooltip("If true, use the custom stats and kind below (bypasses template and map payload).")]
     public bool overrideUseCustomStats = false;
-    public Presets.EnemyKind overrideKind = Presets.EnemyKind.Normal;
-    public Presets.StatBlock overrideStats;
-    
+    public EnemyKind overrideKind = EnemyKind.Normal;
+    public StatBlock overrideStats;
+
     [Header("UI References")]
-    public Slider playerHealthBar;  // Drag the big health bar from PlayerStatusSection here
+    public Slider playerHealthBar;      // Drag the big health bar from PlayerStatusSection here
+    public BattleUIManager uiManager;   // Assign your UIManager here
 
     // runtime
     private GameObject playerInstance;
     private GameObject[] enemyInstances;
+    private Character playerCharacter; // Reference to the player's Character component for quick access
 
     // state & selection
     private int selectedEnemyIndex = -1;
+    private SkillData selectedSkill = null; // Stores the currently selected skill
     private bool playerTurn = true;
     private bool busy = false;
 
+    #endregion
+
+    #region Unity Lifecycle
+
     void Start()
     {
+        // Initialize the UI Manager
+        if (uiManager != null)
+        {
+            uiManager.Initialize(this);
+        }
+
         SpawnPlayer();
         SpawnEnemies();
         AutoBindEnemySlotButtons();
         RefreshSelectionVisual();
     }
 
+    #endregion
+
     #region Spawning
+
+    // Handles finding the persistent player or spawning a fallback for testing
     void SpawnPlayer()
     {
-        // Thay vì tạo mới, chúng ta sẽ tìm người chơi do GameManager mang sang
+        // Priority 1: Find the player instance from GameManager
         if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
             playerInstance = GameManager.Instance.playerInstance;
-
-            // Gắn người chơi vào vị trí trên UI
             playerInstance.transform.SetParent(playerSlot, false);
             playerInstance.transform.localPosition = Vector3.zero;
             playerInstance.transform.localScale = Vector3.one;
-
-            // Kích hoạt lại người chơi nếu nó bị ẩn
             playerInstance.SetActive(true);
 
-            // Kết nối lại thanh máu và các UI khác
-            var playerChar = playerInstance.GetComponent<Character>();
-            if (playerChar != null && playerHealthBar != null)
-            {
-                playerChar.hpSlider = playerHealthBar;
-            }
-
-            // --- THÊM LOG ĐỂ KIỂM TRA STATS ---
-            if (playerChar != null)
-            {
-                Debug.Log($"[BATTLE] Player Spawned. Stats: HP={playerChar.maxHP}, STR={playerChar.attackPower}, DEF={playerChar.defense}, MANA={playerChar.mana}, INT={playerChar.intelligence}, AGI={playerChar.agility}");
-                PlayerSkills playerSkills = playerInstance.GetComponent<PlayerSkills>();
-                if (playerSkills != null)
-                {
-                    // Log các skill bị động
-                    foreach (var pSkill in playerSkills.passiveSkills)
-                    {
-                        Debug.Log($"[BATTLE] Player has Passive Skill: {pSkill.displayName}");
-                    }
-                    // Log các skill chủ động
-                    foreach (var aSkill in playerSkills.activeSkills)
-                    {
-                        Debug.Log($"[BATTLE] Player has Active Skill: {aSkill.displayName}");
-                    }
-                }
-            }
+            playerCharacter = playerInstance.GetComponent<Character>();
+            Debug.Log("[BATTLE] Player Spawned from GameManager.");
         }
+        // Priority 2: Spawn a default player for testing purposes
         else
         {
-            // Fallback: Nếu không tìm thấy người chơi từ GameManager (ví dụ: test scene trực tiếp)
-            // thì tạo một người chơi mẫu.
             Debug.LogWarning("Player instance from GameManager not found. Spawning a default player for testing.");
-            if (playerPrefab == null || playerSlot == null)
+            if (playerPrefab == null || playerSlot == null) return;
+            if (fallbackRace == null || fallbackClass == null)
             {
-                playerInstance = Instantiate(playerPrefab, playerSlot, false);
-                var rect = playerInstance.GetComponent<RectTransform>();
-                if (rect != null) rect.anchoredPosition = Vector2.zero;
-                playerInstance.transform.localScale = Vector3.one;
+                Debug.LogError("Fallback Race/Class is not set in BattleManager Inspector!");
+                return;
+            }
 
-                // Connect the big health bar to the player's Character component
-                var playerChar = playerInstance.GetComponent<Character>();
-                if (playerChar != null && playerHealthBar != null)
+            playerInstance = Instantiate(playerPrefab, playerSlot, false);
+            playerCharacter = playerInstance.GetComponent<Character>();
+            var playerSkills = playerInstance.GetComponent<PlayerSkills>();
+            var playerImage = playerInstance.GetComponent<Image>();
+
+            // --- NEW OVERRIDE LOGIC ---
+            // Always get visuals and skills from fallback SOs
+            Sprite characterSprite = null;
+            switch (fallbackClass.id)
+            {
+                case "class_cleric": characterSprite = fallbackRace.clericSprite; break;
+                case "class_mage": characterSprite = fallbackRace.mageSprite; break;
+                case "class_warrior": characterSprite = fallbackRace.warriorSprite; break;
+                case "class_rogue": characterSprite = fallbackRace.rogueSprite; break;
+            }
+            if (playerImage != null) playerImage.sprite = characterSprite;
+
+            if (playerSkills != null)
+            {
+                playerSkills.LearnSkills(fallbackRace, fallbackClass);
+            }
+
+            // Override stats if requested
+            if (overridePlayerStats)
+            {
+                playerCharacter.baseMaxHP = customPlayerStats.HP;
+                playerCharacter.baseAttackPower = customPlayerStats.STR;
+                playerCharacter.baseDefense = customPlayerStats.DEF;
+                playerCharacter.baseMana = customPlayerStats.MANA;
+                playerCharacter.baseIntelligence = customPlayerStats.INT;
+                playerCharacter.baseAgility = customPlayerStats.AGI;
+                Debug.LogWarning("[BATTLE] Player spawned with CUSTOM OVERRIDE stats on fallback model.");
+            }
+            else // Otherwise, use stats from fallback SOs
+            {
+                StatBlock baseStats = fallbackRace.baseStats;
+                playerCharacter.baseMaxHP = baseStats.HP;
+                playerCharacter.baseAttackPower = baseStats.STR;
+                playerCharacter.baseDefense = baseStats.DEF;
+                playerCharacter.baseMana = baseStats.MANA;
+                playerCharacter.baseIntelligence = baseStats.INT;
+                playerCharacter.baseAgility = baseStats.AGI;
+                Debug.LogWarning($"[BATTLE] Player spawned with FALLBACK stats (Race: {fallbackRace.displayName}, Class: {fallbackClass.displayName}).");
+            }
+            playerCharacter.ResetToBaseStats();
+        }
+
+        // --- COMMON ACTIONS AFTER GETTING A PLAYER INSTANCE ---
+        if (playerInstance != null)
+        {
+            // Connect UI and Log stats/skills
+            if (playerCharacter != null && playerHealthBar != null)
+            {
+                playerCharacter.hpSlider = playerHealthBar;
+                playerCharacter.UpdateHPUI();
+            }
+
+            PlayerSkills skills = playerInstance.GetComponent<PlayerSkills>();
+            if (uiManager != null && skills != null)
+            {
+                uiManager.CreatePlayerSkillIcons(skills);
+            }
+            if (playerCharacter != null)
+            {
+                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.maxHP}, STR={playerCharacter.attackPower}, DEF={playerCharacter.defense}, MANA={playerCharacter.mana}, INT={playerCharacter.intelligence}, AGI={playerCharacter.agility}");
+                if (skills != null)
                 {
-                    playerChar.hpSlider = playerHealthBar;
-                }
-                else if (playerChar != null && playerHealthBar == null)
-                {
-                    Debug.LogWarning("Player Health Bar is not assigned in BattleManager!");
+                    foreach (var pSkill in skills.passiveSkills) Debug.Log($"[BATTLE] Player has Passive: {pSkill.displayName}");
+                    foreach (var aSkill in skills.activeSkills) Debug.Log($"[BATTLE] Player has Active: {aSkill.displayName}");
                 }
             }
         }
     }
 
+    // Spawns enemies based on overrides or data passed from the map
     void SpawnEnemies()
     {
         if (enemySlots == null) return;
@@ -152,15 +202,15 @@ public class BattleManager : MonoBehaviour
             if (Map.MapTravel.TryReadAndClearPendingEnemy(out kind, out hp, out str, out def, out mana, out intel, out agi, out absFloor, out arch))
             {
                 cfg = ScriptableObject.CreateInstance<CombatConfigSO>();
-                cfg.enemyKind = (Presets.EnemyKind)kind;
+                cfg.enemyKind = (EnemyKind)kind;
                 cfg.enemyStats.HP = hp; cfg.enemyStats.STR = str; cfg.enemyStats.DEF = def;
                 cfg.enemyStats.MANA = mana; cfg.enemyStats.INT = intel; cfg.enemyStats.AGI = agi;
                 cfg.absoluteFloor = absFloor; cfg.enemyArchetypeId = arch;
-                Debug.Log($"[BATTLE] Loaded enemy from PlayerPrefs fallback: floor={absFloor}, kind={(Presets.EnemyKind)kind}, HP={hp} STR={str} DEF={def}");
+                Debug.Log($"[BATTLE] Loaded enemy from PlayerPrefs fallback: floor={absFloor}, kind={(EnemyKind)kind}, HP={hp} STR={str} DEF={def}");
             }
             else
             {
-                Debug.LogWarning("[BATTLE] CombatConfig not found in Resources and no pending enemy in PlayerPrefs. Use inspector overrides if desired.");
+                Debug.LogWarning("[BATTLE] CombatConfig not found and no pending enemy in PlayerPrefs. Use inspector overrides if desired.");
             }
         }
 
@@ -174,7 +224,7 @@ public class BattleManager : MonoBehaviour
             e.name = "Enemy_" + i;
             enemyInstances[i] = e;
 
-            // Decision order: custom stats → template → map payload
+            // Decision order: custom stats -> template -> map payload
             if (overrideUseCustomStats)
             {
                 var fake = ScriptableObject.CreateInstance<CombatConfigSO>();
@@ -199,8 +249,8 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    #endregion
 
+    // Applies stats from a config SO to an enemy's Character component
     void ApplyEnemyStatsFromConfig(GameObject enemyGO, CombatConfigSO cfg)
     {
         if (enemyGO == null || cfg == null) return;
@@ -211,60 +261,92 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        // Map preset stats → Character fields (simple mapping: HP→maxHP, STR→attack, DEF→defense)
         int scaledHP = Mathf.Max(1, cfg.enemyStats.HP * Mathf.Max(1, hpUnit));
         ch.baseMaxHP = scaledHP;
         ch.baseAttackPower = Mathf.Max(0, cfg.enemyStats.STR);
         ch.baseDefense = Mathf.Max(0, cfg.enemyStats.DEF);
-
         ch.ResetToBaseStats();
         ch.currentHP = ch.maxHP;
 
-        // Full stat dump for verification
-        Debug.Log(
-            $"[BATTLE] Enemy init @ floor {cfg.absoluteFloor} | Kind={cfg.enemyKind} | Archetype={cfg.enemyArchetypeId}\n" +
-            $"RAW   HP={cfg.enemyStats.HP} STR={cfg.enemyStats.STR} DEF={cfg.enemyStats.DEF} MANA={cfg.enemyStats.MANA} INT={cfg.enemyStats.INT} AGI={cfg.enemyStats.AGI}\n" +
-            $"FINAL HP={ch.maxHP} (hpUnit={hpUnit}) ATK={ch.attackPower} DEF={ch.defense}");
+        Debug.Log($"[BATTLE] Enemy init @ floor {cfg.absoluteFloor} | Kind={cfg.enemyKind} | Archetype={cfg.enemyArchetypeId}\n" +
+                  $"RAW   HP={cfg.enemyStats.HP} STR={cfg.enemyStats.STR} DEF={cfg.enemyStats.DEF} MANA={cfg.enemyStats.MANA} INT={cfg.enemyStats.INT} AGI={cfg.enemyStats.AGI}\n" +
+                  $"FINAL HP={ch.maxHP} (hpUnit={hpUnit}) ATK={ch.attackPower} DEF={ch.defense}");
     }
 
-    #region Selection UI
-    // auto-add Button listeners for enemy slots so clicks call SelectEnemy(index)
+    #endregion
+
+    #region Player Actions
+
+    // Called by BattleSkillIconUI when a skill button is clicked
+    public void OnPlayerSelectSkill(BaseSkillSO skill)
+    {
+        if (!playerTurn || busy) return;
+        if (skill is SkillData activeSkill)
+        {
+            Debug.Log($"Player selected skill: {activeSkill.displayName}");
+            selectedSkill = activeSkill;
+            // TODO: Highlight selected skill, maybe show targeting UI cursor
+        }
+    }
+
+    // Called from the UI Attack button's OnClick event
+    public void OnAttackButton()
+    {
+        if (!playerTurn || busy) return;
+        if (playerInstance == null) return;
+        if (selectedEnemyIndex < 0 || enemyInstances == null || selectedEnemyIndex >= enemyInstances.Length || enemyInstances[selectedEnemyIndex] == null)
+        {
+            Debug.LogWarning("No enemy selected to attack.");
+            return;
+        }
+        StartCoroutine(PlayerAttackRoutine(selectedEnemyIndex));
+    }
+
+    #endregion
+
+    #region Enemy Selection UI
+
+    // Automatically adds Button components and listeners to enemy slots
     void AutoBindEnemySlotButtons()
     {
         if (enemySlots == null) return;
-
         for (int i = 0; i < enemySlots.Length; i++)
         {
             var slot = enemySlots[i];
             if (slot == null) continue;
 
-            // ensure there's an Image (Button requires a Graphic)
             var img = slot.GetComponent<Image>();
             if (img == null) img = slot.gameObject.AddComponent<Image>();
 
-            // add Button if missing
             var btn = slot.GetComponent<Button>();
             if (btn == null) btn = slot.gameObject.AddComponent<Button>();
 
-            int idx = i; // capture for closure
+            int idx = i;
             btn.onClick.RemoveAllListeners();
             btn.onClick.AddListener(() => SelectEnemy(idx));
         }
     }
 
-    // Called when player clicks a slot (or from code)
+    // Called when an enemy slot is clicked
     public void SelectEnemy(int index)
     {
         if (!playerTurn || busy) return;
-        if (enemyInstances == null) return;
-        if (index < 0 || index >= enemyInstances.Length) return;
-        if (enemyInstances[index] == null) return;
+        if (enemyInstances == null || index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return;
 
-        selectedEnemyIndex = index;
-        RefreshSelectionVisual();
+        // If a skill is selected, clicking an enemy executes the skill
+        if (selectedSkill != null)
+        {
+            StartCoroutine(PlayerUseSkillRoutine(selectedSkill, index));
+        }
+        // If no skill is selected, clicking an enemy selects them for a basic attack
+        else
+        {
+            selectedEnemyIndex = index;
+            RefreshSelectionVisual();
+        }
     }
 
-    // subtle visual feedback: minimal color tint for selected target
+    // Updates the visual feedback for the selected enemy
     void RefreshSelectionVisual()
     {
         if (enemySlots == null) return;
@@ -272,134 +354,171 @@ public class BattleManager : MonoBehaviour
         {
             var slotImg = enemySlots[i]?.GetComponent<Image>();
             if (slotImg == null) continue;
-            
+
             if (i == selectedEnemyIndex)
             {
-                // Selected target: very subtle warm tint
-                slotImg.color = new Color(1f, 0.95f, 0.8f, 0.3f); // Very subtle warm tint
+                slotImg.color = new Color(1f, 0.95f, 0.8f, 0.3f);
             }
             else
             {
-                // Unselected targets: transparent (no background)
-                slotImg.color = new Color(1f, 1f, 1f, 0f); // Completely transparent
+                slotImg.color = new Color(1f, 1f, 1f, 0f);
             }
         }
     }
     #endregion
 
-    #region Player Attack (button)
-    // call this from your Attack button OnClick
-    public void OnAttackButton()
-    {
-        if (!playerTurn || busy) return;
-        if (playerInstance == null) return; // Player is dead
-        if (selectedEnemyIndex < 0 || enemyInstances == null) return;
-        if (selectedEnemyIndex >= enemyInstances.Length) return;
-        if (enemyInstances[selectedEnemyIndex] == null) return;
+    #region Turn Coroutines
 
-        StartCoroutine(PlayerAttackRoutine(selectedEnemyIndex));
-    }
-
+    // Coroutine for the player's basic attack
     IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
         busy = true;
+        playerTurn = false;
 
-        var target = enemyInstances[enemyIndex];
+        var target = enemyInstances[enemyIndex].GetComponent<Character>();
         if (target != null)
         {
-            var playerChar = playerInstance.GetComponent<Character>();
-            var targetChar = target.GetComponent<Character>();
-            if (playerChar != null && targetChar != null)
-            {
-                playerChar.Attack(targetChar);
-                Debug.Log($"[BATTLE] Player attacked {targetChar.name} for {playerChar.attackPower} damage");
-            }
+            playerCharacter.Attack(target);
+            Debug.Log($"[BATTLE] Player attacked {target.name} for {playerCharacter.attackPower} damage");
         }
 
-        // small delay for feedback
         yield return new WaitForSeconds(attackDelay);
 
-        // if enemy died, clear reference and deselect
-        if (enemyInstances[enemyIndex] == null ||
-            (enemyInstances[enemyIndex].GetComponent<Character>() != null &&
-             enemyInstances[enemyIndex].GetComponent<Character>().currentHP <= 0))
+        if (DidEnemyDie(enemyIndex))
         {
             enemyInstances[enemyIndex] = null;
             selectedEnemyIndex = -1;
+            RefreshSelectionVisual();
         }
 
-        RefreshSelectionVisual();
-
-        // victory check
         if (AllEnemiesDead())
         {
-            Debug.Log("[BATTLE] Victory! All enemies defeated!");
-            // mark completed node and return to map
-            MapTravel.MarkBattleCompleted();
-            MapTravel.ReturnToMap();
-            busy = false;
+            yield return StartCoroutine(VictoryRoutine());
             yield break;
         }
 
-        // enemy turn (only if player is still alive)
-        if (playerInstance != null)
-        {
-            playerTurn = false;
-            yield return new WaitForSeconds(0.2f);
-            yield return StartCoroutine(EnemyTurnRoutine());
-            playerTurn = true;
-        }
+        yield return StartCoroutine(EnemyTurnRoutine());
+        playerTurn = true;
         busy = false;
     }
-    #endregion
 
-    #region Enemy Turn
-    IEnumerator EnemyTurnRoutine()
+    // Coroutine for the player using a skill
+    IEnumerator PlayerUseSkillRoutine(SkillData skill, int enemyIndex)
     {
-        for (int i = 0; i < (enemyInstances?.Length ?? 0); i++)
+        busy = true;
+        playerTurn = false;
+
+        Debug.Log($"Executing skill '{skill.displayName}'...");
+        // TODO: Subtract mana, check cooldown
+        // TODO: Apply skill effects (damage, buffs/debuffs)
+
+        // Example: Apply damage from skill
+        var target = enemyInstances[enemyIndex].GetComponent<Character>();
+        if (target != null)
         {
-            var e = enemyInstances[i];
-            if (e == null) continue;
-
-            // Check if player is still alive before enemy attacks
-            if (playerInstance == null)
-            {
-                Debug.Log("[BATTLE] Player is dead, skipping enemy attacks.");
-                yield break;
-            }
-
-            var enemyChar = e.GetComponent<Character>();
-            var playerChar = playerInstance.GetComponent<Character>();
-            if (enemyChar != null && playerChar != null)
-            {
-                // enemy attacks player
-                enemyChar.Attack(playerChar);
-                Debug.Log($"[BATTLE] Enemy {i} attacked player for {enemyChar.attackPower} damage");
-            }
+            // This is a simplified damage calculation, you can use your TooltipFormatter logic here
+            int damage = skill.baseDamage; // Add scaling stat calculation here
+            target.TakeDamage(damage);
+            Debug.Log($"[BATTLE] Player used {skill.displayName} on {target.name} for {damage} damage.");
         }
 
         yield return new WaitForSeconds(attackDelay);
 
-        // player death check
-        if (playerInstance == null)
+        if (DidEnemyDie(enemyIndex))
         {
-            Debug.Log("[BATTLE] Player died. Game over.");
+            enemyInstances[enemyIndex] = null;
+            selectedEnemyIndex = -1;
+            RefreshSelectionVisual();
+        }
+
+        selectedSkill = null; // Reset selected skill after use
+
+        if (AllEnemiesDead())
+        {
+            yield return StartCoroutine(VictoryRoutine());
             yield break;
         }
 
-        var playerCharCheck = playerInstance.GetComponent<Character>();
-        if (playerCharCheck != null && playerCharCheck.currentHP <= 0)
+        yield return StartCoroutine(EnemyTurnRoutine());
+        playerTurn = true;
+        busy = false;
+    }
+
+    // Coroutine for the enemy's turn
+    IEnumerator EnemyTurnRoutine()
+    {
+        Debug.Log("--- Enemy Turn ---");
+        for (int i = 0; i < (enemyInstances?.Length ?? 0); i++)
         {
-            Debug.Log("[BATTLE] Player died. Game over.");
+            if (enemyInstances[i] == null) continue;
+            if (playerInstance == null)
+            {
+                yield return StartCoroutine(DefeatRoutine());
+                yield break;
+            }
+
+            var enemyChar = enemyInstances[i].GetComponent<Character>();
+            if (enemyChar != null && playerCharacter != null)
+            {
+                enemyChar.Attack(playerCharacter);
+                Debug.Log($"[BATTLE] Enemy {i} attacked player for {enemyChar.attackPower} damage");
+            }
+            yield return new WaitForSeconds(attackDelay);
+        }
+
+        if (playerCharacter != null && playerCharacter.currentHP <= 0)
+        {
+            yield return StartCoroutine(DefeatRoutine());
             yield break;
         }
+        Debug.Log("--- Player Turn ---");
     }
+
     #endregion
 
+    #region Battle Outcome
+
+    // Coroutine for when the player is victorious
+    IEnumerator VictoryRoutine()
+    {
+        Debug.Log("[BATTLE] Victory! All enemies defeated!");
+        busy = true;
+        // TODO: Show victory screen, give rewards
+        yield return new WaitForSeconds(2f);
+
+        MapTravel.MarkBattleCompleted();
+        MapTravel.ReturnToMap();
+    }
+
+    // Coroutine for when the player is defeated
+    IEnumerator DefeatRoutine()
+    {
+        Debug.Log("[BATTLE] Player died. Game over.");
+        busy = true;
+        // TODO: Show defeat screen, handle game over logic
+        yield return new WaitForSeconds(2f);
+        // SceneManager.LoadScene("MainMenu"); // Example
+    }
+
+    #endregion
+
+    #region Helpers
+
+    // Checks if all enemies are dead
     bool AllEnemiesDead()
     {
         if (enemyInstances == null) return true;
         foreach (var e in enemyInstances) if (e != null) return false;
         return true;
     }
+
+    // Checks if a specific enemy has died
+    bool DidEnemyDie(int index)
+    {
+        if (index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return true;
+        var enemyChar = enemyInstances[index].GetComponent<Character>();
+        return enemyChar != null && enemyChar.currentHP <= 0;
+    }
+
+    #endregion
 }
