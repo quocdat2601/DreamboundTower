@@ -1,138 +1,96 @@
-# Map System - Slay the Spire Style
+# Map System (Zone/Floor) — Developer Guide
 
-Map System đã được copy từ Slay the Spire project và tích hợp vào DreamboundTower.
+This document explains how the map flow works, how it persists state, and how it integrates with the single‑run model.
 
-## 📁 Cấu trúc thư mục
+## What it does (high level)
+- Procedurally generates a map per zone with 10 floors each (default).
+- Tracks current zone and floor, and progresses floors and zones.
+- Persists the map JSON and zone/floor data in PlayerPrefs per zone.
+- Reloads the saved map when re‑entering a zone scene, or generates a new one when needed.
 
-```
-MapSystem/
-├── Core Scripts/
-│   ├── Map.cs                    - Data structure cho map
-│   ├── Node.cs                   - Data structure cho node
-│   ├── NodeBlueprint.cs          - ScriptableObject cho node types
-│   ├── MapConfig.cs              - ScriptableObject cho map configuration
-│   ├── MapLayer.cs               - Data structure cho map layers
-│   ├── MapGenerator.cs           - Procedural map generation
-│   ├── MapManager.cs             - Quản lý map chính
-│   ├── MapView.cs                - Hiển thị map (3D/World)
-│   ├── MapViewUI.cs              - Hiển thị map (UI/Canvas)
-│   ├── MapNode.cs                - Node trên map với animations
-│   ├── MapPlayerTracker.cs       - Theo dõi player progress
-│   └── ScrollNonUI.cs            - Scroll system (đã sửa Input System)
-├── UI Lines/
-│   ├── UIPrimitiveBase.cs        - Base class cho UI primitives
-│   ├── UILineRenderer.cs         - UI line rendering
-│   └── Utilities/
-│       ├── BezierPath.cs         - Bezier curve utilities
-│       ├── CableCurve.cs         - Cable curve utilities
-│       └── SetPropertyUtility.cs - Property utilities
-├── Utilities/
-│   ├── MinMax.cs                 - Min/Max value utilities
-│   ├── ShufflingExtension.cs     - List shuffling utilities
-│   ├── LineConnection.cs         - Line connection data
-│   └── DottedLineRenderer.cs     - Dotted line rendering
-└── README.md                     - File này
-```
+## Core scripts
+- `MapManager.cs`: Orchestrates zone/floor, loads/saves data, generates new maps, handles zone transitions.
+- `MapGenerator.cs`: Produces a `Map` from `MapConfig` and blueprints.
+- `MapView.cs`: Renders the map and provides UI layer updates.
+- `MapPlayerTracker.cs`: Tracks the player path/progression on the map.
+- `Node/Map/MapConfig/*`: Data, blueprints, and configuration assets.
 
-## 🚀 Cách sử dụng
+## Scene/Zone detection
+- On `Start()`, `MapManager.DetectZoneFromSceneName()` reads the scene name. If the scene is `ZoneN`, `currentZone = N`.
+- If the detected zone differs from stored `currentZone`, `MapManager` syncs it and saves immediately.
 
-### 1. Tạo Map Config
-1. Right-click trong Project window
-2. Create > Map > MapConfig
-3. Cấu hình các thông số:
-   - `nodeBlueprints`: Danh sách các node types
-   - `randomNodes`: Các node types có thể random
-   - `numOfPreBossNodes`: Số node trước boss
-   - `numOfStartingNodes`: Số node bắt đầu
-   - `extraPaths`: Số đường dẫn thêm
-   - `layers`: Các layer của map
+## Load sequence (MapManager.Start)
+1. Detect zone from scene name.
+2. Load `currentFloor` and `steadfastHeartRestores` for this zone.
+3. If `Zone{currentZone}_Map` exists:
+   - Load JSON → `CurrentMap`.
+   - If the boss node is already in `map.path`, a new map is generated (run has finished that zone).
+   - Otherwise show the loaded map and sync floor from the last visited node.
+4. If no saved map for this zone exists, generate a new one.
+5. Apply any pending completion carried over from battle scenes via `MapTravel`.
 
-### 2. Tạo Node Blueprints
-1. Right-click trong Project window
-2. Create > Map > NodeBlueprint
-3. Cấu hình:
-   - `sprite`: Sprite cho node
-   - `nodeType`: Loại node (MinorEnemy, EliteEnemy, etc.)
+## Persistence model (PlayerPrefs keys)
+- Per zone:
+  - `Zone{N}_Map` → Map JSON for zone N
+  - `Zone{N}_Floor` → Floor in zone N (1..10)
+  - `Zone{N}_SteadfastHeart` → Remaining restores
+- Global helpers:
+  - `CurrentZone` → Active zone index
 
-### 3. Setup Map Manager
-1. Tạo GameObject trong scene
-2. Add component `MapManager`
-3. Assign:
-   - `config`: MapConfig đã tạo
-   - `view`: MapView hoặc MapViewUI
+`MapManager.SaveMap()` writes all the above keys and calls `PlayerPrefs.Save()`.
 
-### 4. Setup Map View
-1. Tạo GameObject cho MapView
-2. Add component `MapView` hoặc `MapViewUI`
-3. Cấu hình:
-   - `nodePrefab`: Prefab cho node
-   - `linePrefab`: Prefab cho đường nối
-   - `orientation`: Hướng map (BottomToTop, TopToBottom, etc.)
-   - Colors và settings khác
+## Floor/zone progression
+- `AdvanceFloor()` increments `currentFloor` and persists.
+- When passing last floor (10), it increments `currentZone`, resets `currentFloor = 1`, saves, and loads the next `Zone{currentZone}` scene.
+- `IsCheckpointFloor()` uses absolute floor math: floors 1, 11, 21... are checkpoints.
+- `IsBossFloor()` returns `currentFloor == totalFloorsPerZone`.
 
-### 5. Setup Map Player Tracker
-1. Tạo GameObject
-2. Add component `MapPlayerTracker`
-3. Assign:
-   - `mapManager`: MapManager reference
-   - `view`: MapView reference
+## Single‑Run integration
+The main menu uses `RunSaveService` to enforce one active run.
+- `Run_Active` and `Run_LastScene` are maintained by `RunSaveService`.
+- We update run meta whenever the map is saved so Continue knows where to resume.
 
-## 🎮 Node Types
+Hook already added:
+- In `MapManager.SaveMap()`:
+  - `RunSaveService.UpdateLastScene(SceneManager.GetActiveScene().name);`
 
-- `MinorEnemy`: Enemy thường
-- `EliteEnemy`: Enemy mạnh
-- `RestSite`: Nơi nghỉ ngơi
-- `Treasure`: Kho báu
-- `Store`: Cửa hàng
-- `Boss`: Boss
-- `Mystery`: Bí ẩn
+Run meta keys (PlayerPrefs):
+- `Run_Active` (int 0/1) → if an active run exists
+- `Run_LastScene` (string) → last scene to continue from
 
-## 🔧 Dependencies
+Start and Continue flow:
+- New Game: `RunSaveService.StartNewRun("Zone1");`
+- Continue: `RunSaveService.ContinueRunOrFallback("Zone1");`
+- Overwrite: `RunSaveService.ClearRun()` then `StartNewRun`.
 
-Map System sử dụng các packages sau:
-- `com.unity.ai.navigation` (2.0.9)
-- `com.unity.nuget.newtonsoft-json` (3.2.1)
+## Public entry points (common)
+- `MapManager.GenerateNewMap()` → Create and show a new map for the current zone; resets `currentFloor = 1` and saves.
+- `MapManager.SaveMap()` → Persist map JSON and zone/floor/steadfast; updates run meta last scene.
+- `MapManager.AdvanceFloor()` → Move to next floor, auto‑transition at zone boundary.
+- `MapManager.GenerateNewMapForZone(int zone)` → Switch zone, reset floor, then generate.
 
-**Lưu ý**: Map System đã được sửa để không phụ thuộc vào DOTween. Nếu bạn muốn có animations mượt mà, có thể cài đặt DOTween từ Asset Store và thêm lại các animations.
+## Adding features safely
+- When adding any data that is per‑run (inventory, party, relics), store them under a clear prefix (`Run_*`) so `RunSaveService.ClearRun()` can remove them without touching user settings.
+- If you introduce additional scenes beyond `ZoneN`, call `RunSaveService.UpdateLastScene(SceneManager.GetActiveScene().name)` at meaningful save/checkpoint moments so Continue remains accurate.
 
-## ⚠️ Lưu ý
+## Minimal setup checklist
+- Create `MapConfig` asset and assign it to `MapManager.config`.
+- Ensure `MapView` is assigned for rendering.
+- Ensure your zone scenes follow `Zone1`, `Zone2`, ... naming so detection works.
+- Main Menu wired to `RunSaveService` via `MainMenu` methods.
 
-1. **Input System**: ScrollNonUI.cs đã được sửa để tương thích với Input System mới
-2. **Namespace**: Tất cả scripts sử dụng namespace `Map`
-3. **DOTween**: Không cần thiết - Map System hoạt động mà không cần DOTween
-4. **Newtonsoft JSON**: Cần cho việc serialize/deserialize map data
-
-## 🎯 Tính năng
-
-- ✅ Procedural map generation
-- ✅ Multiple map orientations
-- ✅ Node state management (Locked, Visited, Attainable)
-- ✅ Basic animations (có thể nâng cấp với DOTween)
-- ✅ UI và World space rendering
-- ✅ Scroll system
-- ✅ Line connections giữa nodes
-- ✅ Map persistence với PlayerPrefs
-- ✅ Input System compatibility
-
-## 📝 Example Usage
-
+## Example snippets
 ```csharp
-// Generate new map
-mapManager.GenerateNewMap();
+// Generate a new run and go to Zone1
+RunSaveService.StartNewRun("Zone1");
 
-// Save current map
-mapManager.SaveMap();
+// Continue existing run or fallback to Zone1
+RunSaveService.ContinueRunOrFallback("Zone1");
 
-// Select a node
-MapPlayerTracker.Instance.SelectNode(mapNode);
+// Update last scene at a checkpoint
+RunSaveService.UpdateLastScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
 
-// Get current map
-Map currentMap = mapManager.CurrentMap;
+// In map after moving to a node
+MapManager.Instance.SaveMap();
 ```
 
-## 🔄 Integration với DreamboundTower
-
-Map System hoàn toàn độc lập và có thể tích hợp dễ dàng:
-- Không xung đột với các hệ thống hiện tại
-- Sử dụng namespace riêng `Map`
-- Có thể mở rộng để tích hợp với Battle System, Inventory, etc.

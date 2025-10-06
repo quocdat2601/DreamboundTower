@@ -162,6 +162,9 @@ namespace Map
             PlayerPrefs.SetInt("CurrentZone", currentZone);
             PlayerPrefs.SetInt(zoneKey, currentFloor);
             PlayerPrefs.SetInt(steadfastKey, steadfastHeartRestores);
+
+            // Keep run meta updated so Continue works reliably
+            RunSaveService.UpdateLastScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
             
             PlayerPrefs.Save();
             

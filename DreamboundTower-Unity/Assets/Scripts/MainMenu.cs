@@ -9,6 +9,8 @@ public class MainMenu : MonoBehaviour
     public GameObject settingPanel; // Parent panel (transparent background)
     public GameObject settingMenuPrefab; // Setting menu prefab
     public Button settingsButton; // Button để mở settings
+    public Button continueButton; // Continue run
+    public GameObject overwriteWarningPanel; // Overwrite confirm popup
     
     [Header("Animation Settings")]
     public float animationDuration = 0.3f; // Thời gian animation mở/đóng settings
@@ -31,11 +33,54 @@ public class MainMenu : MonoBehaviour
         {
             settingsButton.onClick.AddListener(OpenSettings);
         }
+
+        // Setup continue button state
+        if (continueButton != null)
+        {
+            continueButton.interactable = RunSaveService.HasActiveRun();
+        }
+
+        if (overwriteWarningPanel != null)
+        {
+            overwriteWarningPanel.SetActive(false);
+        }
     }
     
     public void PlayGame()
     {
-        SceneManager.LoadScene("DialogueDemo", LoadSceneMode.Single); // Load scene game dialogue
+        // New Game flow with overwrite confirm if an active run exists
+        if (RunSaveService.HasActiveRun())
+        {
+            if (overwriteWarningPanel != null)
+            {
+                overwriteWarningPanel.SetActive(true);
+            }
+            return;
+        }
+        RunSaveService.StartNewRun("Zone1");
+    }
+
+    public void ConfirmOverwriteAndStart()
+    {
+        RunSaveService.ClearRun();
+        if (overwriteWarningPanel != null)
+        {
+            overwriteWarningPanel.SetActive(false);
+        }
+        RunSaveService.StartNewRun("Zone1");
+    }
+
+    public void CancelOverwrite()
+    {
+        if (overwriteWarningPanel != null)
+        {
+            overwriteWarningPanel.SetActive(false);
+        }
+    }
+
+    public void ContinueGame()
+    {
+        RunSaveService.ContinueRunOrFallback("Zone1");
     }
     public void Next()
     {
