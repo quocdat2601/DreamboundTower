@@ -1286,8 +1286,8 @@ MonoBehaviour:
   settingPanel: {fileID: 1825800257}
   settingMenuPrefab: {fileID: 3719599243106530161, guid: e41ea15af3143d5439dcae6963e83493, type: 3}
   settingsButton: {fileID: 1264848446}
-  continueButton: {fileID: 0}
-  overwriteWarningPanel: {fileID: 0}
+  continueButton: {fileID: 811869109}
+  overwriteWarningPanel: {fileID: 49433721}
   animationDuration: 0.3
   scaleCurve:
     serializedVersion: 2

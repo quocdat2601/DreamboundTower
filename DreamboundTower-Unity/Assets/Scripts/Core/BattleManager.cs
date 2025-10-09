@@ -1,11 +1,12 @@
 // BattleManager.cs
+using Map;
+using Presets;
 using System.Collections;
 using System.Linq;
 using UnityEngine;
-using Presets;
-using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
-using Map;
+using UnityEngine.UI;
 
 /// <summary>
 /// Battle system manager for turn-based combat
@@ -53,6 +54,7 @@ public class BattleManager : MonoBehaviour
     [Header("UI References")]
     public Slider playerHealthBar;      // Drag the big health bar from PlayerStatusSection here
     public BattleUIManager uiManager;   // Assign your UIManager here
+    public GameObject defeatPanel;
 
     // runtime
     private GameObject playerInstance;
@@ -71,6 +73,10 @@ public class BattleManager : MonoBehaviour
 
     void Start()
     {
+        if (defeatPanel != null)
+        {
+            defeatPanel.SetActive(false);
+        }
         // Initialize the UI Manager
         if (uiManager != null)
         {
@@ -82,7 +88,28 @@ public class BattleManager : MonoBehaviour
         AutoBindEnemySlotButtons();
         RefreshSelectionVisual();
     }
+    void Update()
+    {
+        // Check for debug key presses if the battle is not busy
+        if (busy) return;
 
+        // Make sure a keyboard is connected before trying to read from it
+        if (Keyboard.current == null) return;
+
+        // Press 'Q' to instantly win the battle
+        if (Keyboard.current.qKey.wasPressedThisFrame)
+        {
+            Debug.LogWarning("DEBUG: Force Victory (Q key pressed).");
+            StartCoroutine(VictoryRoutine());
+        }
+
+        // Press 'E' to instantly lose the battle
+        if (Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            Debug.LogWarning("DEBUG: Force Defeat (E key pressed).");
+            StartCoroutine(DefeatRoutine());
+        }
+    }
     #endregion
 
     #region Spawning
@@ -195,14 +222,15 @@ public class BattleManager : MonoBehaviour
     // Spawns enemies based on overrides or data passed from the map
     void SpawnEnemies()
     {
-        if (enemySlots == null) return;
+        if (enemySlots == null || enemySlots.Length == 0) return;
+
+        // Khởi tạo mảng instance với kích thước tối đa
         enemyInstances = new GameObject[enemySlots.Length];
 
-        // Load resolved combat config written by the Map scene
+        // --- Tải dữ liệu kẻ địch từ Map (không đổi) ---
         var cfg = Resources.Load<CombatConfigSO>("CombatConfig");
         if (cfg == null)
         {
-            // try PlayerPrefs fallback
             int kind, hp, str, def, mana, intel, agi, absFloor; string arch;
             if (Map.MapTravel.TryReadAndClearPendingEnemy(out kind, out hp, out str, out def, out mana, out intel, out agi, out absFloor, out arch))
             {
@@ -211,71 +239,136 @@ public class BattleManager : MonoBehaviour
                 cfg.enemyStats.HP = hp; cfg.enemyStats.STR = str; cfg.enemyStats.DEF = def;
                 cfg.enemyStats.MANA = mana; cfg.enemyStats.INT = intel; cfg.enemyStats.AGI = agi;
                 cfg.absoluteFloor = absFloor; cfg.enemyArchetypeId = arch;
-                Debug.Log($"[BATTLE] Loaded enemy from PlayerPrefs fallback: floor={absFloor}, kind={(EnemyKind)kind}, HP={hp} STR={str} DEF={def}");
+                Debug.Log($"[BATTLE] Loaded enemy from PlayerPrefs fallback: floor={absFloor}, kind={(EnemyKind)kind}");
             }
             else
             {
                 Debug.LogWarning("[BATTLE] CombatConfig not found and no pending enemy in PlayerPrefs. Use inspector overrides if desired.");
             }
         }
+        int enemyCount = 1;
+        EnemyKind encounterKind = EnemyKind.Normal;
 
-        for (int i = 0; i < enemySlots.Length; i++)
+        // Ưu tiên 1 & 2: Ghi đè (Override)
+        if (overrideUseCustomStats || overrideUseTemplate)
+        {
+            encounterKind = overrideUseTemplate ? overrideTemplate.kind : overrideKind;
+        }
+        // Ưu tiên 3: Dữ liệu từ Map
+        else if (cfg != null)
+        {
+            encounterKind = cfg.enemyKind;
+        }
+
+        switch (encounterKind)
+        {
+            case EnemyKind.Normal:
+                enemyCount = Random.Range(1, 4); // Ngẫu nhiên 1, 2, hoặc 3
+                break;
+            case EnemyKind.Elite:
+                enemyCount = Random.Range(1, 3); // Ngẫu nhiên 1 hoặc 2
+                break;
+            case EnemyKind.Boss:
+                enemyCount = 1;
+                break;
+        }
+
+        // Đảm bảo không tạo nhiều kẻ địch hơn số slot có sẵn
+        enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
+        Debug.Log($"[BATTLE] Spawning {enemyCount} enemies for a {encounterKind} encounter.");
+
+        // --- Vòng lặp tạo kẻ địch (đã được tái cấu trúc) ---
+        for (int i = 0; i < enemyCount; i++)
         {
             if (enemyPrefab == null || enemySlots[i] == null) continue;
-            var e = Instantiate(enemyPrefab, enemySlots[i], false);
-            var rect = e.GetComponent<RectTransform>();
-            if (rect != null) rect.anchoredPosition = Vector2.zero;
-            e.transform.localScale = Vector3.one;
-            e.name = "Enemy_" + i;
-            enemyInstances[i] = e;
 
-            // Decision order: custom stats -> template -> map payload
+            var enemyGO = Instantiate(enemyPrefab, enemySlots[i], false);
+            enemyGO.transform.localPosition = Vector2.zero;
+            enemyGO.transform.localScale = Vector3.one;
+            enemyGO.name = "Enemy_" + i;
+            enemyInstances[i] = enemyGO;
+
+            // Logic để lấy đúng template và stats (tương tự code cũ của bạn)
+            EnemyTemplateSO finalTemplate = null;
+            StatBlock finalStats;
+
             if (overrideUseCustomStats)
             {
-                var fake = ScriptableObject.CreateInstance<CombatConfigSO>();
-                fake.enemyKind = overrideKind;
-                fake.enemyStats = overrideStats;
-                fake.absoluteFloor = Mathf.Max(1, overrideFloor);
-                fake.enemyArchetypeId = "OverrideCustom";
-                ApplyEnemyStatsFromConfig(e, fake);
+                finalStats = overrideStats;
+                ApplyEnemyData(enemyGO, finalStats, null);
             }
             else if (overrideUseTemplate && overrideTemplate != null)
             {
-                var fake = ScriptableObject.CreateInstance<CombatConfigSO>();
-                fake.enemyKind = overrideTemplate.kind;
-                fake.absoluteFloor = Mathf.Max(1, overrideFloor);
-                fake.enemyArchetypeId = overrideTemplate.name;
-                fake.enemyStats = overrideTemplate.GetStatsAtFloor(fake.absoluteFloor);
-                ApplyEnemyStatsFromConfig(e, fake);
+                finalTemplate = overrideTemplate;
+                finalStats = finalTemplate.GetStatsAtFloor(overrideFloor);
+                ApplyEnemyData(enemyGO, finalStats, finalTemplate);
             }
             else if (cfg != null)
             {
-                ApplyEnemyStatsFromConfig(e, cfg);
+                finalTemplate = FindTemplateByArchetype(cfg.enemyArchetypeId);
+                if (finalTemplate != null)
+                {
+                    finalStats = finalTemplate.GetStatsAtFloor(cfg.absoluteFloor);
+                    ApplyEnemyData(enemyGO, finalStats, finalTemplate);
+                }
+                else
+                {
+                    Debug.LogError($"[BATTLE] Could not find EnemyTemplateSO: {cfg.enemyArchetypeId}");
+                }
+            }
+        }
+
+        // Tắt các slot kẻ địch không được sử dụng
+        for (int i = enemyCount; i < enemySlots.Length; i++)
+        {
+            if (enemySlots[i] != null)
+            {
+                enemySlots[i].gameObject.SetActive(false);
             }
         }
     }
 
-    // Applies stats from a config SO to an enemy's Character component
-    void ApplyEnemyStatsFromConfig(GameObject enemyGO, CombatConfigSO cfg)
+    /// <summary>
+    /// Applies stats and a random sprite from a template to an enemy GameObject.
+    /// </summary>
+    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template)
     {
-        if (enemyGO == null || cfg == null) return;
-        var ch = enemyGO.GetComponent<Character>();
-        if (ch == null)
+        if (enemyGO == null) return;
+
+        // Gán hình ảnh ngẫu nhiên từ template (nếu có)
+        if (template != null && template.sprites != null && template.sprites.Count > 0)
         {
-            Debug.LogWarning("[BATTLE] Enemy prefab missing Character component. Stats not applied.");
-            return;
+            Image enemyImage = enemyGO.GetComponent<Image>();
+            if (enemyImage != null)
+            {
+                enemyImage.sprite = template.sprites[Random.Range(0, template.sprites.Count)];
+            }
         }
 
-        int scaledHP = Mathf.Max(1, cfg.enemyStats.HP * Mathf.Max(1, hpUnit));
-        ch.baseMaxHP = scaledHP;
-        ch.baseAttackPower = Mathf.Max(0, cfg.enemyStats.STR);
-        ch.baseDefense = Mathf.Max(0, cfg.enemyStats.DEF);
-        ch.ResetToBaseStats();
-        ch.currentHP = ch.maxHP;
+        // Gán chỉ số cho component Character
+        var ch = enemyGO.GetComponent<Character>();
+        if (ch != null)
+        {
+            ch.baseMaxHP = stats.HP * hpUnit;
+            ch.baseAttackPower = stats.STR;
+            ch.baseDefense = stats.DEF;
+            ch.baseMana = stats.MANA;
+            ch.baseIntelligence = stats.INT;
+            ch.baseAgility = stats.AGI;
+            ch.ResetToBaseStats();
+            ch.currentHP = ch.maxHP;
+        }
+    }
 
-        Debug.Log($"[BATTLE] Enemy init @ floor {cfg.absoluteFloor} | Kind={cfg.enemyKind} | Archetype={cfg.enemyArchetypeId}\n" +
-                  $"RAW   HP={cfg.enemyStats.HP} STR={cfg.enemyStats.STR} DEF={cfg.enemyStats.DEF} MANA={cfg.enemyStats.MANA} INT={cfg.enemyStats.INT} AGI={cfg.enemyStats.AGI}\n" +
-                  $"FINAL HP={ch.maxHP} (hpUnit={hpUnit}) ATK={ch.attackPower} DEF={ch.defense}");
+    /// <summary>
+    /// Finds an EnemyTemplateSO in the Resources/EnemyTemplates folder by its asset name.
+    /// </summary>
+    private EnemyTemplateSO FindTemplateByArchetype(string archetypeId)
+    {
+        if (string.IsNullOrEmpty(archetypeId)) return null;
+
+        var templates = Resources.LoadAll<EnemyTemplateSO>("EnemyTemplates");
+        return templates.FirstOrDefault(t => t.name == archetypeId);
     }
 
     #endregion
@@ -313,7 +406,25 @@ public class BattleManager : MonoBehaviour
         }
         StartCoroutine(PlayerAttackRoutine(selectedEnemyIndex));
     }
+    /// <summary>
+    /// Reloads the current active scene.
+    /// Call this from a debug button on the UI.
+    /// </summary>
+    public void ReloadScene()
+    {
+        // Trước khi tải lại, nếu có người chơi từ GameManager, hãy hủy nó đi
+        // để tránh tạo ra 2 người chơi ở lần tải lại tiếp theo
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            // Quan trọng: Chỉ hủy instance trong scene, không hủy GameManager
+            Destroy(GameManager.Instance.playerInstance);
+            GameManager.Instance.playerInstance = null;
+        }
 
+        // Tải lại scene hiện tại
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        SceneManager.LoadScene(currentSceneName);
+    }
     #endregion
 
     #region Enemy Selection UI
@@ -507,6 +618,11 @@ public class BattleManager : MonoBehaviour
     {
         Debug.Log("[BATTLE] Player died. Game over.");
         busy = true;
+        // Kích hoạt Defeat Panel
+        if (defeatPanel != null)
+        {
+            defeatPanel.SetActive(true); // <-- THÊM DÒNG NÀY
+        }
         // TODO: Show defeat screen, handle game over logic
         yield return new WaitForSeconds(2f);
         // SceneManager.LoadScene("MainMenu"); // Example

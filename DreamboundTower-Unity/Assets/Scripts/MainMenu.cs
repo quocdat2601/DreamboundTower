@@ -37,7 +37,7 @@ public class MainMenu : MonoBehaviour
         // Setup continue button state
         if (continueButton != null)
         {
-            continueButton.interactable = RunSaveService.HasActiveRun();
+            continueButton.gameObject.SetActive(RunSaveService.HasActiveRun());
         }
 
         if (overwriteWarningPanel != null)
@@ -57,7 +57,7 @@ public class MainMenu : MonoBehaviour
             }
             return;
         }
-        RunSaveService.StartNewRun("Zone1");
+        RunSaveService.StartNewRun("Character Selection");
     }
 
     public void ConfirmOverwriteAndStart()
@@ -67,7 +67,7 @@ public class MainMenu : MonoBehaviour
         {
             overwriteWarningPanel.SetActive(false);
         }
-        RunSaveService.StartNewRun("Zone1");
+        RunSaveService.StartNewRun("Character Selection");
     }
 
     public void CancelOverwrite()

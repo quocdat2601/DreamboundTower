@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Presets
@@ -9,7 +10,10 @@ namespace Presets
 	{
 		public EnemyKind kind;
 
-		[Header("Base @ Floor 1")]
+        [Header("Visuals")]
+        public List<Sprite> sprites;
+
+        [Header("Base @ Floor 1")]
 		public StatBlock baseStatsAtFloor1;
 
 		[Header("Multipliers (Elite/Boss)")]
