@@ -610,6 +610,7 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
 
         MapTravel.MarkBattleCompleted();
+        RestorePersistentPlayer();
         MapTravel.ReturnToMap();
     }
 
@@ -625,12 +626,35 @@ public class BattleManager : MonoBehaviour
         }
         // TODO: Show defeat screen, handle game over logic
         yield return new WaitForSeconds(2f);
+        RestorePersistentPlayer();
         // SceneManager.LoadScene("MainMenu"); // Example
     }
 
     #endregion
 
     #region Helpers
+    /// <summary>
+    /// Moves the persistent player back under the GameManager before leaving the battle scene.
+    /// Without this the player instance stays parented to the battle scene's slot and gets
+    /// destroyed when the scene unloads, causing the missing player on the map.
+    /// </summary>
+    void RestorePersistentPlayer()
+    {
+        if (GameManager.Instance == null) return;
+
+        var persistentPlayer = GameManager.Instance.playerInstance;
+        if (persistentPlayer == null) return;
+
+        // Only detach if the player is currently parented under the battle slot.
+        if (persistentPlayer.transform.parent == playerSlot)
+        {
+            persistentPlayer.transform.SetParent(GameManager.Instance.transform, false);
+        }
+
+        // Ensure it survives the next scene load and hide it until the map wants to show it.
+        DontDestroyOnLoad(persistentPlayer);
+        persistentPlayer.SetActive(false);
+    }
 
     // Checks if all enemies are dead
     bool AllEnemiesDead()
