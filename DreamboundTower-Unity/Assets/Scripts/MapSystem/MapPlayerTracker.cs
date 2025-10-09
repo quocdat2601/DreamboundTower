@@ -51,124 +51,164 @@ namespace Map
         private void SendPlayerToNode(MapNode mapNode)
         {
             Locked = lockAfterSelecting;
-            
-            // TEMPORARY: For testing map progression, treat all nodes the same
-            // For non-combat nodes, mark as completed immediately
-            // if (mapNode.Node.nodeType != NodeType.MinorEnemy)
-            // {
-                mapManager.CurrentMap.path.Add(mapNode.Node.point);
-                // sync currentFloor with selected node's layer (y + 1)
-                int floorInZone = mapNode.Node.point.y + 1;
-                floorInZone = Mathf.Clamp(floorInZone, 1, mapManager.totalFloorsPerZone);
-                mapManager.SetCurrentZoneFloor(mapManager.currentZone, floorInZone);
-                mapManager.SaveMap();
-                view.SetAttainableNodes();
-                view.SetLineColors();
-                mapNode.ShowSwirlAnimation();
-                
-                // Update floor display based on current position
-                view.UpdateFloorDisplay();
-                
-                // Check if this is a boss node - advance floor after animation delay to avoid DOTween errors
-                if (mapNode.Node.nodeType == NodeType.Boss)
-                {
-                    DOTween.Sequence()
-                        .AppendInterval(enterNodeDelay)
-                        .OnComplete(() =>
-                        {
-                            Debug.Log("Boss defeated! Advancing floor...");
-                            mapManager.AdvanceFloor();
-                        });
-                }
-            // }
-            
-            // Always save map before leaving scene
-            mapManager.SaveMap();
+            view.SetAttainableNodes();
+            view.SetLineColors();
+            mapNode.ShowSwirlAnimation();
+            view.UpdateFloorDisplay();
 
-            // Resolve enemy preset for next combat (normal/elite/boss)
+            // --- LOGIC MỚI ĐƯỢC GOM LẠI ---
+            // 1. Xác định scene sẽ tải dựa trên loại node
+            string sceneToLoad = GetSceneNameForNodeType(mapNode.Node.nodeType);
+
+            // 2. Nếu là node tự động hoàn thành (không cần chuyển scene)
+            if (string.IsNullOrEmpty(sceneToLoad))
+            {
+                HandleAutoCompletion(mapNode);
+                return; // Kết thúc hàm ở đây
+            }
+
+            // 3. Nếu là node cần chuyển scene (combat, event...) -> ĐÂY LÀ ĐIỂM KHÔNG THỂ QUAY ĐẦU
+            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+            {
+                var runData = GameManager.Instance.currentRunData;
+                // Gán CẢ HAI thông tin pending cùng lúc
+                runData.mapData.pendingNodePoint = mapNode.Node.point;
+                runData.mapData.pendingNodeSceneName = sceneToLoad;
+
+                // LƯU GAME 1 LẦN DUY NHẤT
+                RunSaveService.SaveRun(runData);
+                Debug.Log($"[SAVE SYSTEM] Point of no return: Committed to node {mapNode.Node.point} (Scene: {sceneToLoad}). Game saved.");
+            }
+            else
+            {
+                Debug.LogError("GameManager hoặc RunData không tồn tại! Không thể lưu trạng thái pending.");
+                Locked = false; // Mở khóa để tránh bị kẹt
+                return;
+            }
+
+            // --- CÁC PHẦN CŨ VẪN GIỮ NGUYÊN ---
             TryWriteCombatPreset(mapNode);
 
-            // Delay scene handling to allow swirl animation to finish
-            DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
+            // Dùng DOTween để chuyển scene sau độ trễ
+            DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() =>
+            {
+                SceneManager.LoadScene(sceneToLoad);
+            });
         }
 
-        private static void EnterNode(MapNode mapNode)
+        private string GetSceneNameForNodeType(NodeType type)
         {
-            // we have access to blueprint name here as well
-            Debug.Log("Entering node: " + mapNode.Node.blueprintName + " of type: " + mapNode.Node.nodeType);
-            // load appropriate scene with context based on nodeType:
-            // or show appropriate GUI over the map: 
-            // if you choose to show GUI in some of these cases, do not forget to set "Locked" in MapPlayerTracker back to false
-            switch (mapNode.Node.nodeType)
+            switch (type)
             {
                 case NodeType.MinorEnemy:
-                    // TEMPORARY: Comment out scene transition for testing
-                    // Save where to return and which node is pending completion
-                    MapTravel.BeginNodeBattle(mapNode.Node.point, SceneManager.GetActiveScene().name, nameof(NodeType.MinorEnemy));
-                    SceneManager.LoadScene("MainGame", LoadSceneMode.Single);
-                    //Debug.Log("MinorEnemy node completed (scene transition disabled for testing)");
-                    break;
                 case NodeType.EliteEnemy:
-                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
-                    break;
-                case NodeType.RestSite:
-                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
-                    break;
-                case NodeType.Treasure:
-                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
-                    break;
-                case NodeType.Store:
-                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
-                    break;
                 case NodeType.Boss:
-                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
-                    break;
-                case NodeType.Mystery:
-                    //SceneManager.LoadScene("Demo", LoadSceneMode.Single);
-                    break;
+                    return "MainGame";
+                // case NodeType.Mystery:
+                //     return "EventScene";
+
+                // Các node không cần chuyển scene sẽ trả về chuỗi rỗng
+                case NodeType.RestSite:
+                case NodeType.Treasure:
+                case NodeType.Store:
+                case NodeType.Mystery: // Tạm thời để auto complete
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    return "";
             }
         }
 
+        private void HandleAutoCompletion(MapNode mapNode)
+        {
+            Debug.Log($"Auto-completing node: {mapNode.Node.nodeType} at {mapNode.Node.point}");
+
+            // ----- PHẦN LOGIC MỚI - LƯU TRƯỚC KHI ANIMATION -----
+            // Mục tiêu: Cập nhật và lưu trạng thái "pending" ngay lập tức để vá lỗi "Quit & Skip"
+            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+            {
+                var runData = GameManager.Instance.currentRunData;
+
+                // Ghi lại trạng thái pending
+                runData.mapData.pendingNodePoint = mapNode.Node.point;
+                // Vì đây là node auto-complete, không có scene name
+                runData.mapData.pendingNodeSceneName = "";
+
+                // LƯU GAME 1 LẦN DUY NHẤT TẠI ĐÂY
+                RunSaveService.SaveRun(runData);
+                Debug.Log($"[SAVE SYSTEM] Point of no return: Committed to auto-complete node {mapNode.Node.point}. Game saved.");
+            }
+            else
+            {
+                Debug.LogError("GameManager hoặc RunData không tồn tại! Không thể lưu trạng thái pending.");
+                Locked = false;
+                return;
+            }
+
+            // Dùng DOTween để tạo độ trễ cho hiệu ứng
+            DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() =>
+            {
+                if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+                {
+                    var runData = GameManager.Instance.currentRunData;
+                    var completedNodePoint = runData.mapData.pendingNodePoint;
+
+                    // ----- PHẦN SỬA LỖI -----
+                    // 1. Cập nhật đường đi vào CẢ HAI nơi: RunData và MapManager.CurrentMap
+                    if (runData.mapData.path.All(p => p != completedNodePoint))
+                    {
+                        runData.mapData.path.Add(completedNodePoint);
+                        // ĐỒNG BỘ VỚI ĐỐI TƯỢNG ĐANG CHẠY
+                        mapManager.CurrentMap.path.Add(completedNodePoint);
+                    }
+
+                    // 2. Xóa trạng thái "đang chờ" trong RunData
+                    runData.mapData.pendingNodePoint = new Vector2Int(-1, -1);
+                    runData.mapData.pendingNodeSceneName = null;
+
+                    // 3. Lưu lại trạng thái đã hoàn thành
+                    RunSaveService.SaveRun(runData);
+                    Debug.Log($"[SAVE SYSTEM] Node {completedNodePoint} auto-completed. Game saved.");
+                }
+
+                // 4. Cập nhật lại giao diện bản đồ (bây giờ sẽ không bị lỗi nữa)
+                view.SetAttainableNodes();
+                view.SetLineColors();
+
+                // 5. Mở khóa để người chơi có thể chọn node tiếp theo
+                Locked = false;
+            });
+        }
         private void TryWriteCombatPreset(MapNode mapNode)
         {
             if (mapNode == null || mapManager == null) return;
+            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null) return;
+
             Presets.EnemyTemplateSO template = null;
             switch (mapNode.Node.nodeType)
             {
-                case NodeType.MinorEnemy:
-                    template = mapManager.normalTemplate; break;
-                case NodeType.EliteEnemy:
-                    template = mapManager.eliteTemplate; break;
-                case NodeType.Boss:
-                    template = mapManager.bossTemplate; break;
-                default:
-                    return;
+                case NodeType.MinorEnemy: template = mapManager.normalTemplate; break;
+                case NodeType.EliteEnemy: template = mapManager.eliteTemplate; break;
+                case NodeType.Boss: template = mapManager.bossTemplate; break;
+                default: return;
             }
+
             if (template == null)
             {
-                Debug.LogWarning("[MAP] Enemy template not assigned on MapManager for node type " + mapNode.Node.nodeType);
+                Debug.LogWarning($"[MAP] Enemy template not assigned for node type {mapNode.Node.nodeType}");
                 return;
             }
 
             int floorInZone = mapNode.Node.point.y + 1;
             int absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + floorInZone;
 
-            var cfg = Resources.Load<Presets.CombatConfigSO>("CombatConfig");
-            if (cfg == null)
-            {
-                Debug.LogWarning("[MAP] Resources/CombatConfig.asset not found. Create one via Create → Presets → CombatConfig and place under Assets/Resources.");
-                return;
-            }
-            var stats = template.GetStatsAtFloor(absoluteFloor);
-            cfg.enemyKind = template.kind;
-            cfg.enemyStats = stats;
-            cfg.absoluteFloor = absoluteFloor;
-            cfg.enemyArchetypeId = template.name;
-            // Also mirror to PlayerPrefs to be scene-load safe
-            MapTravel.SetPendingEnemy((int)template.kind, stats.HP, stats.STR, stats.DEF, stats.MANA, stats.INT, stats.AGI, absoluteFloor, template.name);
-            Debug.Log($"[MAP] Wrote CombatConfig: floor={absoluteFloor}, kind={cfg.enemyKind}, archetype={cfg.enemyArchetypeId}, HP={stats.HP} STR={stats.STR} DEF={stats.DEF}");
+            // Lấy RunData ra
+            var runData = GameManager.Instance.currentRunData;
+
+            // Ghi trực tiếp thông tin combat vào RunData
+            runData.mapData.pendingEnemyArchetypeId = template.name;
+            runData.mapData.pendingEnemyKind = (int)template.kind;
+            runData.mapData.pendingEnemyFloor = absoluteFloor;
+
+            Debug.Log($"[MAP] Wrote pending combat data to RunData: kind={template.kind}, archetype={template.name}, floor={absoluteFloor}");
         }
 
         private void PlayWarningThatNodeCannotBeAccessed()

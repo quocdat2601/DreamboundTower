@@ -2,6 +2,8 @@
 using UnityEngine;
 using Newtonsoft.Json;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -40,85 +42,37 @@ namespace Map
             DOTween.Init();
         }
 
+        // Trong file MapManager.cs
+
         private void Start()
         {
-            // Detect current zone from scene name first
-            DetectZoneFromSceneName();
-            
-            // Load Zone/Floor System data
-            LoadZoneFloorData();
-            
-            // Load zone-specific map
-            string mapKey = $"Zone{currentZone}_Map";
-            if (PlayerPrefs.HasKey(mapKey))
+            if (GameManager.Instance == null)
             {
-                string mapJson = PlayerPrefs.GetString(mapKey);
-                Map map = JsonConvert.DeserializeObject<Map>(mapJson);
-                // using this instead of .Contains()
-                if (map.path.Any(p => p.Equals(map.GetBossNode().point)))
-                {
-                    // player has already reached the boss, generate a new map
-                    GenerateNewMap();
-                }
-                else
-                {
-                    CurrentMap = map;
-                    // player has not reached the boss yet, load the current map
-                    view.ShowMap(map);
-                    // sync floor state from last visited node if any
-                    SyncFloorWithCurrentPath();
-                }
-            }
-            else
-            {
-                // No saved map for this zone, generate new one
-                GenerateNewMap();
+                Debug.LogError("GameManager is missing from the scene!");
+                return;
             }
 
-            // After map is loaded, check for pending completion from battle scenes
-            bool hasPendingCompletion = MapTravel.TryApplyPendingCompletion(this);
-            if (hasPendingCompletion)
+            var runData = GameManager.Instance.currentRunData;
+            string mapJson = runData.mapData.currentMapJson;
+
+            if (!string.IsNullOrEmpty(mapJson))
             {
-                Debug.Log("Applied pending node completion from battle scene");
-            }
-        }
-        
-        private void DetectZoneFromSceneName()
-        {
-            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
-            Debug.Log($"Current scene: {sceneName}");
-            
-            // Extract zone number from scene name (e.g., "Zone2" -> 2, "MapScene" -> 1)
-            if (sceneName.StartsWith("Zone"))
-            {
-                string zoneString = sceneName.Substring(4); // Remove "Zone" prefix
-                if (int.TryParse(zoneString, out int detectedZone))
-                {
-                    if (detectedZone != currentZone)
-                    {
-                        Debug.Log($"Zone mismatch! Scene suggests Zone {detectedZone}, but current zone is {currentZone}");
-                        currentZone = detectedZone;
-                        currentFloor = 1; // Reset to floor 1 for new zone
-                        SaveMap(); // Save the zone change
-                    }
-                }
+                // 1. Tải cấu trúc map từ JSON
+                Map map = JsonConvert.DeserializeObject<Map>(mapJson);
+
+                // 2. QUAN TRỌNG: Cập nhật lại 'path' cho map từ dữ liệu mới nhất trong RunData
+                map.path = runData.mapData.path;
+
+                CurrentMap = map;
+                view.ShowMap(map);
+
+                currentZone = runData.mapData.currentZone;
+                currentFloor = runData.mapData.currentFloorInZone;
             }
             else
             {
-                Debug.LogWarning($"Unknown scene name: {sceneName}. Expected format: Zone1, Zone2, etc.");
+                GenerateNewMap();
             }
-        }
-        
-        private void LoadZoneFloorData()
-        {
-            // Load zone-specific data
-            string zoneKey = $"Zone{currentZone}_Floor";
-            string steadfastKey = $"Zone{currentZone}_SteadfastHeart";
-            
-            currentFloor = PlayerPrefs.GetInt(zoneKey, 1);
-            steadfastHeartRestores = PlayerPrefs.GetInt(steadfastKey, maxSteadfastHeartRestores);
-            
-            Debug.Log($"Loaded Zone {currentZone} data: Floor {currentFloor}, Steadfast Heart: {steadfastHeartRestores}");
         }
 
         public void GenerateNewMap()
@@ -129,6 +83,12 @@ namespace Map
             view.ShowMap(map);
             // new map starts at floor 1 for this zone
             currentFloor = 1;
+            // QUAN TRỌNG: Reset lại path trong RunData khi tạo map mới
+            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+            {
+                GameManager.Instance.currentRunData.mapData.path.Clear();
+            }
+
             SaveMap();
         }
         
@@ -145,31 +105,38 @@ namespace Map
             GenerateNewMap();
         }
 
+        // Trong file MapManager.cs
+
         public void SaveMap()
         {
             if (CurrentMap == null) return;
+            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null)
+            {
+                Debug.LogWarning("Cannot save map, GameManager or RunData is missing.");
+                return;
+            }
 
-            // Save zone-specific map data
-            string mapKey = $"Zone{currentZone}_Map";
+            // --- PHẦN SỬA LỖI ---
+            // 1. Chuyển đổi bản đồ hiện tại thành JSON
             string json = JsonConvert.SerializeObject(CurrentMap, Formatting.Indented,
                 new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore });
-            PlayerPrefs.SetString(mapKey, json);
-            
-            // Save Zone/Floor System data (zone-specific)
-            string zoneKey = $"Zone{currentZone}_Floor";
-            string steadfastKey = $"Zone{currentZone}_SteadfastHeart";
-            
-            PlayerPrefs.SetInt("CurrentZone", currentZone);
-            PlayerPrefs.SetInt(zoneKey, currentFloor);
-            PlayerPrefs.SetInt(steadfastKey, steadfastHeartRestores);
 
-            // Keep run meta updated so Continue works reliably
-            RunSaveService.UpdateLastScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
-            
-            PlayerPrefs.Save();
-            
-            Debug.Log($"Saved Zone {currentZone} data: Floor {currentFloor}, Map: {mapKey}");
-        }
+            // 2. Lấy "hộp" RunData từ GameManager
+            var runData = GameManager.Instance.currentRunData;
+
+            // 3. Cập nhật tất cả thông tin liên quan đến map vào "bản thiết kế" RunData
+            runData.mapData.currentMapJson = json;
+            runData.mapData.currentZone = currentZone;
+            runData.mapData.currentFloorInZone = currentFloor;
+            runData.mapData.path = CurrentMap.path; // Đảm bảo path luôn được cập nhật
+            runData.mapData.lastKnownScene = SceneManager.GetActiveScene().name; // Thay thế cho UpdateLastScene
+
+            // 4. Gọi hàm lưu game mới, truyền vào toàn bộ "hộp" RunData
+            RunSaveService.SaveRun(runData);
+
+            // Dòng debug cũ có thể giữ lại hoặc sửa đổi
+            Debug.Log($"Saved data for Zone {currentZone} into RunData object.");
+        }   
 
         private void OnApplicationQuit()
         {

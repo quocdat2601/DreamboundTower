@@ -212,11 +212,14 @@ public class CharacterSelectionManager : MonoBehaviour
     {
         if (selectedRace == null || selectedClass == null) return;
 
-        GameManager.Instance.selectedRace = selectedRace;
-        GameManager.Instance.selectedClass = selectedClass;
+        GameManager.Instance.currentRunData.playerData.selectedRaceId = selectedRace.id;
+        GameManager.Instance.currentRunData.playerData.selectedClassId = selectedClass.id;
 
-        // Ra lệnh cho GameManager tạo nhân vật và sau đó tải scene
         GameManager.Instance.InitializePlayerCharacter();
-        GameManager.Instance.LoadNextScene(nextSceneName); // Sử dụng tên scene bạn đã đặt
+
+        // LƯU GAME LẦN ĐẦU TIÊN!
+        RunSaveService.SaveRun(GameManager.Instance.currentRunData);
+
+        GameManager.Instance.LoadNextScene(nextSceneName); // nextSceneName nên là "Zone1"
     }
 }

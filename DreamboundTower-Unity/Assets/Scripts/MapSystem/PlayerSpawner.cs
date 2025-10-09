@@ -16,6 +16,8 @@ public class PlayerSpawner : MonoBehaviour
         SpawnPlayer();
     }
 
+    // Trong file PlayerSpawner.cs
+
     void SpawnPlayer()
     {
         if (GameManager.Instance == null)
@@ -24,13 +26,25 @@ public class PlayerSpawner : MonoBehaviour
             return;
         }
 
-        RacePresetSO race = GameManager.Instance.selectedRace;
-        ClassPresetSO charClass = GameManager.Instance.selectedClass;
+        // --- PHẦN SỬA LỖI ---
+        // 1. Lấy "bản thiết kế" RunData từ GameManager
+        RunData runData = GameManager.Instance.currentRunData;
+
+        if (runData == null || string.IsNullOrEmpty(runData.playerData.selectedRaceId))
+        {
+            Debug.LogError("No character data found in GameManager's RunData. Returning to selection scene.");
+            // UnityEngine.SceneManagement.SceneManager.LoadScene("CharacterSelection");
+            return;
+        }
+
+        // 2. Dùng GameManager để "tra cứu" nguyên vật liệu (ScriptableObjects) từ ID
+        RacePresetSO race = GameManager.Instance.GetRaceByID(runData.playerData.selectedRaceId);
+        ClassPresetSO charClass = GameManager.Instance.GetClassByID(runData.playerData.selectedClassId);
+        // --- KẾT THÚC PHẦN SỬA LỖI ---
 
         if (race == null || charClass == null)
         {
-            Debug.LogError("No character data found in GameManager. Returning to selection scene.");
-            // UnityEngine.SceneManagement.SceneManager.LoadScene("CharacterSelection");
+            Debug.LogError("Could not find Race/Class presets from the IDs in RunData.");
             return;
         }
 
@@ -40,22 +54,24 @@ public class PlayerSpawner : MonoBehaviour
 
         // Lấy các component cần thiết từ Prefab
         Character playerCharacter = playerInstance.GetComponent<Character>();
-        Image playerImage = playerInstance.GetComponent<Image>(); // Dựa theo prefab của bạn
+        Image playerImage = playerInstance.GetComponent<Image>();
 
         if (playerCharacter != null)
         {
-            // --- Gán chỉ số gốc từ Race ---
+            // Gán chỉ số gốc từ Race
             StatBlock baseStats = race.baseStats;
             playerCharacter.baseMaxHP = baseStats.HP;
             playerCharacter.baseAttackPower = baseStats.STR;
             playerCharacter.baseDefense = baseStats.DEF;
-            // (Bạn cần thêm baseMana, baseInt, baseAgi vào script Character.cs nếu muốn)
+            playerCharacter.baseMana = baseStats.MANA;
+            playerCharacter.baseIntelligence = baseStats.INT;
+            playerCharacter.baseAgility = baseStats.AGI;
 
             // Reset lại chỉ số để áp dụng giá trị mới
             playerCharacter.ResetToBaseStats();
         }
 
-        // --- Gán hình ảnh nhân vật ---
+        // Gán hình ảnh nhân vật
         if (playerImage != null)
         {
             Sprite characterSprite = null;

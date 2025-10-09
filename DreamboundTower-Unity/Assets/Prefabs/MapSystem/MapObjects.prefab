@@ -71,6 +71,12 @@ MonoBehaviour:
   lineLockedColor:
     serializedVersion: 2
     rgba: 4278190080
+  floorDisplayText: {fileID: 0}
+  floorDisplayFormat: Floor {0}
+  floorDisplayFontSize: 24
+  floorDisplayColor:
+    serializedVersion: 2
+    rgba: 4294967295
 --- !u!1 &4164742728559498880
 GameObject:
   m_ObjectHideFlags: 0
@@ -199,3 +205,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Map.MapManager
   config: {fileID: 11400000, guid: 19bf411c79e522b4b8e54f82b0140314, type: 2}
   view: {fileID: 4462501714740186190}
+  currentZone: 1
+  currentFloor: 1
+  totalFloorsPerZone: 10
+  totalNodesPerFloor: 5
+  steadfastHeartRestores: 3
+  maxSteadfastHeartRestores: 3
+  normalTemplate: {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
+  eliteTemplate: {fileID: 11400000, guid: 7cbe9f4e0dd1ece42a2dd52ec4fdfa10, type: 2}
+  bossTemplate: {fileID: 11400000, guid: efd0bc707d05df3439782351c405e199, type: 2}

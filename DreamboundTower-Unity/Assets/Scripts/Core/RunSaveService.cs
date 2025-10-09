@@ -1,68 +1,41 @@
-using UnityEngine;
-using UnityEngine.SceneManagement;
+﻿using UnityEngine;
 
 public static class RunSaveService
 {
-	private const string RunActiveKey = "Run_Active";
-	private const string RunLastSceneKey = "Run_LastScene";
-	private const string CurrentZoneKey = "CurrentZone";
+    private const string RunActiveKey = "Run_Active";
+    private const string RunDataKey = "Run_Data"; // Chỉ một key cho toàn bộ dữ liệu
 
-	public static bool HasActiveRun()
-	{
-		return PlayerPrefs.GetInt(RunActiveKey, 0) == 1;
-	}
+    public static bool HasActiveRun()
+    {
+        return PlayerPrefs.GetInt(RunActiveKey, 0) == 1;
+    }
 
-	public static void StartNewRun(string startingSceneName, int startingZone = 1)
-	{
-		PlayerPrefs.SetInt(RunActiveKey, 1);
-		PlayerPrefs.SetString(RunLastSceneKey, startingSceneName);
-		PlayerPrefs.SetInt(CurrentZoneKey, startingZone);
-		PlayerPrefs.Save();
-		SceneManager.LoadScene(startingSceneName, LoadSceneMode.Single);
-	}
+    public static void SaveRun(RunData data)
+    {
+        if (data == null) return;
 
-	public static void ContinueRunOrFallback(string fallbackSceneName)
-	{
-		if (!HasActiveRun())
-		{
-			SceneManager.LoadScene(fallbackSceneName, LoadSceneMode.Single);
-			return;
-		}
+        string json = JsonUtility.ToJson(data); // Chuyển cả "hộp" thành JSON
+        PlayerPrefs.SetString(RunDataKey, json);
+        PlayerPrefs.SetInt(RunActiveKey, 1); // Đánh dấu là có run đang hoạt động
+        PlayerPrefs.Save();
+        Debug.Log("Run data saved!");
+    }
 
-		string lastScene = PlayerPrefs.GetString(RunLastSceneKey, string.Empty);
-		if (!string.IsNullOrEmpty(lastScene))
-		{
-			SceneManager.LoadScene(lastScene, LoadSceneMode.Single);
-			return;
-		}
+    public static RunData LoadRun()
+    {
+        if (!HasActiveRun()) return null;
 
-		// Fallback to zone scene if available
-		int currentZone = PlayerPrefs.GetInt(CurrentZoneKey, 1);
-		string zoneScene = currentZone >= 1 && currentZone <= 10 ? $"Zone{currentZone}" : fallbackSceneName;
-		SceneManager.LoadScene(zoneScene, LoadSceneMode.Single);
-	}
+        string json = PlayerPrefs.GetString(RunDataKey, string.Empty);
+        if (string.IsNullOrEmpty(json)) return null;
 
-	public static void UpdateLastScene(string sceneName)
-	{
-		PlayerPrefs.SetString(RunLastSceneKey, sceneName);
-		PlayerPrefs.SetInt(RunActiveKey, 1);
-		PlayerPrefs.Save();
-	}
+        return JsonUtility.FromJson<RunData>(json); // Chuyển JSON về lại "hộp"
+    }
 
-	public static void ClearRun()
-	{
-		// Clear known run-related keys without touching user settings
-		for (int zone = 1; zone <= 10; zone++)
-		{
-			PlayerPrefs.DeleteKey($"Zone{zone}_Map");
-			PlayerPrefs.DeleteKey($"Zone{zone}_Floor");
-			PlayerPrefs.DeleteKey($"Zone{zone}_SteadfastHeart");
-		}
-		PlayerPrefs.DeleteKey(CurrentZoneKey);
-		PlayerPrefs.DeleteKey(RunLastSceneKey);
-		PlayerPrefs.SetInt(RunActiveKey, 0);
-		PlayerPrefs.Save();
-	}
+    public static void ClearRun()
+    {
+        PlayerPrefs.DeleteKey(RunDataKey); // Chỉ cần xóa 1 key duy nhất
+        PlayerPrefs.SetInt(RunActiveKey, 0);
+        PlayerPrefs.Save();
+        Debug.Log("Run data cleared!");
+    }
 }
-
-
