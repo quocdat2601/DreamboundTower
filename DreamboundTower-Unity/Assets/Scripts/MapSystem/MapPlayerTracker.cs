@@ -51,49 +51,68 @@ namespace Map
         private void SendPlayerToNode(MapNode mapNode)
         {
             Locked = lockAfterSelecting;
+
+            // TEMPORARY: For testing map progression, treat all nodes the same
+            // For non-combat nodes, mark as completed immediately
+            // if (mapNode.Node.nodeType != NodeType.MinorEnemy)
+            // {
+            mapManager.CurrentMap.path.Add(mapNode.Node.point);
+            // sync currentFloor with selected node's layer (y + 1)
+            int floorInZone = mapNode.Node.point.y + 1;
+            floorInZone = Mathf.Clamp(floorInZone, 1, mapManager.totalFloorsPerZone);
+            mapManager.SetCurrentZoneFloor(mapManager.currentZone, floorInZone);
+            mapManager.SaveMap();
             view.SetAttainableNodes();
             view.SetLineColors();
             mapNode.ShowSwirlAnimation();
+
+            // Update floor display based on current position
             view.UpdateFloorDisplay();
 
-            // --- LOGIC MỚI ĐƯỢC GOM LẠI ---
-            // 1. Xác định scene sẽ tải dựa trên loại node
-            string sceneToLoad = GetSceneNameForNodeType(mapNode.Node.nodeType);
+            // Always save map before leaving scene
+            mapManager.SaveMap();
 
-            // 2. Nếu là node tự động hoàn thành (không cần chuyển scene)
+            // Resolve enemy preset for next combat (normal/elite/boss)
+            TryWriteCombatPreset(mapNode);
+
+            // Delay scene handling to allow swirl animation to finish
+            DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
+        }
+
+        // Trong file MapPlayerTracker.cs
+
+        private static void EnterNode(MapNode mapNode)
+        {
+            Debug.Log("Entering node: " + mapNode.Node.blueprintName + " of type: " + mapNode.Node.nodeType);
+
+            // Lấy scene sẽ được tải dựa trên loại node
+            string sceneToLoad = Instance.GetSceneNameForNodeType(mapNode.Node.nodeType);
+
+            // Nếu không có scene nào cần tải (ví dụ: node Rest, Shop hiển thị UI tại chỗ)
             if (string.IsNullOrEmpty(sceneToLoad))
             {
-                HandleAutoCompletion(mapNode);
-                return; // Kết thúc hàm ở đây
-            }
-
-            // 3. Nếu là node cần chuyển scene (combat, event...) -> ĐÂY LÀ ĐIỂM KHÔNG THỂ QUAY ĐẦU
-            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
-            {
-                var runData = GameManager.Instance.currentRunData;
-                // Gán CẢ HAI thông tin pending cùng lúc
-                runData.mapData.pendingNodePoint = mapNode.Node.point;
-                runData.mapData.pendingNodeSceneName = sceneToLoad;
-
-                // LƯU GAME 1 LẦN DUY NHẤT
-                RunSaveService.SaveRun(runData);
-                Debug.Log($"[SAVE SYSTEM] Point of no return: Committed to node {mapNode.Node.point} (Scene: {sceneToLoad}). Game saved.");
-            }
-            else
-            {
-                Debug.LogError("GameManager hoặc RunData không tồn tại! Không thể lưu trạng thái pending.");
-                Locked = false; // Mở khóa để tránh bị kẹt
+                Debug.Log("Node type does not require scene change. Unlocking player.");
+                // TODO: Mở UI của shop/rest site ở đây
+                Instance.Locked = false; // Mở khóa để người chơi có thể tương tác tiếp
                 return;
             }
 
-            // --- CÁC PHẦN CŨ VẪN GIỮ NGUYÊN ---
-            TryWriteCombatPreset(mapNode);
+            // --- LOGIC MỚI ĐỂ CHUYỂN SCENE ---
 
-            // Dùng DOTween để chuyển scene sau độ trễ
-            DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() =>
-            {
-                SceneManager.LoadScene(sceneToLoad);
-            });
+            // 1. Lấy RunData ra
+            var runData = GameManager.Instance.currentRunData;
+
+            // 2. Ghi lại thông tin "đang chờ xử lý" vào RunData
+            runData.mapData.pendingNodePoint = mapNode.Node.point;
+            runData.mapData.pendingNodeSceneName = SceneManager.GetActiveScene().name; // Scene để quay về
+
+            // 3. LƯU LẠI TOÀN BỘ RUNDATA NGAY TRƯỚC KHI RỜI ĐI
+            // Đây là bước cực kỳ quan trọng để đảm bảo dữ liệu là mới nhất
+            RunSaveService.SaveRun(runData);
+            Debug.Log("[MapPlayerTracker] Saved pending node state to RunData before loading combat scene.");
+
+            // 4. Tải scene mới
+            SceneManager.LoadScene(sceneToLoad, LoadSceneMode.Single);
         }
 
         private string GetSceneNameForNodeType(NodeType type)
@@ -117,66 +136,6 @@ namespace Map
             }
         }
 
-        private void HandleAutoCompletion(MapNode mapNode)
-        {
-            Debug.Log($"Auto-completing node: {mapNode.Node.nodeType} at {mapNode.Node.point}");
-
-            // ----- PHẦN LOGIC MỚI - LƯU TRƯỚC KHI ANIMATION -----
-            // Mục tiêu: Cập nhật và lưu trạng thái "pending" ngay lập tức để vá lỗi "Quit & Skip"
-            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
-            {
-                var runData = GameManager.Instance.currentRunData;
-
-                // Ghi lại trạng thái pending
-                runData.mapData.pendingNodePoint = mapNode.Node.point;
-                // Vì đây là node auto-complete, không có scene name
-                runData.mapData.pendingNodeSceneName = "";
-
-                // LƯU GAME 1 LẦN DUY NHẤT TẠI ĐÂY
-                RunSaveService.SaveRun(runData);
-                Debug.Log($"[SAVE SYSTEM] Point of no return: Committed to auto-complete node {mapNode.Node.point}. Game saved.");
-            }
-            else
-            {
-                Debug.LogError("GameManager hoặc RunData không tồn tại! Không thể lưu trạng thái pending.");
-                Locked = false;
-                return;
-            }
-
-            // Dùng DOTween để tạo độ trễ cho hiệu ứng
-            DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() =>
-            {
-                if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
-                {
-                    var runData = GameManager.Instance.currentRunData;
-                    var completedNodePoint = runData.mapData.pendingNodePoint;
-
-                    // ----- PHẦN SỬA LỖI -----
-                    // 1. Cập nhật đường đi vào CẢ HAI nơi: RunData và MapManager.CurrentMap
-                    if (runData.mapData.path.All(p => p != completedNodePoint))
-                    {
-                        runData.mapData.path.Add(completedNodePoint);
-                        // ĐỒNG BỘ VỚI ĐỐI TƯỢNG ĐANG CHẠY
-                        mapManager.CurrentMap.path.Add(completedNodePoint);
-                    }
-
-                    // 2. Xóa trạng thái "đang chờ" trong RunData
-                    runData.mapData.pendingNodePoint = new Vector2Int(-1, -1);
-                    runData.mapData.pendingNodeSceneName = null;
-
-                    // 3. Lưu lại trạng thái đã hoàn thành
-                    RunSaveService.SaveRun(runData);
-                    Debug.Log($"[SAVE SYSTEM] Node {completedNodePoint} auto-completed. Game saved.");
-                }
-
-                // 4. Cập nhật lại giao diện bản đồ (bây giờ sẽ không bị lỗi nữa)
-                view.SetAttainableNodes();
-                view.SetLineColors();
-
-                // 5. Mở khóa để người chơi có thể chọn node tiếp theo
-                Locked = false;
-            });
-        }
         private void TryWriteCombatPreset(MapNode mapNode)
         {
             if (mapNode == null || mapManager == null) return;
