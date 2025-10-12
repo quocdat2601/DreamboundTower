@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 
 namespace Map
@@ -50,7 +51,7 @@ namespace Map
         
         [Header("Floor Display")]
         [Tooltip("UI Text to display current floor number")]
-        public UnityEngine.UI.Text floorDisplayText;
+        public TextMeshProUGUI floorDisplayText;
         [Tooltip("Format for floor display (e.g., 'Floor {0}')")]
         public string floorDisplayFormat = "Floor {0}";
         [Tooltip("Font size for floor display on background")]
@@ -67,7 +68,7 @@ namespace Map
         protected readonly List<LineConnection> lineConnections = new List<LineConnection>();
         
         // Floor display on background
-        private GameObject floorDisplayObject;
+        //private GameObject floorDisplayObject;
 
         public static MapView Instance;
 
@@ -83,10 +84,6 @@ namespace Map
         {
             if (firstParent != null)
                 Destroy(firstParent);
-            
-            if (floorDisplayObject != null)
-                Destroy(floorDisplayObject);
-
             MapNodes.Clear();
             lineConnections.Clear();
         }
@@ -119,8 +116,6 @@ namespace Map
 
             CreateMapBackground(m);
             
-            CreateFloorDisplayOnBackground();
-            
             UpdateFloorDisplay();
         }
 
@@ -144,33 +139,6 @@ namespace Map
             sr.size = new Vector2(xSize, span + yOffset * 2f);
         }
         
-        protected virtual void CreateFloorDisplayOnBackground()
-        {
-            // Create floor display on background
-            floorDisplayObject = new GameObject("FloorDisplay");
-            floorDisplayObject.transform.SetParent(mapParent.transform);
-            
-            // Position at top of map
-            MapNode bossNode = MapNodes.FirstOrDefault(node => node.Node.nodeType == NodeType.Boss);
-            float span = Map.DistanceBetweenFirstAndLastLayers();
-            float centerX = bossNode != null
-                ? bossNode.transform.localPosition.x
-                : (MapNodes.Count > 0 ? MapNodes.Average(n => n.transform.localPosition.x) : 0f);
-            
-            floorDisplayObject.transform.localPosition = new Vector3(centerX, span / 2f + 2f, -1f);
-            
-            // Add TextMesh component for 3D text
-            TextMesh textMesh = floorDisplayObject.AddComponent<TextMesh>();
-            textMesh.text = "Floor 1";
-            textMesh.fontSize = floorDisplayFontSize;
-            textMesh.color = floorDisplayColor;
-            textMesh.anchor = TextAnchor.MiddleCenter;
-            textMesh.alignment = TextAlignment.Center;
-            
-            // Make it face camera
-            floorDisplayObject.transform.LookAt(cam.transform);
-            floorDisplayObject.transform.Rotate(0, 180, 0);
-        }
 
         protected virtual void CreateMapParent()
         {
@@ -405,15 +373,14 @@ namespace Map
             MapConfig config = GetConfig(mapManager.CurrentMap.configName);
             return config.nodeBlueprints.FirstOrDefault(n => n.name == blueprintName);
         }
-        
+
         // Update floor display text
         public void UpdateFloorDisplay()
         {
-            if (mapManager == null) return;
-            
+            if (mapManager == null || mapManager.CurrentMap == null || floorDisplayText == null) return;
+
             int absoluteFloor;
-            
-            // If player has started moving, use current node position
+
             if (mapManager.CurrentMap.path.Count > 0)
             {
                 Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
@@ -421,45 +388,13 @@ namespace Map
             }
             else
             {
-                // Player hasn't started, use default floor
-                absoluteFloor = mapManager.GetAbsoluteFloor();
+                absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + 1;
             }
-            
+
             string floorText = string.Format(floorDisplayFormat, absoluteFloor);
-            
-            // Update UI Text if available
-            if (floorDisplayText != null)
-            {
-                floorDisplayText.text = floorText;
-            }
-            
-            // Update background text if available
-            if (floorDisplayObject != null)
-            {
-                TextMesh textMesh = floorDisplayObject.GetComponent<TextMesh>();
-                if (textMesh != null)
-                {
-                    textMesh.text = floorText;
-                }
-            }
-            else
-            {
-                // If floorDisplayObject is null, try to recreate it
-                Debug.LogWarning("FloorDisplayObject is null, attempting to recreate...");
-                CreateFloorDisplayOnBackground();
-                
-                // Try to update again
-                if (floorDisplayObject != null)
-                {
-                    TextMesh textMesh = floorDisplayObject.GetComponent<TextMesh>();
-                    if (textMesh != null)
-                    {
-                        textMesh.text = floorText;
-                    }
-                }
-            }
-            
-            Debug.Log($"Floor Display Updated: {floorText} (Zone {mapManager.currentZone}, Floor {mapManager.currentFloor})");
+
+            // Chỉ còn lại phần cập nhật cho UI Text
+            floorDisplayText.text = floorText;
         }
     }
 }

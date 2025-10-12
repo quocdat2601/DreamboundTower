@@ -41,40 +41,37 @@ namespace Map
             Instance = this;
             DOTween.Init();
         }
-
-        // Trong file MapManager.cs
-
         private void Start()
         {
-            if (GameManager.Instance == null)
+            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null)
             {
-                Debug.LogError("GameManager is missing from the scene!");
+                Debug.LogError("GameManager hoặc RunData không tồn tại! Không thể khởi tạo bản đồ.");
                 return;
             }
 
+            // BƯỚC 1: LUÔN LUÔN ĐỒNG BỘ TRẠNG THÁI TỪ RUNDATA TRƯỚC TIÊN
             var runData = GameManager.Instance.currentRunData;
-            string mapJson = runData.mapData.currentMapJson;
+            currentZone = runData.mapData.currentZone;
+            currentFloor = runData.mapData.currentFloorInZone;
 
+            // BƯỚC 2: KIỂM TRA XEM CÓ BẢN ĐỒ CŨ ĐỂ TẢI KHÔNG
+            string mapJson = runData.mapData.currentMapJson;
             if (!string.IsNullOrEmpty(mapJson))
             {
-                // 1. Tải cấu trúc map từ JSON
+                Debug.Log($"Đang tải bản đồ đã lưu cho Zone {currentZone}...");
                 Map map = JsonConvert.DeserializeObject<Map>(mapJson);
-
-                // 2. QUAN TRỌNG: Cập nhật lại 'path' cho map từ dữ liệu mới nhất trong RunData
-                map.path = runData.mapData.path;
+                map.path = runData.mapData.path; // Cập nhật đường đi mới nhất
 
                 CurrentMap = map;
-                view.ShowMap(map);
-
-                currentZone = runData.mapData.currentZone;
-                currentFloor = runData.mapData.currentFloorInZone;
+                view.ShowMap(map); // Bây giờ ShowMap sẽ có dữ liệu Zone chính xác
             }
+            // BƯỚC 3: NẾU KHÔNG, TẠO MỘT BẢN ĐỒ MỚI
             else
             {
+                Debug.Log($"Không có bản đồ đã lưu. Đang tạo bản đồ mới cho Zone {currentZone}...");
                 GenerateNewMap();
             }
         }
-
         public void GenerateNewMap()
         {
             Map map = MapGenerator.GetMap(config);

@@ -569,7 +569,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
@@ -587,6 +587,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2038588483}
+  - {fileID: 1880519169}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -594,6 +595,119 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
+--- !u!1001 &1880519168
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1311161702}
+    m_Modifications:
+    - target: {fileID: 1438870720366471516, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_Name
+      value: FloorDisplayUI
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_Pivot.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+--- !u!224 &1880519169 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 8968540303060203701, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+  m_PrefabInstance: {fileID: 1880519168}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1880519170 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2823964794104870469, guid: d2c20a45c1a571644bed1c15ad001068, type: 3}
+  m_PrefabInstance: {fileID: 1880519168}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
 --- !u!1 &2038588482
 GameObject:
   m_ObjectHideFlags: 0
@@ -779,6 +893,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4462501714740186190, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: floorDisplayText
+      value: 
+      objectReference: {fileID: 1880519170}
     - target: {fileID: 6173653652465991376, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
       propertyPath: m_Name
       value: MapObjects

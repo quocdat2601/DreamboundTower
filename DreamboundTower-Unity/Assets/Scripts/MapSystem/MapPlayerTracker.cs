@@ -50,7 +50,9 @@ namespace Map
 
         private void SendPlayerToNode(MapNode mapNode)
         {
-            Locked = lockAfterSelecting;
+            //Locked = lockAfterSelecting;
+            if (Locked) return;
+            Locked = true;
 
             // TEMPORARY: For testing map progression, treat all nodes the same
             // For non-combat nodes, mark as completed immediately
@@ -70,7 +72,7 @@ namespace Map
             view.UpdateFloorDisplay();
 
             // Always save map before leaving scene
-            mapManager.SaveMap();
+            //mapManager.SaveMap();
 
             // Resolve enemy preset for next combat (normal/elite/boss)
             TryWriteCombatPreset(mapNode);
