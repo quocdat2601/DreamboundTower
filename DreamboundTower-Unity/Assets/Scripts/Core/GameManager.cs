@@ -14,6 +14,11 @@ public class GameManager : MonoBehaviour
     public RunData currentRunData;
     public GameObject playerInstance; // Lưu trữ tham chiếu đến người chơi
 
+
+    [Header("Persistent UI")]
+    public GameObject steadfastHeartCanvas;
+    public SteadfastHeartUI steadfastHeartUI;
+
     [Header("Prefabs")]
     public GameObject playerPrefab; // Kéo PlayerPrefab vào đây trong Inspector
 
@@ -48,6 +53,19 @@ public class GameManager : MonoBehaviour
         {
             // Ẩn người chơi đi
             playerInstance.SetActive(false);
+        }
+        if (steadfastHeartCanvas != null)
+        {
+            // Kiểm tra tên scene để quyết định có hiển thị UI không
+            // Dùng StartsWith("Zone") để bắt tất cả các scene Zone1, Zone2, ...
+            if (scene.name.StartsWith("Zone") || scene.name == "MainGame" || scene.name == "EventScene")
+            {
+                steadfastHeartCanvas.SetActive(true); // Bật UI
+            }
+            else
+            {
+                steadfastHeartCanvas.SetActive(false); // Tắt UI ở các scene khác (MainMenu, Init,...)
+            }
         }
     }
 
@@ -152,7 +170,8 @@ public class GameManager : MonoBehaviour
     {
         // Tạo một "hộp" RunData mới hoàn toàn
         currentRunData = new RunData();
-
+        //thiết lập giá trị ban đầu cho steadfast heart
+        currentRunData.playerData.steadfastDurability = 3;
         // Hủy player instance cũ nếu có
         if (playerInstance != null)
         {
@@ -210,5 +229,46 @@ public class GameManager : MonoBehaviour
             Debug.Log($"No pending node. Returning to map scene: {sceneToLoad}");
             SceneManager.LoadScene(sceneToLoad);
         }
+    }
+    public bool HandlePlayerDefeat()
+    {
+        if (currentRunData == null) return true; // Lỗi, coi như kết thúc run
+
+        // Trừ 1 mạng
+        currentRunData.playerData.steadfastDurability--;
+
+        Debug.Log($"Player was defeated! Steadfast Heart remaining: {currentRunData.playerData.steadfastDurability}");
+
+        // Ra lệnh cho UI cập nhật lại hình ảnh
+        if (steadfastHeartUI != null)
+        {
+            steadfastHeartUI.UpdateVisuals(currentRunData.playerData.steadfastDurability);
+        }
+
+        // Lưu lại trạng thái mới ngay lập tức
+        RunSaveService.SaveRun(currentRunData);
+
+        // Kiểm tra và trả về kết quả xem run đã thực sự kết thúc chưa
+        if (currentRunData.playerData.steadfastDurability <= 0)
+        {
+            Debug.Log("Run ended! No durability left.");
+            return true; // Hết mạng, run kết thúc
+        }
+
+        return false; // Vẫn còn mạng
+    }
+
+    // HÀM MỚI: Dùng để hồi lại khi qua checkpoint
+    public void RestoreSteadfastHeart()
+    {
+        if (currentRunData == null) return;
+
+        currentRunData.playerData.steadfastDurability = 3; // Hoặc một biến maxDurability
+
+        Debug.Log("Checkpoint reached! Steadfast Heart restored.");
+
+        // Ra lệnh cho UI cập nhật lại
+        steadfastHeartUI.UpdateVisuals(currentRunData.playerData.steadfastDurability);
+        RunSaveService.SaveRun(currentRunData);
     }
 }

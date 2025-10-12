@@ -18,6 +18,7 @@ public class Character : MonoBehaviour
     public int attackPower;
     public int defense;
     public int mana;                 // <-- THÊM MỚI
+    public int currentMana;                 // <-- THÊM MỚI
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
 
@@ -25,6 +26,8 @@ public class Character : MonoBehaviour
     [Header("UI")]
     public Slider hpSlider;
     public Image hpFillImage;
+    public Slider manaSlider;
+    public Image manaFillImage;
 
     private void Awake()
     {

@@ -658,17 +658,37 @@ public class BattleManager : MonoBehaviour
     // Coroutine for when the player is defeated
     IEnumerator DefeatRoutine()
     {
-        Debug.Log("[BATTLE] Player died. Game over.");
+        Debug.Log("[BATTLE] Player died.");
         busy = true;
-        // Kích hoạt Defeat Panel
-        if (defeatPanel != null)
+
+        // ✅ GỌI GAMEMANAGER ĐỂ XỬ LÝ HẬU QUẢ
+        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
+
+        // Nếu run thực sự kết thúc (hết mạng)
+        if (runEnded)
         {
-            defeatPanel.SetActive(true); // <-- THÊM DÒNG NÀY
+            // Kích hoạt Defeat Panel với lựa chọn "Quit" hoặc xem kết quả
+            if (defeatPanel != null)
+            {
+                // TODO: Bạn có thể muốn có một panel "Run Over" riêng
+                // Tạm thời vẫn dùng defeatPanel
+                defeatPanel.SetActive(true);
+            }
+            // Ở đây, nút Retry có thể bị vô hiệu hóa vì không thể retry được nữa
         }
-        // TODO: Show defeat screen, handle game over logic
-        yield return new WaitForSeconds(2f);
-        RestorePersistentPlayer();
-        // SceneManager.LoadScene("MainMenu"); // Example
+        // Nếu vẫn còn mạng
+        else
+        {
+            // Vẫn kích hoạt Defeat Panel để cho phép người chơi Quit hoặc Retry
+            if (defeatPanel != null)
+            {
+                defeatPanel.SetActive(true);
+            }
+        }
+
+        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
+        // Chúng ta sẽ không tự động chuyển scene nữa
+        yield return null; // Chờ vô tận cho đến khi người chơi bấm nút
     }
 
     #endregion
@@ -714,4 +734,59 @@ public class BattleManager : MonoBehaviour
     }
 
     #endregion
+
+    #region Button Actions
+
+    public void OnQuitButton()
+    {
+        Debug.Log("Quit button pressed. Clearing run data and returning to Main Menu.");
+
+        // Xóa toàn bộ dữ liệu của run hiện tại
+        RunSaveService.ClearRun();
+
+        // Tải lại scene Main Menu
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    public void OnRetryButton()
+    {
+        Debug.Log("Retry button pressed. Reverting to the last checkpoint.");
+
+        var runData = GameManager.Instance.currentRunData;
+
+        // Nếu hết mạng thì không cho retry
+        if (runData.playerData.steadfastDurability <= 0)
+        {
+            Debug.LogWarning("Cannot retry, no durability left. Forcing quit.");
+            OnQuitButton();
+            return;
+        } // --- LOGIC KHÔI PHỤC CHECKPOINT ---
+          // 1. Xóa bản đồ hiện tại để buộc game tạo map mới cho zone
+        runData.mapData.currentMapJson = null;
+
+        // 2. Xóa đường đi cũ trên bản đồ
+        runData.mapData.path.Clear();
+
+        // 3. Khôi phục lại máu/mana (ví dụ: hồi đầy)
+        //    Lưu ý: Chúng ta cần truy cập vào chỉ số max của người chơi
+        //    Cách đơn giản nhất là thêm maxHP, maxMana vào PlayerData
+        //    (Bạn cần thêm public int maxHP; public int maxMana; vào PlayerData.cs)
+        //    Tạm thời, chúng ta sẽ hồi máu dựa trên chỉ số từ Character component
+        var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
+        if (playerChar != null)
+        {
+            //runData.playerData.currentHP = playerChar.maxHP;
+            //runData.playerData.currentMana = playerChar.maxMana;
+        }
+
+        // 4. Lưu lại trạng thái đã khôi phục
+        RunSaveService.SaveRun(runData);
+
+        // 5. Tải lại scene của zone hiện tại để bắt đầu lại
+        string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
+        SceneManager.LoadScene(zoneSceneToLoad);
+    }
+
+    #endregion
+
 }
