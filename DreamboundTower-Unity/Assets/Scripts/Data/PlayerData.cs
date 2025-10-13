@@ -10,9 +10,17 @@ public class PlayerData
     // Sau này sẽ thêm:
     public StatBlock currentStats;
     public List<string> itemIds;
+    public List<string> inventoryItemIds; // ✅ THÊM DÒNG NÀY: Đồ trong kho
+
     public int gold;
     public int steadfastDurability;
 
     public int currentHP;
     public int currentMana;
+
+    public PlayerData()
+    {
+        itemIds = new List<string>();
+        inventoryItemIds = new List<string>();
+    }
 }

@@ -6,6 +6,7 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -14,23 +15,23 @@ using UnityEngine.UI;
 /// </summary>
 public class BattleManager : MonoBehaviour
 {
-    #region Variables
+    #region Variables
 
-    [Header("Slots (UI Transforms)")]
-    public Transform playerSlot;       // assign PlayerSlot (Transform)
-    public Transform[] enemySlots;     // assign EnemySlot transforms
+    [Header("Slots (UI Transforms)")]
+    public Transform playerSlot;       // assign PlayerSlot (Transform)
+    public Transform[] enemySlots;     // assign EnemySlot transforms
 
-    [Header("Prefabs")]
-    public GameObject playerPrefab;    // UI prefab for player
-    public GameObject enemyPrefab;     // UI prefab for enemies
+    [Header("Prefabs")]
+    public GameObject playerPrefab;    // UI prefab for player
+    public GameObject enemyPrefab;     // UI prefab for enemies
 
-    [Header("Combat")]
+    [Header("Combat")]
     public float attackDelay = 0.35f;
     [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP.")]
     public int hpUnit = 10;
 
-    // --- UPDATED SECTION ---
-    [Header("Debug / Player Overrides")]
+    // --- UPDATED SECTION ---
+    [Header("Debug / Player Overrides")]
     [Tooltip("Default Race data if no GameManager is found")]
     public RacePresetSO fallbackRace;
     [Tooltip("Default Class data if no GameManager is found")]
@@ -38,9 +39,9 @@ public class BattleManager : MonoBehaviour
     [Tooltip("If checked, custom stats below will be used instead of fallback Race/Class stats")]
     public bool overridePlayerStats = false;
     public StatBlock customPlayerStats;
-    // -----------------------
+    // -----------------------
 
-    [Header("Debug / Enemy Overrides")]
+    [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
     public bool overrideUseTemplate = false;
     [Tooltip("Template to sample stats from.")]
@@ -53,33 +54,32 @@ public class BattleManager : MonoBehaviour
     public StatBlock overrideStats;
 
     [Header("UI References")]
-    public Slider playerHealthBar;      // Drag the big health bar from PlayerStatusSection here
-    public BattleUIManager uiManager;   // Assign your UIManager here
-    public GameObject defeatPanel;
+    public BattleUIManager uiManager;   // Assign your UIManager here
+    public GameObject defeatPanel;
 
-    // runtime
-    private GameObject playerInstance;
+    // runtime
+    private GameObject playerInstance;
     private GameObject[] enemyInstances;
     private Character playerCharacter; // Reference to the player's Character component for quick access
 
-    // state & selection
-    private int selectedEnemyIndex = -1;
+    // state & selection
+    private int selectedEnemyIndex = -1;
     private SkillData selectedSkill = null; // Stores the currently selected skill
-    private bool playerTurn = true;
+    private bool playerTurn = true;
     private bool busy = false;
 
-    #endregion
+    #endregion
 
-    #region Unity Lifecycle
+    #region Unity Lifecycle
 
-    void Start()
+    void Start()
     {
         if (defeatPanel != null)
         {
             defeatPanel.SetActive(false);
         }
-        // Initialize the UI Manager
-        if (uiManager != null)
+        // Initialize the UI Manager
+        if (uiManager != null)
         {
             uiManager.Initialize(this);
         }
@@ -91,35 +91,35 @@ public class BattleManager : MonoBehaviour
     }
     void Update()
     {
-        // Check for debug key presses if the battle is not busy
-        if (busy) return;
+        // Check for debug key presses if the battle is not busy
+        if (busy) return;
 
-        // Make sure a keyboard is connected before trying to read from it
-        if (Keyboard.current == null) return;
+        // Make sure a keyboard is connected before trying to read from it
+        if (Keyboard.current == null) return;
 
-        // Press 'Q' to instantly win the battle
-        if (Keyboard.current.qKey.wasPressedThisFrame)
+        // Press 'Q' to instantly win the battle
+        if (Keyboard.current.qKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Victory (Q key pressed).");
             StartCoroutine(VictoryRoutine());
         }
 
-        // Press 'E' to instantly lose the battle
-        if (Keyboard.current.eKey.wasPressedThisFrame)
+        // Press 'E' to instantly lose the battle
+        if (Keyboard.current.eKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Defeat (E key pressed).");
             StartCoroutine(DefeatRoutine());
         }
     }
-    #endregion
+    #endregion
 
-    #region Spawning
+    #region Spawning
 
-    // Handles finding the persistent player or spawning a fallback for testing
-    void SpawnPlayer()
+    // Handles finding the persistent player or spawning a fallback for testing
+    void SpawnPlayer()
     {
-        // Priority 1: Find the player instance from GameManager
-        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        // Priority 1: Find the player instance from GameManager
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
             playerInstance = GameManager.Instance.playerInstance;
             playerInstance.transform.SetParent(playerSlot, false);
@@ -128,10 +128,18 @@ public class BattleManager : MonoBehaviour
             playerInstance.SetActive(true);
 
             playerCharacter = playerInstance.GetComponent<Character>();
+            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+            {
+                // Nạp HP đã lưu từ RunData vào Character trong trận đấu
+                playerCharacter.currentHP = GameManager.Instance.currentRunData.playerData.currentHP;
+                Debug.Log($"[BATTLE] Loaded Player HP from RunData: {playerCharacter.currentHP}/{playerCharacter.maxHP}");
+                // Tương tự cho Mana
+                // playerCharacter.currentMana = GameManager.Instance.currentRunData.playerData.currentMana;
+            }
             Debug.Log("[BATTLE] Player Spawned from GameManager.");
         }
-        // Priority 2: Spawn a default player for testing purposes
-        else
+        // Priority 2: Spawn a default player for testing purposes
+        else
         {
             Debug.LogWarning("Player instance from GameManager not found. Spawning a default player for testing.");
             if (playerPrefab == null || playerSlot == null) return;
@@ -146,9 +154,8 @@ public class BattleManager : MonoBehaviour
             var playerSkills = playerInstance.GetComponent<PlayerSkills>();
             var playerImage = playerInstance.GetComponent<Image>();
 
-            // --- NEW OVERRIDE LOGIC ---
-            // Always get visuals and skills from fallback SOs
-            Sprite characterSprite = null;
+            // Always get visuals and skills from fallback SOs
+            Sprite characterSprite = null;
             switch (fallbackClass.id)
             {
                 case "class_cleric": characterSprite = fallbackRace.clericSprite; break;
@@ -163,8 +170,8 @@ public class BattleManager : MonoBehaviour
                 playerSkills.LearnSkills(fallbackRace, fallbackClass);
             }
 
-            // Override stats if requested
-            if (overridePlayerStats)
+            // Override stats if requested
+            if (overridePlayerStats)
             {
                 playerCharacter.baseMaxHP = customPlayerStats.HP;
                 playerCharacter.baseAttackPower = customPlayerStats.STR;
@@ -175,7 +182,7 @@ public class BattleManager : MonoBehaviour
                 Debug.LogWarning("[BATTLE] Player spawned with CUSTOM OVERRIDE stats on fallback model.");
             }
             else // Otherwise, use stats from fallback SOs
-            {
+            {
                 StatBlock baseStats = fallbackRace.baseStats;
                 playerCharacter.baseMaxHP = baseStats.HP;
                 playerCharacter.baseAttackPower = baseStats.STR;
@@ -188,14 +195,14 @@ public class BattleManager : MonoBehaviour
             playerCharacter.ResetToBaseStats();
         }
 
-        // --- COMMON ACTIONS AFTER GETTING A PLAYER INSTANCE ---
-        if (playerInstance != null)
+        // --- COMMON ACTIONS AFTER GETTING A PLAYER INSTANCE ---
+        if (playerInstance != null)
         {
-            // Connect UI and Log stats/skills
-            if (playerCharacter != null && playerHealthBar != null)
+            if (playerCharacter != null)
             {
-                playerCharacter.hpSlider = playerHealthBar;
+                // ✅ QUAN TRỌNG: CẬP NHẬT UI SAU KHI ĐÃ CÓ HP CHÍNH XÁC
                 playerCharacter.UpdateHPUI();
+                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.maxHP}, ...");
             }
 
             PlayerSkills skills = playerInstance.GetComponent<PlayerSkills>();
@@ -211,36 +218,37 @@ public class BattleManager : MonoBehaviour
                     foreach (var pSkill in skills.passiveSkills) Debug.Log($"[BATTLE] Player has Passive: {pSkill.displayName}");
                     foreach (var aSkill in skills.activeSkills) Debug.Log($"[BATTLE] Player has Active: {aSkill.displayName}");
                 }
+                playerCharacter.UpdateHPUI();
             }
         }
     }
-    //Get baseStats of player
-    public Character GetPlayerCharacter()
+    //Get baseStats of player
+    public Character GetPlayerCharacter()
     {
         return playerCharacter;
     }
 
-    // Đặt đoạn code này vào trong file BattleManager.cs, thay thế hoàn toàn hàm SpawnEnemies() cũ.
+    // Đặt đoạn code này vào trong file BattleManager.cs, thay thế hoàn toàn hàm SpawnEnemies() cũ.
 
-    void SpawnEnemies()
+    void SpawnEnemies()
     {
         if (enemySlots == null || enemySlots.Length == 0) return;
 
-        // Khởi tạo mảng instance với kích thước tối đa
-        enemyInstances = new GameObject[enemySlots.Length];
+        // Khởi tạo mảng instance với kích thước tối đa
+        enemyInstances = new GameObject[enemySlots.Length];
 
-        // --- LOGIC MỚI: Ưu tiên đọc từ các nguồn dữ liệu khác nhau ---
-        string archetypeId = null;
+        // --- LOGIC MỚI: Ưu tiên đọc từ các nguồn dữ liệu khác nhau ---
+        string archetypeId = null;
         int absoluteFloor = 1;
         EnemyKind encounterKind = EnemyKind.Normal;
 
-        // Ưu tiên 1: Ghi đè (Override) từ Inspector để debug
-        if (overrideUseCustomStats)
+        // Ưu tiên 1: Ghi đè (Override) từ Inspector để debug
+        if (overrideUseCustomStats)
         {
             Debug.LogWarning("[BATTLE] Using CUSTOM STATS override for spawning.");
             encounterKind = overrideKind;
-            // Với custom stats, không có archetype cụ thể, nhưng ta có thể gán một tên tạm
-            archetypeId = "CustomOverride";
+            // Với custom stats, không có archetype cụ thể, nhưng ta có thể gán một tên tạm
+            archetypeId = "CustomOverride";
         }
         else if (overrideUseTemplate)
         {
@@ -249,8 +257,8 @@ public class BattleManager : MonoBehaviour
             archetypeId = overrideTemplate.name;
             absoluteFloor = overrideFloor;
         }
-        // Ưu tiên 2: Đọc từ RunData (luồng game chính)
-        else if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+        // Ưu tiên 2: Đọc từ RunData (luồng game chính)
+        else if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
         {
             var mapData = GameManager.Instance.currentRunData.mapData;
             archetypeId = mapData.pendingEnemyArchetypeId;
@@ -258,8 +266,8 @@ public class BattleManager : MonoBehaviour
             encounterKind = (EnemyKind)mapData.pendingEnemyKind;
             Debug.Log($"[BATTLE] Loaded enemy data from RunData: floor={absoluteFloor}, kind={encounterKind}, archetype={archetypeId}");
         }
-        // Lựa chọn cuối: Dùng fallback từ PlayerPrefs (để phòng trường hợp cũ)
-        else
+        // Lựa chọn cuối: Dùng fallback từ PlayerPrefs (để phòng trường hợp cũ)
+        else
         {
             Debug.LogWarning("[BATTLE] RunData not found. Falling back to PlayerPrefs.");
             int kind, hp, str, def, mana, intel, agi;
@@ -275,27 +283,27 @@ public class BattleManager : MonoBehaviour
             }
         }
 
-        // Tính toán số lượng kẻ địch dựa trên loại encounter
-        int enemyCount = 1;
+        // Tính toán số lượng kẻ địch dựa trên loại encounter
+        int enemyCount = 1;
         switch (encounterKind)
         {
             case EnemyKind.Normal:
                 enemyCount = Random.Range(1, 4); // Ngẫu nhiên 1, 2, hoặc 3
-                break;
+                break;
             case EnemyKind.Elite:
                 enemyCount = Random.Range(1, 3); // Ngẫu nhiên 1 hoặc 2
-                break;
+                break;
             case EnemyKind.Boss:
                 enemyCount = 1;
                 break;
         }
 
-        // Đảm bảo không tạo nhiều kẻ địch hơn số slot có sẵn
-        enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
+        // Đảm bảo không tạo nhiều kẻ địch hơn số slot có sẵn
+        enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
         Debug.Log($"[BATTLE] Spawning {enemyCount} enemies for a {encounterKind} encounter.");
 
-        // Vòng lặp tạo kẻ địch
-        for (int i = 0; i < enemyCount; i++)
+        // Vòng lặp tạo kẻ địch
+        for (int i = 0; i < enemyCount; i++)
         {
             if (enemyPrefab == null || enemySlots[i] == null) continue;
 
@@ -305,15 +313,15 @@ public class BattleManager : MonoBehaviour
             enemyGO.name = "Enemy_" + i;
             enemyInstances[i] = enemyGO;
 
-            // Nếu là override custom stats, áp dụng trực tiếp
-            if (overrideUseCustomStats)
+            // Nếu là override custom stats, áp dụng trực tiếp
+            if (overrideUseCustomStats)
             {
                 ApplyEnemyData(enemyGO, overrideStats, null);
                 continue;
             }
 
-            // Tìm template dựa trên archetypeId đã lấy được
-            EnemyTemplateSO finalTemplate = FindTemplateByArchetype(archetypeId);
+            // Tìm template dựa trên archetypeId đã lấy được
+            EnemyTemplateSO finalTemplate = FindTemplateByArchetype(archetypeId);
 
             if (finalTemplate != null)
             {
@@ -322,13 +330,13 @@ public class BattleManager : MonoBehaviour
             }
             else
             {
-                // Bây giờ, nếu có lỗi, log sẽ hiển thị đầy đủ!
-                Debug.LogError($"[BATTLE] Could not find EnemyTemplateSO named: '{archetypeId}'. Make sure it is in a 'Resources/EnemyTemplates' folder.");
+                // Bây giờ, nếu có lỗi, log sẽ hiển thị đầy đủ!
+                Debug.LogError($"[BATTLE] Could not find EnemyTemplateSO named: '{archetypeId}'. Make sure it is in a 'Resources/EnemyTemplates' folder.");
             }
         }
 
-        // Tắt các slot kẻ địch không được sử dụng
-        for (int i = enemyCount; i < enemySlots.Length; i++)
+        // Tắt các slot kẻ địch không được sử dụng
+        for (int i = enemyCount; i < enemySlots.Length; i++)
         {
             if (enemySlots[i] != null)
             {
@@ -341,36 +349,36 @@ public class BattleManager : MonoBehaviour
     {
         if (enemyGO == null) return;
 
-        // Gán hình ảnh ngẫu nhiên từ template (nếu có)
-        if (template != null && template.sprites != null && template.sprites.Count > 0)
+        // Gán hình ảnh ngẫu nhiên từ template (nếu có)
+        if (template != null && template.sprites != null && template.sprites.Count > 0)
         {
             Image enemyImage = enemyGO.GetComponent<Image>();
             if (enemyImage != null)
             {
-                // Chọn một sprite ngẫu nhiên từ danh sách
-                enemyImage.sprite = template.sprites[Random.Range(0, template.sprites.Count)];
+                // Chọn một sprite ngẫu nhiên từ danh sách
+                enemyImage.sprite = template.sprites[Random.Range(0, template.sprites.Count)];
             }
         }
 
-        // Gán chỉ số
-        var ch = enemyGO.GetComponent<Character>();
+        // Gán chỉ số
+        var ch = enemyGO.GetComponent<Character>();
         if (ch != null)
         {
             ch.baseMaxHP = stats.HP * hpUnit; // Áp dụng hpUnit ở đây
-            ch.baseAttackPower = stats.STR;
+            ch.baseAttackPower = stats.STR;
             ch.baseDefense = stats.DEF;
             ch.baseMana = stats.MANA;
             ch.baseIntelligence = stats.INT;
             ch.baseAgility = stats.AGI;
             ch.ResetToBaseStats();
             ch.currentHP = ch.maxHP; // Hồi đầy máu
-        }
+        }
     }
 
-    /// <summary>
-    /// Finds an EnemyTemplateSO in the Resources/EnemyTemplates folder by its asset name.
-    /// </summary>
-    private EnemyTemplateSO FindTemplateByArchetype(string archetypeId)
+    /// <summary>
+    /// Finds an EnemyTemplateSO in the Resources/EnemyTemplates folder by its asset name.
+    /// </summary>
+    private EnemyTemplateSO FindTemplateByArchetype(string archetypeId)
     {
         if (string.IsNullOrEmpty(archetypeId)) return null;
 
@@ -378,31 +386,31 @@ public class BattleManager : MonoBehaviour
         return templates.FirstOrDefault(t => t.name == archetypeId);
     }
 
-    #endregion
+    #endregion
 
-    #region Player Actions
+    #region Player Actions
 
-    // Called by SkillIconUI when a skill button is clicked
-    public void OnPlayerSelectSkill(BaseSkillSO skill)
+    // Called by SkillIconUI when a skill button is clicked
+    public void OnPlayerSelectSkill(BaseSkillSO skill)
     {
         if (!playerTurn || busy) return;
         if (skill is SkillData activeSkill)
         {
             Debug.Log($"Player selected skill: {activeSkill.displayName}");
             selectedSkill = activeSkill;
-            // TODO: Highlight selected skill, maybe show targeting UI cursor
-        }
+            // TODO: Highlight selected skill, maybe show targeting UI cursor
+        }
     }
 
     public void OnPlayerDeselectSkill()
     {
         Debug.Log("Player deselected skill.");
         selectedSkill = null;
-        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
-    }
+        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
+    }
 
-    // Called from the UI Attack button's OnClick event
-    public void OnAttackButton()
+    // Called from the UI Attack button's OnClick event
+    public void OnAttackButton()
     {
         if (!playerTurn || busy) return;
         if (playerInstance == null) return;
@@ -413,29 +421,29 @@ public class BattleManager : MonoBehaviour
         }
         StartCoroutine(PlayerAttackRoutine(selectedEnemyIndex));
     }
-    /// <summary>
-    /// Reloads the current active scene.
-    /// Call this from a debug button on the UI.
-    /// </summary>
-    public void ReloadScene()
+    /// <summary>
+    /// Reloads the current active scene.
+    /// Call this from a debug button on the UI.
+    /// </summary>
+    public void ReloadScene()
     {
-        // Nếu có người chơi, "giải cứu" nó trước khi tải lại scene
-        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        // Nếu có người chơi, "giải cứu" nó trước khi tải lại scene
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
-            // Gọi hàm có sẵn để đưa người chơi về GameManager và ẩn đi
-            RestorePersistentPlayer();
+            // Gọi hàm có sẵn để đưa người chơi về GameManager và ẩn đi
+            RestorePersistentPlayer();
         }
 
-        // Tải lại scene hiện tại
-        string currentSceneName = SceneManager.GetActiveScene().name;
+        // Tải lại scene hiện tại
+        string currentSceneName = SceneManager.GetActiveScene().name;
         SceneManager.LoadScene(currentSceneName);
     }
-    #endregion
+    #endregion
 
-    #region Enemy Selection UI
+    #region Enemy Selection UI
 
-    // Automatically adds Button components and listeners to enemy slots
-    void AutoBindEnemySlotButtons()
+    // Automatically adds Button components and listeners to enemy slots
+    void AutoBindEnemySlotButtons()
     {
         if (enemySlots == null) return;
         for (int i = 0; i < enemySlots.Length; i++)
@@ -455,27 +463,27 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    // Called when an enemy slot is clicked
-    public void SelectEnemy(int index)
+    // Called when an enemy slot is clicked
+    public void SelectEnemy(int index)
     {
         if (!playerTurn || busy) return;
         if (enemyInstances == null || index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return;
 
-        // If a skill is selected, clicking an enemy executes the skill
-        if (selectedSkill != null)
+        // If a skill is selected, clicking an enemy executes the skill
+        if (selectedSkill != null)
         {
             StartCoroutine(PlayerUseSkillRoutine(selectedSkill, index));
         }
-        // If no skill is selected, clicking an enemy selects them for a basic attack
-        else
+        // If no skill is selected, clicking an enemy selects them for a basic attack
+        else
         {
             selectedEnemyIndex = index;
             RefreshSelectionVisual();
         }
     }
 
-    // Updates the visual feedback for the selected enemy
-    void RefreshSelectionVisual()
+    // Updates the visual feedback for the selected enemy
+    void RefreshSelectionVisual()
     {
         if (enemySlots == null) return;
         for (int i = 0; i < enemySlots.Length; i++)
@@ -493,12 +501,12 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    #endregion
+    #endregion
 
-    #region Turn Coroutines
+    #region Turn Coroutines
 
-    // Coroutine for the player's basic attack
-    IEnumerator PlayerAttackRoutine(int enemyIndex)
+    // Coroutine for the player's basic attack
+    IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
         busy = true;
         playerTurn = false;
@@ -530,23 +538,23 @@ public class BattleManager : MonoBehaviour
         busy = false;
     }
 
-    // Coroutine for the player using a skill
-    IEnumerator PlayerUseSkillRoutine(SkillData skill, int enemyIndex)
+    // Coroutine for the player using a skill
+    IEnumerator PlayerUseSkillRoutine(SkillData skill, int enemyIndex)
     {
         busy = true;
         playerTurn = false;
 
         Debug.Log($"Executing skill '{skill.displayName}'...");
-        // TODO: Subtract mana, check cooldown
-        // TODO: Apply skill effects (damage, buffs/debuffs)
+        // TODO: Subtract mana, check cooldown
+        // TODO: Apply skill effects (damage, buffs/debuffs)
 
-        // Example: Apply damage from skill
-        var target = enemyInstances[enemyIndex].GetComponent<Character>();
+        // Example: Apply damage from skill
+        var target = enemyInstances[enemyIndex].GetComponent<Character>();
         if (target != null)
         {
-            // This is a simplified damage calculation, you can use your TooltipFormatter logic here
-            int damage = skill.baseDamage; // Add scaling stat calculation here
-            target.TakeDamage(damage);
+            // This is a simplified damage calculation, you can use your TooltipFormatter logic here
+            int damage = skill.baseDamage; // Add scaling stat calculation here
+            target.TakeDamage(damage);
             Debug.Log($"[BATTLE] Player used {skill.displayName} on {target.name} for {damage} damage.");
         }
 
@@ -561,7 +569,7 @@ public class BattleManager : MonoBehaviour
 
         selectedSkill = null; // Reset selected skill after use
 
-        if (AllEnemiesDead())
+        if (AllEnemiesDead())
         {
             yield return StartCoroutine(VictoryRoutine());
             yield break;
@@ -572,8 +580,8 @@ public class BattleManager : MonoBehaviour
         busy = false;
     }
 
-    // Coroutine for the enemy's turn
-    IEnumerator EnemyTurnRoutine()
+    // Coroutine for the enemy's turn
+    IEnumerator EnemyTurnRoutine()
     {
         Debug.Log("--- Enemy Turn ---");
         for (int i = 0; i < (enemyInstances?.Length ?? 0); i++)
@@ -602,12 +610,12 @@ public class BattleManager : MonoBehaviour
         Debug.Log("--- Player Turn ---");
     }
 
-    #endregion
+    #endregion
 
-    #region Battle Outcome
+    #region Battle Outcome
 
-    // Coroutine for when the player is victorious
-    IEnumerator VictoryRoutine()
+    // Coroutine for when the player is victorious
+    IEnumerator VictoryRoutine()
     {
         Debug.Log("[BATTLE] Victory! All enemies defeated!");
         busy = true;
@@ -615,137 +623,143 @@ public class BattleManager : MonoBehaviour
 
         string sceneToReturnTo = "Zone1"; // Scene mặc định nếu có lỗi
 
-        if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+        if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
         {
             var runData = GameManager.Instance.currentRunData;
             var mapData = runData.mapData;
             var pendingNode = mapData.pendingNodePoint;
 
-            // Cập nhật đường đi
-            if (mapData.path.All(p => p != pendingNode))
+            // Cập nhật đường đi
+            if (mapData.path.All(p => p != pendingNode))
             {
                 mapData.path.Add(pendingNode);
             }
 
-            // Kiểm tra xem node vừa hoàn thành có phải là boss không
-            if ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss)
+            // Kiểm tra xem node vừa hoàn thành có phải là boss không
+            if ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss)
             {
                 Debug.Log("[BATTLE] Boss defeated! Advancing to the next zone.");
-                // Tăng zone và chuẩn bị scene tiếp theo
-                mapData.currentZone++;
+                // Tăng zone và chuẩn bị scene tiếp theo
+                mapData.currentZone++;
                 mapData.path.Clear(); // Xóa đường đi cũ để bắt đầu zone mới
-                sceneToReturnTo = "Zone" + mapData.currentZone; // Ví dụ: "Zone2", "Zone3"
-            }
+                sceneToReturnTo = "Zone" + mapData.currentZone; // Ví dụ: "Zone2", "Zone3"
+            }
             else
             {
-                // Nếu không phải boss, quay lại scene hiện tại
-                sceneToReturnTo = "Zone" + mapData.currentZone;
+                // Nếu không phải boss, quay lại scene hiện tại
+                sceneToReturnTo = "Zone" + mapData.currentZone;
             }
 
-            // Xóa trạng thái "đang chờ"
-            mapData.pendingNodePoint = new Vector2Int(-1, -1);
+            // Xóa trạng thái "đang chờ"
+            mapData.pendingNodePoint = new Vector2Int(-1, -1);
             mapData.pendingNodeSceneName = null;
 
-            // Lưu lại toàn bộ RunData
-            RunSaveService.SaveRun(runData);
+            if (playerCharacter != null)
+            {
+                runData.playerData.currentHP = playerCharacter.currentHP;
+                // runData.playerData.currentMana = playerCharacter.currentMana;
+            }
+
+            // Lưu lại toàn bộ RunData
+            RunSaveService.SaveRun(runData);
             Debug.Log("[SAVE SYSTEM] Node completed. Pending status cleared. Game saved.");
         }
 
-        // Chuyển scene về bản đồ
-        RestorePersistentPlayer();
+        // Chuyển scene về bản đồ
+        RestorePersistentPlayer();
         SceneManager.LoadScene(sceneToReturnTo);
     }
-    // Coroutine for when the player is defeated
-    IEnumerator DefeatRoutine()
+    // Coroutine for when the player is defeated
+    IEnumerator DefeatRoutine()
     {
         Debug.Log("[BATTLE] Player died.");
         busy = true;
 
-        // ✅ GỌI GAMEMANAGER ĐỂ XỬ LÝ HẬU QUẢ
-        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
+        // ✅ GỌI GAMEMANAGER ĐỂ XỬ LÝ HẬU QUẢ
+        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
 
-        // Nếu run thực sự kết thúc (hết mạng)
-        if (runEnded)
+        // Nếu run thực sự kết thúc (hết mạng)
+        if (runEnded)
         {
-            // Kích hoạt Defeat Panel với lựa chọn "Quit" hoặc xem kết quả
-            if (defeatPanel != null)
+            // Kích hoạt Defeat Panel với lựa chọn "Quit" hoặc xem kết quả
+            if (defeatPanel != null)
             {
-                // TODO: Bạn có thể muốn có một panel "Run Over" riêng
-                // Tạm thời vẫn dùng defeatPanel
+                // TODO: Bạn có thể muốn có một panel "Run Over" riêng
+                // Tạm thời vẫn dùng defeatPanel
+                defeatPanel.SetActive(true);
+            }
+            // Ở đây, nút Retry có thể bị vô hiệu hóa vì không thể retry được nữa
+        }
+        // Nếu vẫn còn mạng
+        else
+        {
+            // Vẫn kích hoạt Defeat Panel để cho phép người chơi Quit hoặc Retry
+            if (defeatPanel != null)
+            {
                 defeatPanel.SetActive(true);
             }
-            // Ở đây, nút Retry có thể bị vô hiệu hóa vì không thể retry được nữa
-        }
-        // Nếu vẫn còn mạng
-        else
-        {
-            // Vẫn kích hoạt Defeat Panel để cho phép người chơi Quit hoặc Retry
-            if (defeatPanel != null)
-            {
-                defeatPanel.SetActive(true);
-            }
         }
 
-        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
-        // Chúng ta sẽ không tự động chuyển scene nữa
-        yield return null; // Chờ vô tận cho đến khi người chơi bấm nút
-    }
+        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
+        // Chúng ta sẽ không tự động chuyển scene nữa
+        yield return null; // Chờ vô tận cho đến khi người chơi bấm nút
+    }
 
-    #endregion
+    #endregion
 
-    #region Helpers
-    /// <summary>
-    /// Moves the persistent player back under the GameManager before leaving the battle scene.
-    /// Without this the player instance stays parented to the battle scene's slot and gets
-    /// destroyed when the scene unloads, causing the missing player on the map.
-    /// </summary>
-    void RestorePersistentPlayer()
+    #region Helpers
+    /// <summary>
+    /// Moves the persistent player back under the GameManager before leaving the battle scene.
+    /// Without this the player instance stays parented to the battle scene's slot and gets
+    /// destroyed when the scene unloads, causing the missing player on the map.
+    /// </summary>
+    void RestorePersistentPlayer()
     {
         if (GameManager.Instance == null) return;
 
         var persistentPlayer = GameManager.Instance.playerInstance;
         if (persistentPlayer == null) return;
 
-        // Only detach if the player is currently parented under the battle slot.
-        if (persistentPlayer.transform.parent == playerSlot)
+        // Only detach if the player is currently parented under the battle slot.
+        if (persistentPlayer.transform.parent == playerSlot)
         {
             persistentPlayer.transform.SetParent(GameManager.Instance.transform, false);
         }
 
-        // Ensure it survives the next scene load and hide it until the map wants to show it.
-        //DontDestroyOnLoad(persistentPlayer);
-        persistentPlayer.SetActive(false);
+        // Ensure it survives the next scene load and hide it until the map wants to show it.
+        //DontDestroyOnLoad(persistentPlayer);
+        persistentPlayer.SetActive(false);
     }
 
-    // Checks if all enemies are dead
-    bool AllEnemiesDead()
+    // Checks if all enemies are dead
+    bool AllEnemiesDead()
     {
         if (enemyInstances == null) return true;
         foreach (var e in enemyInstances) if (e != null) return false;
         return true;
     }
 
-    // Checks if a specific enemy has died
-    bool DidEnemyDie(int index)
+    // Checks if a specific enemy has died
+    bool DidEnemyDie(int index)
     {
         if (index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return true;
         var enemyChar = enemyInstances[index].GetComponent<Character>();
         return enemyChar != null && enemyChar.currentHP <= 0;
     }
 
-    #endregion
+    #endregion
 
-    #region Button Actions
+    #region Button Actions
 
-    public void OnQuitButton()
+    public void OnQuitButton()
     {
         Debug.Log("Quit button pressed. Clearing run data and returning to Main Menu.");
 
-        // Xóa toàn bộ dữ liệu của run hiện tại
-        RunSaveService.ClearRun();
+        // Xóa toàn bộ dữ liệu của run hiện tại
+        RunSaveService.ClearRun();
 
-        // Tải lại scene Main Menu
-        SceneManager.LoadScene("MainMenu");
+        // Tải lại scene Main Menu
+        SceneManager.LoadScene("MainMenu");
     }
 
     public void OnRetryButton()
@@ -754,8 +768,8 @@ public class BattleManager : MonoBehaviour
 
         var runData = GameManager.Instance.currentRunData;
 
-        // Nếu hết mạng thì không cho retry
-        if (runData.playerData.steadfastDurability <= 0)
+        // Nếu hết mạng thì không cho retry
+        if (runData.playerData.steadfastDurability <= 0)
         {
             Debug.LogWarning("Cannot retry, no durability left. Forcing quit.");
             OnQuitButton();
@@ -764,29 +778,29 @@ public class BattleManager : MonoBehaviour
           // 1. Xóa bản đồ hiện tại để buộc game tạo map mới cho zone
         runData.mapData.currentMapJson = null;
 
-        // 2. Xóa đường đi cũ trên bản đồ
-        runData.mapData.path.Clear();
+        // 2. Xóa đường đi cũ trên bản đồ
+        runData.mapData.path.Clear();
 
-        // 3. Khôi phục lại máu/mana (ví dụ: hồi đầy)
-        //    Lưu ý: Chúng ta cần truy cập vào chỉ số max của người chơi
-        //    Cách đơn giản nhất là thêm maxHP, maxMana vào PlayerData
-        //    (Bạn cần thêm public int maxHP; public int maxMana; vào PlayerData.cs)
-        //    Tạm thời, chúng ta sẽ hồi máu dựa trên chỉ số từ Character component
-        var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
+        // 3. Khôi phục lại máu/mana (ví dụ: hồi đầy)
+        //    Lưu ý: Chúng ta cần truy cập vào chỉ số max của người chơi
+        //    Cách đơn giản nhất là thêm maxHP, maxMana vào PlayerData
+        //    (Bạn cần thêm public int maxHP; public int maxMana; vào PlayerData.cs)
+        //    Tạm thời, chúng ta sẽ hồi máu dựa trên chỉ số từ Character component
+        var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
         if (playerChar != null)
         {
-            //runData.playerData.currentHP = playerChar.maxHP;
-            //runData.playerData.currentMana = playerChar.maxMana;
-        }
+            runData.playerData.currentHP = playerChar.maxHP;
+            //runData.playerData.currentMana = playerChar.maxMana;
+        }
 
-        // 4. Lưu lại trạng thái đã khôi phục
-        RunSaveService.SaveRun(runData);
+        // 4. Lưu lại trạng thái đã khôi phục
+        RunSaveService.SaveRun(runData);
 
-        // 5. Tải lại scene của zone hiện tại để bắt đầu lại
-        string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
+        // 5. Tải lại scene của zone hiện tại để bắt đầu lại
+        string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
         SceneManager.LoadScene(zoneSceneToLoad);
     }
 
-    #endregion
+    #endregion
 
 }

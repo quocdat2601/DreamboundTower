@@ -195,27 +195,7 @@ namespace Map
             // GDD: Boss at end of each zone (floors 10, 20, 30...)
             return currentFloor == totalFloorsPerZone;
         }
-        
-        public void RestoreSteadfastHeart()
-        {
-            if (steadfastHeartRestores > 0)
-            {
-                steadfastHeartRestores--;
-                Debug.Log($"Steadfast Heart restored! Remaining: {steadfastHeartRestores}");
-            }
-            else
-            {
-                Debug.LogWarning("No more Steadfast Heart restores available!");
-            }
-        }
-        
-        public void ResetSteadfastHeartRestores()
-        {
-            // GDD: Reset to 3 when reaching checkpoint
-            steadfastHeartRestores = maxSteadfastHeartRestores;
-            Debug.Log("Steadfast Heart restores reset to maximum!");
-        }
-        
+
         public void AdvanceFloor()
         {
             currentFloor++;
@@ -231,7 +211,7 @@ namespace Map
                 // Reset Steadfast Heart at zone start (checkpoint)
                 if (IsCheckpointFloor())
                 {
-                    ResetSteadfastHeartRestores();
+                    GameManager.Instance.RestoreSteadfastHeart();
                 }
                 
                 // Transition to next zone scene

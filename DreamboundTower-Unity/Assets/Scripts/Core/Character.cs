@@ -106,18 +106,24 @@ public class Character : MonoBehaviour
             Die();
         }
     }
-
-
     public void UpdateHPUI()
     {
-        float t = (float)currentHP / maxHP;
+        // ✅ THÊM LẠI KHỐI CODE NÀY ĐỂ GIAO TIẾP VỚI UI TOÀN CỤC
+        // Thông báo cho GameManager để cập nhật giao diện "bất tử"
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.UpdatePlayerHealthUI(currentHP, maxHP);
+        }
 
+        // Phần code cũ của bạn vẫn có thể hữu ích để cập nhật thanh máu trên đầu quái
+        // (nếu bạn có thiết lập đó)
+        float t = (float)currentHP / maxHP;
         if (hpSlider != null)
             hpSlider.value = t;
-
         if (hpFillImage != null)
             hpFillImage.fillAmount = t;
     }
+
     public System.Action<Character> OnDeath;
 
     void Die()

@@ -496,6 +496,7 @@ MonoBehaviour:
         INT: 0
         AGI: 0
       itemIds: []
+      inventoryItemIds: []
       gold: 0
       steadfastDurability: 0
       currentHP: 0
@@ -525,6 +526,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 90e79aba28f500149afc71761a9cde05, type: 2}
   - {fileID: 11400000, guid: 5b167a0c72db5a34a83ae7cf1b6decf3, type: 2}
   - {fileID: 11400000, guid: ffa0a07ffff5cb14b9c337b867db7ce5, type: 2}
+  allItems: []
 --- !u!4 &1069255376
 Transform:
   m_ObjectHideFlags: 0
