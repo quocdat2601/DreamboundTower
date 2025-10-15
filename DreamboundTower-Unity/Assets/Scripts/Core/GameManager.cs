@@ -64,7 +64,7 @@ public class GameManager : MonoBehaviour
         // ✅ LOGIC HIỂN THỊ UI, GIỜ ĐÂY RẤT ĐƠN GIẢN VÀ ĐÁNG TIN CẬY
         if (playerStatusUI != null)
         {
-            bool isGameplayScene = scene.name.StartsWith("Zone") || scene.name == "MainGame" || scene.name == "EventScene";
+            bool isGameplayScene = scene.name.StartsWith("Zone") || scene.name == "MainGame" || scene.name == "EventScene" || scene.name == "RestScene" || scene.name == "ShopScene";
             playerStatusUI.gameObject.SetActive(isGameplayScene);
         }
     }

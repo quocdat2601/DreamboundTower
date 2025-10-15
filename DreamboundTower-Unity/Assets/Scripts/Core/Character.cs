@@ -145,4 +145,52 @@ public class Character : MonoBehaviour
 
         Destroy(gameObject);
     }
+
+// ... (bên trong class Character)
+
+    /// <summary>
+    /// Hồi máu cho nhân vật một lượng bằng % máu tối đa.
+    /// </summary>
+    /// <param name="percentage">Tỷ lệ phần trăm để hồi, ví dụ 0.5f cho 50%</param>
+public void HealPercentage(float percentage)
+    {
+        int healAmount = Mathf.FloorToInt(maxHP * percentage);
+        currentHP += healAmount;
+        if (currentHP > maxHP)
+        {
+            currentHP = maxHP;
+        }
+
+        Debug.Log($"[REST] Healed for {healAmount} HP ({percentage * 100}%). New HP: {currentHP}/{maxHP}");
+
+        // Phát sóng tín hiệu để UI tự cập nhật
+        OnHealthChanged?.Invoke(currentHP, maxHP);
+    }
+
+    /// <summary>
+    /// Hồi đầy lại Mana của nhân vật.
+    /// </summary>
+    public void RestoreFullMana()
+    {
+        currentMana = mana; // 'mana' là maxMana
+        Debug.Log($"[REST] Mana restored to full. New Mana: {currentMana}/{mana}");
+
+        // Tương tự, nếu bạn có event cho Mana, hãy gọi nó ở đây
+        // OnManaChanged?.Invoke(currentMana, mana);
+    }
+
+    /// <summary>
+    /// Xóa bỏ tất cả các hiệu ứng trạng thái xấu đang có trên nhân vật.
+    /// </summary>
+    public void RemoveAllNegativeStatusEffects()
+    {
+        // PHẦN NÀY LÀ GIẢ ĐỊNH CHO TƯƠNG LAI
+        // Khi bạn có hệ thống status effect (ví dụ: một List<StatusEffect> activeEffects),
+        // bạn sẽ viết logic ở đây để xóa các hiệu ứng có hại.
+        // Ví dụ:
+        // activeEffects.RemoveAll(effect => effect.isNegative == true);
+
+        Debug.Log("[REST] All negative status effects have been purified.");
+        // Gọi event để cập nhật UI status effect nếu có
+    }
 }

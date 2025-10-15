@@ -130,6 +130,7 @@ namespace Map
 
                 // Các node không cần chuyển scene sẽ trả về chuỗi rỗng
                 case NodeType.RestSite:
+                    return "RestScene";
                 case NodeType.Treasure:
                 case NodeType.Store:
                 case NodeType.Mystery: // Tạm thời để auto complete

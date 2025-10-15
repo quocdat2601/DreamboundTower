@@ -21,6 +21,9 @@ EditorBuildSettings:
     path: Assets/Scenes/MainGame.unity
     guid: d218c68ee6a067d4e9f7df5c5693b6f7
   - enabled: 1
+    path: Assets/Scenes/RestScene.unity
+    guid: 691287b05fd6fca40acbb96ba22f61ba
+  - enabled: 1
     path: Assets/Scenes/MapScene/Zone1.unity
     guid: 7812bac038f4ef94d933f39dbd22ce14
   - enabled: 1
