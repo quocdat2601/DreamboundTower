@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI; // Namespace này có thể cần hoặc không tùy thuộc vào code của bạn
+using UnityEngine.UI;
+using UnityEngine.InputSystem;
 
 public class GameManager : MonoBehaviour
 {
@@ -24,6 +25,16 @@ public class GameManager : MonoBehaviour
     public List<ClassPresetSO> allClasses;
     public List<GearItem> allItems;
 
+    [Header("Pause & Settings Panels")]
+    public Button pauseButton;
+    public GameObject pauseMenuPanel;
+    public GameObject settingsPanel;
+    public GameObject settingsMenuPrefab;
+    private GameObject currentSettingsInstance;
+
+    private bool isPaused = false;
+    private bool isPausable = false;
+
     private const int HP_UNIT = 10;
     private const int MANA_UNIT = 5;
     private void Awake()
@@ -43,6 +54,14 @@ public class GameManager : MonoBehaviour
             DontDestroyOnLoad(playerStatusUI.gameObject.transform.root.gameObject);
         }
 
+        if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
+        if (settingsPanel != null) settingsPanel.SetActive(false);
+
+        if (pauseButton != null)
+        {
+            pauseButton.onClick.AddListener(TogglePause);
+        }
+
         if (SceneManager.GetActiveScene().name == "Initialization")
         {
             SceneManager.LoadScene("MainMenu");
@@ -54,18 +73,180 @@ public class GameManager : MonoBehaviour
         }
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
+
+    private void Update()
+    {
+        if (!isPausable) return;
+
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            if (settingsPanel != null && settingsPanel.activeSelf)
+            {
+                CloseSettingsMenu();
+            }
+            else
+            {
+                TogglePause();
+            }
+        }
+    }
+
+    #region Setting/Pause
+    public void TogglePause()
+    {
+        isPaused = !isPaused;
+
+        if (isPaused)
+        {
+            Time.timeScale = 0f;
+            pauseMenuPanel.SetActive(true);
+        }
+        else
+        {
+            ResumeGame(); // Dùng hàm Resume để đảm bảo settings cũng được đóng
+        }
+    }
+
+    public void ResumeGame()
+    {
+        isPaused = false;
+        Time.timeScale = 1f;
+        if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
+        if (settingsPanel != null) settingsPanel.SetActive(false);
+
+        // ✅ BỔ SUNG LOGIC DỌN DẸP
+        if (currentSettingsInstance != null)
+        {
+            Destroy(currentSettingsInstance);
+        }
+    }
+
+    public void OpenSettingsMenu()
+    {
+        if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
+        if (settingsPanel != null) settingsPanel.SetActive(true);
+
+        if (currentSettingsInstance == null && settingsMenuPrefab != null)
+        {
+            currentSettingsInstance = Instantiate(settingsMenuPrefab, settingsPanel.transform);
+            // Giả sử nút Close là nút duy nhất hoặc nút đầu tiên trong prefab
+            Button closeButton = currentSettingsInstance.GetComponentInChildren<Button>();
+
+            if (closeButton != null)
+            {
+                // Gán hàm CloseSettingsMenu vào sự kiện onClick của nút này
+                closeButton.onClick.AddListener(CloseSettingsMenu);
+                Debug.Log("Đã tự động gán hàm Close cho nút trong prefab Settings.");
+            }
+            else
+            {
+                Debug.LogWarning("Không tìm thấy Button nào trong settingsMenuPrefab để gán hàm Close.");
+            }
+        }
+    }
+
+    public void CloseSettingsMenu()
+    {
+        if (settingsPanel != null) settingsPanel.SetActive(false);
+        if (pauseMenuPanel != null) pauseMenuPanel.SetActive(true);
+
+        // ✅ BỔ SUNG LOGIC DỌN DẸP
+        if (currentSettingsInstance != null)
+        {
+            Destroy(currentSettingsInstance);
+        }
+    }
+
+    // --- CÁC HÀM CHO NÚT BẤM (TÍCH HỢP LOGIC MỚI) ---
+
+    /// <summary>
+    /// Quay về Menu chính, xóa dữ liệu run hiện tại.
+    /// </summary>
+    public void QuitToMainMenu()
+    {
+        Time.timeScale = 1f; // Luôn luôn reset timescale trước khi chuyển scene
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    /// <summary>
+    /// Chức năng mới: Thử lại từ checkpoint gần nhất.
+    /// </summary>
+    public void RetryAtCheckpoint()
+    {
+        Time.timeScale = 1f;
+
+        if (currentRunData == null) return;
+
+        // 1. Kiểm tra xem còn "mạng" để thử lại không
+        if (currentRunData.playerData.steadfastDurability <= 0)
+        {
+            Debug.LogWarning("Không còn Steadfast Heart để thử lại. Buộc thoát ra Main Menu.");
+            QuitToMainMenu();
+            return;
+        }
+
+        // 2. Trừ 1 Steadfast Heart
+        currentRunData.playerData.steadfastDurability--;
+        if (playerStatusUI != null)
+            playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
+
+        // 3. Reset lại trạng thái map về đầu zone (logic tương tự trong BattleManager)
+        currentRunData.mapData.currentMapJson = null;
+        currentRunData.mapData.path.Clear();
+
+        // 4. Hồi phục HP/Mana về trạng thái an toàn (ví dụ: 100%)
+        var playerChar = playerInstance.GetComponent<Character>();
+        if (playerChar != null)
+        {
+            currentRunData.playerData.currentHP = playerChar.maxHP;
+            currentRunData.playerData.currentMana = playerChar.mana;
+        }
+
+        // 5. Lưu lại trạng thái mới
+        RunSaveService.SaveRun(currentRunData);
+
+        // 6. Tải lại scene của zone hiện tại
+        string zoneSceneToLoad = "Zone" + currentRunData.mapData.currentZone;
+        SceneManager.LoadScene(zoneSceneToLoad);
+    }
+    #endregion
+
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // Thêm dòng log này để biết chắc chắn hàm có được gọi không
+        Debug.Log($"<color=yellow>OnSceneLoaded: Đã tải scene '{scene.name}'</color>");
+
         if (playerInstance != null)
         {
             playerInstance.SetActive(scene.name == "MainGame");
         }
 
-        // ✅ LOGIC HIỂN THỊ UI, GIỜ ĐÂY RẤT ĐƠN GIẢN VÀ ĐÁNG TIN CẬY
         if (playerStatusUI != null)
         {
-            bool isGameplayScene = scene.name.StartsWith("Zone") || scene.name == "MainGame" || scene.name == "EventScene" || scene.name == "RestScene" || scene.name == "ShopScene";
+            bool isGameplayScene = scene.name.StartsWith("Zone") || scene.name == "MainGame"
+                                   || scene.name == "EventScene" || scene.name == "RestScene"
+                                   || scene.name == "ShopScene";
+
+            // Thêm dòng log này để xem kết quả của việc kiểm tra scene
+            Debug.Log($"<color=cyan>Is Gameplay Scene? {isGameplayScene}</color>");
+
             playerStatusUI.gameObject.SetActive(isGameplayScene);
+
+            isPausable = isGameplayScene;
+            if (pauseButton != null)
+            {
+                pauseButton.gameObject.SetActive(isGameplayScene);
+            }
+
+            if (!isGameplayScene && isPaused)
+            {
+                ResumeGame();
+            }
+        }
+        else
+        {
+            // Thêm dòng log này để biết nếu playerStatusUI bị null
+            Debug.LogError("LỖI: playerStatusUI trong GameManager đang bị null!");
         }
     }
 

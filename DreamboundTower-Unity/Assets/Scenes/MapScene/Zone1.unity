@@ -276,7 +276,6 @@ GameObject:
   - component: {fileID: 729072552}
   - component: {fileID: 729072551}
   - component: {fileID: 729072553}
-  - component: {fileID: 729072554}
   m_Layer: 5
   m_Name: PlayerStatusHolder
   m_TagString: Untagged
@@ -367,18 +366,6 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
---- !u!114 &729072554
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 729072549}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fba14e547a83fd246a4230ebecc3ca6e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UIPlaceholder
 --- !u!1 &1275018516
 GameObject:
   m_ObjectHideFlags: 0
