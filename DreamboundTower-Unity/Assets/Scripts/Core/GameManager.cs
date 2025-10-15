@@ -104,41 +104,53 @@ public class GameManager : MonoBehaviour
         if (raceData == null || classData == null) return;
 
         // Bước 2: Bắt đầu "xây nhà" (Instantiate và cấu hình playerInstance)
-        // Nếu đã có instance cũ, hủy nó đi để tạo cái mới
-        if(playerInstance != null) Destroy(playerInstance);
+        if (playerInstance != null) Destroy(playerInstance);
         playerInstance = Instantiate(playerPrefab);
         playerInstance.name = "PlayerCharacter_DontDestroy";
         DontDestroyOnLoad(playerInstance);
 
-        // Cấu hình chỉ số
         var playerCharacter = playerInstance.GetComponent<Character>();
         var equipment = playerInstance.GetComponent<Equipment>();
-        if (playerCharacter != null)
+        var playerSkills = playerInstance.GetComponent<PlayerSkills>();
+        var playerImage = playerInstance.GetComponent<Image>();
+
+        // Bước 3: THIẾT LẬP CHỈ SỐ THEO QUY TRÌNH CHUẨN
+        if (playerCharacter != null && playerStatusUI != null)
         {
-            // GÁN CHỈ SỐ GỐC (BASE STATS)
+            // 3.1. GÁN "GIẤY KHAI SINH" (BASE STATS) TỪ RACE SO
             StatBlock baseStats = raceData.baseStats;
-            playerCharacter.baseMaxHP = baseStats.HP * HP_UNIT; // Áp dụng HP_UNIT ngay từ đầu
+            playerCharacter.baseMaxHP = baseStats.HP * HP_UNIT;
             playerCharacter.baseAttackPower = baseStats.STR;
             playerCharacter.baseDefense = baseStats.DEF;
-            playerCharacter.baseMana = baseStats.MANA * MANA_UNIT; // Áp dụng MANA_UNIT
+            playerCharacter.baseMana = baseStats.MANA * MANA_UNIT;
             playerCharacter.baseIntelligence = baseStats.INT;
             playerCharacter.baseAgility = baseStats.AGI;
 
-            // Dùng ApplyGearStats của kiến trúc cũ để tính toán
-            equipment.ApplyGearStats();
-            // HỒI ĐẦY MÁU VÀ MANA CHO LẦN ĐẦU
+            // 3.2. RESET CHỈ SỐ THỰC CHIẾN VỀ TRẠNG THÁI GỐC
+            playerCharacter.ResetToBaseStats();
+
+            // 3.3. CỘNG DỒN CHỈ SỐ TỪ TRANG BỊ (nếu có trong save file)
+            equipment.ApplyGearStats(); // Hàm này cần đảm bảo nó đọc trang bị từ RunData
+
+            // 3.4. HỒI ĐẦY MÁU VÀ MANA CHO LẦN ĐẦU TIÊN
             playerCharacter.currentHP = playerCharacter.maxHP;
             playerCharacter.currentMana = playerCharacter.mana;
 
-            Debug.Log($"Player initialized with full health: {playerCharacter.maxHP}");
+            // BƯỚC 3.5: ĐĂNG KÝ LẮNG NGHE SỰ KIỆN TỪ NHÂN VẬT
+            if (playerCharacter != null && playerStatusUI != null)
+            {
+                // Dòng này có nghĩa là: "Này playerStatusUI, kể từ bây giờ,
+                // mỗi khi sự kiện OnHealthChanged của playerCharacter được phát sóng,
+                // hãy tự động chạy hàm UpdateHealth của chính ngươi."
+                playerCharacter.OnHealthChanged += playerStatusUI.UpdateHealth;
+            }
         }
 
-        // Cấu hình hình ảnh
-        Image playerImage = playerInstance.GetComponent<Image>();
+        // Bước 4: Cấu hình các thành phần khác (Visual, Skills)
         if (playerImage != null)
         {
             Sprite characterSprite = null;
-            switch (classData.id) // Dùng classData
+            switch (classData.id)
             {
                 case "class_cleric": characterSprite = raceData.clericSprite; break;
                 case "class_mage": characterSprite = raceData.mageSprite; break;
@@ -148,21 +160,27 @@ public class GameManager : MonoBehaviour
             playerImage.sprite = characterSprite;
         }
 
-        // Cấu hình Kỹ năng
-        PlayerSkills playerSkills = playerInstance.GetComponent<PlayerSkills>();
         if (playerSkills != null)
         {
-            playerSkills.LearnSkills(raceData, classData); // Dùng raceData và classData
+            playerSkills.LearnSkills(raceData, classData);
         }
 
         Debug.Log("Player Character Initialized from RunData!");
+
+        // Bước 5: Lưu trạng thái ban đầu và cập nhật giao diện
         SavePlayerStateToRunData();
+        if (playerCharacter != null)
+        {
+            // THAY ĐỔI NHỎ Ở ĐÂY
+            // Thay vì gọi playerCharacter.UpdateHPUI(),
+            // ta trực tiếp ra lệnh cho UI cập nhật lần đầu tiên.
+            // Điều này rõ ràng và đáng tin cậy hơn.
+            playerStatusUI.UpdateHealth(playerCharacter.currentHP, playerCharacter.maxHP);
 
-        // ✅ BƯỚC 7: CẬP NHẬT GIAO DIỆN LẦN CUỐI
-        if (playerCharacter != null) playerCharacter.UpdateHPUI();
-
-        Debug.Log($"Player initialized with full health: {playerCharacter.maxHP}");
+            Debug.Log($"Player initialized. MaxHP: {playerCharacter.maxHP}. CurrentHP set to full.");
+        }   
     }
+
     public void LoadNextScene(string sceneName)
     {
         SceneManager.LoadScene(sceneName);

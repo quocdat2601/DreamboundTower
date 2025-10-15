@@ -1,7 +1,7 @@
 ﻿// File: Character.cs
 using UnityEngine;
 using UnityEngine.UI;
-
+using System;
 public class Character : MonoBehaviour
 {
     [Header("Base Stats")]
@@ -22,6 +22,9 @@ public class Character : MonoBehaviour
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
 
+    // Sự kiện này sẽ gửi đi 2 giá trị: currentHP và maxHP
+    public event Action<int, int> OnHealthChanged;
+
     // ... (các biến UI giữ nguyên) ...
     [Header("UI")]
     public Slider hpSlider;
@@ -31,9 +34,9 @@ public class Character : MonoBehaviour
 
     private void Awake()
     {
-        ResetToBaseStats();
-        currentHP = maxHP;
-        UpdateHPUI();
+        //ResetToBaseStats();
+        //currentHP = maxHP;
+        //UpdateHPUI();
     }
 
     public void ResetToBaseStats()
@@ -97,6 +100,7 @@ public class Character : MonoBehaviour
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
 
+        // ✅ PHÁT SÓNG TÍN HIỆU SAU KHI HP THAY ĐỔI
         UpdateHPUI();
 
         Debug.Log($"[BATTLE] {gameObject.name} took {actualDamage} damage (defense reduced {damage} to {actualDamage})");
@@ -108,20 +112,27 @@ public class Character : MonoBehaviour
     }
     public void UpdateHPUI()
     {
-        // ✅ THÊM LẠI KHỐI CODE NÀY ĐỂ GIAO TIẾP VỚI UI TOÀN CỤC
-        // Thông báo cho GameManager để cập nhật giao diện "bất tử"
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.UpdatePlayerHealthUI(currentHP, maxHP);
-        }
+        // NHIỆM VỤ 1: PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
+        // Bất kỳ ai đăng ký lắng nghe sẽ nhận được tín hiệu này.
+        OnHealthChanged?.Invoke(currentHP, maxHP);
 
-        // Phần code cũ của bạn vẫn có thể hữu ích để cập nhật thanh máu trên đầu quái
-        // (nếu bạn có thiết lập đó)
+        // NHIỆM VỤ 2 (TÙY CHỌN): CẬP NHẬT UI CỤC BỘ
+        // Nếu bạn có thanh máu trên đầu quái, nó vẫn sẽ hoạt động.
         float t = (float)currentHP / maxHP;
         if (hpSlider != null)
             hpSlider.value = t;
         if (hpFillImage != null)
             hpFillImage.fillAmount = t;
+    }
+
+    // Tương tự, nếu bạn có hàm Heal(int amount), cũng hãy gọi event ở cuối
+    public void Heal(int amount)
+    {
+        currentHP += amount;
+        if (currentHP > maxHP) currentHP = maxHP;
+
+        // ✅ PHÁT SÓNG TÍN HIỆU
+        OnHealthChanged?.Invoke(currentHP, maxHP);
     }
 
     public System.Action<Character> OnDeath;

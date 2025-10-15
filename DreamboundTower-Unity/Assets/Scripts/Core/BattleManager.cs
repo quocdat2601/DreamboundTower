@@ -136,6 +136,7 @@ public class BattleManager : MonoBehaviour
                 // Tương tự cho Mana
                 // playerCharacter.currentMana = GameManager.Instance.currentRunData.playerData.currentMana;
             }
+            playerCharacter.UpdateHPUI();
             Debug.Log("[BATTLE] Player Spawned from GameManager.");
         }
         // Priority 2: Spawn a default player for testing purposes
