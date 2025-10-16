@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2572521548273305416}
   - component: {fileID: 2175426964700590881}
   - component: {fileID: 5852126970460309264}
+  - component: {fileID: 3859337840471813240}
   m_Layer: 5
   m_Name: Skill Icon Prefabs
   m_TagString: Untagged
@@ -139,6 +140,28 @@ MonoBehaviour:
   iconImage: {fileID: 4091527961574456584}
   highlightBorder: {fileID: 6752213397603553059}
   OnSkillClicked:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &3859337840471813240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1189512537024380588}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03daf07adbbabb945a80bb5caf02d68a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TooltipTrigger
+  dataToShow: {fileID: 0}
+  OnItemHoverEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnSkillHoverEnter:
+    m_PersistentCalls:
+      m_Calls: []
+  OnHoverExit:
     m_PersistentCalls:
       m_Calls: []
 --- !u!1 &6752213397603553059

@@ -235,6 +235,11 @@ public class GameManager : MonoBehaviour
             playerStatusUI.gameObject.SetActive(isGameplayScene);
 
             isPausable = isGameplayScene;
+            // Nếu đây là scene gameplay, ra lệnh cho PlayerHUDController tìm và cập nhật
+            if (isGameplayScene && PlayerHUDController.Instance != null)
+            {
+                PlayerHUDController.Instance.FindAndRefresh();
+            }
             if (pauseButton != null)
             {
                 pauseButton.gameObject.SetActive(isGameplayScene);
@@ -529,5 +534,12 @@ public class GameManager : MonoBehaviour
         character.currentHP = currentRunData.playerData.currentHP;
         character.currentMana = currentRunData.playerData.currentMana;
         character.UpdateHPUI();
+    }
+    public void UpdatePlayerGoldUI(int amount)
+    {
+        if (playerStatusUI != null)
+        {
+            playerStatusUI.UpdateGold(amount);
+        }
     }
 }

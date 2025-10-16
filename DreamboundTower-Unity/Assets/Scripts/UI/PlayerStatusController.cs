@@ -13,6 +13,9 @@ public class PlayerStatusController : MonoBehaviour
     public Sprite blackHeartSprite;
     public Image[] heartIcons;
 
+    [Header("Gold Display")]
+    public TextMeshProUGUI goldValueText;
+
     // ✅ OnEnable() vẫn hữu ích để cập nhật giao diện mỗi khi nó được bật lên
     void OnEnable()
     {
@@ -66,6 +69,14 @@ public class PlayerStatusController : MonoBehaviour
             {
                 heartIcons[i].sprite = (i < durability) ? redHeartSprite : blackHeartSprite;
             }
+        }
+    }
+
+    public void UpdateGold(int amount)
+    {
+        if (goldValueText != null)
+        {
+            goldValueText.text = amount.ToString();
         }
     }
 }

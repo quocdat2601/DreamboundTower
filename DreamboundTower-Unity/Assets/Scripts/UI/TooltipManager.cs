@@ -27,6 +27,7 @@ public class TooltipManager : MonoBehaviour
     public TextMeshProUGUI tooltipCooldownValue;
     private RectTransform skillTooltipRect;
 
+    private RectTransform activeTooltipRect;
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); }
@@ -46,25 +47,66 @@ public class TooltipManager : MonoBehaviour
 
     private void Update()
     {
-        // Đảm bảo bạn đã thêm 'using UnityEngine.InputSystem;' ở đầu file
+
+        if (activeTooltipRect == null || !activeTooltipRect.gameObject.activeSelf) return; // Chỉ chạy nếu có tooltip đang hiển thị
+
         if (Mouse.current == null) return;
 
-        // Lấy vị trí chuột bằng API mới
         Vector2 mousePosition = Mouse.current.position.ReadValue();
 
-        // Tính toán vị trí mới với một khoảng đệm
-        Vector2 offset = new Vector2(15f, 15f); // 15 pixel sang phải, 15 pixel lên trên
-        Vector2 targetPosition = mousePosition + offset;
-
-        if (itemTooltipPanel.activeSelf)
+        // Lấy thông tin về màn hình và kích thước tooltip
+        Canvas canvas = GetComponent<Canvas>();
+        if (canvas == null)
         {
-            itemTooltipRect.position = targetPosition;
+            Debug.LogError("TooltipManager cần nằm dưới một Canvas để tính toán vị trí chính xác.");
+            return;
         }
 
-        if (skillTooltipPanel.activeSelf)
+        RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+
+        // Chuyển đổi vị trí chuột từ screen space sang local space của Canvas
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, mousePosition, canvas.worldCamera, out Vector2 localPoint);
+
+        // Lấy kích thước của tooltip
+        Vector2 tooltipSize = activeTooltipRect.rect.size;
+
+        // Tính toán vị trí mới
+        Vector2 targetLocalPosition = localPoint;
+        Vector2 pivot = Vector2.zero; // Mặc định hiển thị về phía trên bên phải (pivot 0,0)
+
+        // ✅ LOGIC ĐIỀU CHỈNH VỊ TRÍ
+        // 1. Kiểm tra nếu tooltip tràn ra ngoài rìa phải màn hình
+        if (localPoint.x + tooltipSize.x > canvasRect.rect.width / 2) // canvasRect.rect.width / 2 là cạnh phải của canvas
         {
-            skillTooltipRect.position = targetPosition;
+            // Nếu tràn, dịch tooltip sang trái (pivot 1,0)
+            targetLocalPosition.x = localPoint.x; // Không cần offset x ban đầu
+            pivot.x = 1; // Pivot sang phải để neo tooltip vào chuột
         }
+        else
+        {
+            // Nếu không tràn, dịch tooltip sang phải (pivot 0,0) với offset
+            targetLocalPosition.x = localPoint.x + 15f; // Offset 15f giống bạn đã dùng
+            pivot.x = 0;
+        }
+
+        // 2. Kiểm tra nếu tooltip tràn ra ngoài rìa trên màn hình
+        // Lưu ý: localPoint.y sẽ âm nếu chuột ở nửa dưới Canvas
+        if (localPoint.y + tooltipSize.y > canvasRect.rect.height / 2) // canvasRect.rect.height / 2 là cạnh trên của canvas
+        {
+            // Nếu tràn, dịch tooltip xuống dưới (pivot 0,1)
+            targetLocalPosition.y = localPoint.y - 15f; // Offset 15f giống bạn đã dùng, nhưng dịch xuống
+            pivot.y = 1; // Pivot lên trên để neo tooltip vào chuột
+        }
+        else
+        {
+            // Nếu không tràn, dịch tooltip lên trên (pivot 0,0)
+            targetLocalPosition.y = localPoint.y + 15f; // Offset 15f giống bạn đã dùng
+            pivot.y = 0;
+        }
+
+        // Cập nhật pivot và vị trí
+        activeTooltipRect.pivot = pivot;
+        activeTooltipRect.localPosition = targetLocalPosition;
     }
 
     // --- CÁC HÀM CÔNG KHAI ---
@@ -74,7 +116,7 @@ public class TooltipManager : MonoBehaviour
         if (item == null || itemTooltipPanel == null) return;
 
         HideAllTooltips();
-
+        activeTooltipRect = itemTooltipRect;
         // Cập nhật Header
         itemHeaderNameText.text = item.itemName;
         itemHeaderCostText.text = item.basePrice.ToString();
@@ -102,6 +144,7 @@ public class TooltipManager : MonoBehaviour
         if (skill == null || skillTooltipPanel == null) return;
 
         HideAllTooltips();
+        activeTooltipRect = itemTooltipRect;
         skillTooltipPanel.SetActive(true);
 
         if (tooltipSkillName) tooltipSkillName.text = skill.displayName;
@@ -128,6 +171,7 @@ public class TooltipManager : MonoBehaviour
     {
         if (itemTooltipPanel != null) itemTooltipPanel.SetActive(false);
         if (skillTooltipPanel != null) skillTooltipPanel.SetActive(false);
+        activeTooltipRect = null;
     }
 
     // --- CÁC HÀM NỘI BỘ ---
