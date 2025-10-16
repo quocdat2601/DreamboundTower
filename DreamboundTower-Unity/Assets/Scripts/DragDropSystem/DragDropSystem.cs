@@ -90,25 +90,41 @@ public class DragDropSystem : MonoBehaviour
     /// </summary>
     void RetryFindEquipment()
     {
-        // Find the correct Equipment reference (the instantiated one, not the prefab)
+        // Priority 1: Find equipment from BattleManager's active player
+        BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+        if (battleManager != null)
+        {
+            Character playerCharacter = battleManager.GetPlayerCharacter();
+            if (playerCharacter != null)
+            {
+                Equipment playerEquipment = playerCharacter.GetComponent<Equipment>();
+                if (playerEquipment != null && playerEquipment.gameObject.activeInHierarchy)
+                {
+                    equipment = playerEquipment;
+                    return;
+                }
+            }
+        }
+        
+        // Priority 2: Find equipment from GameManager's persistent player
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            Equipment persistentEquipment = GameManager.Instance.playerInstance.GetComponent<Equipment>();
+            if (persistentEquipment != null && persistentEquipment.gameObject.activeInHierarchy)
+            {
+                equipment = persistentEquipment;
+                return;
+            }
+        }
+        
+        // Priority 3: Find any active equipment in the scene
         Equipment[] allEquipment = FindObjectsByType<Equipment>(FindObjectsSortMode.None);
-        
-        if (allEquipment.Length == 0) return;
-        
-        // Look for Equipment components that are on instantiated players (not prefabs)
         foreach (var equip in allEquipment)
         {
-            // Check if this Equipment is on an instantiated player (has "Clone" in the name)
-            bool isInstantiated = equip.gameObject.name.Contains("(Clone)");
-            
-            if (isInstantiated)
+            if (equip.gameObject.activeInHierarchy)
             {
-                // Only switch if we don't already have the correct reference
-                if (equipment != equip)
-                {
-                    equipment = equip;
-                }
-                break;
+                equipment = equip;
+                return;
             }
         }
     }
@@ -118,24 +134,41 @@ public class DragDropSystem : MonoBehaviour
     /// </summary>
     void RetryFindInventory()
     {
-        // Find the correct Inventory reference (the instantiated one, not the prefab)
+        // Priority 1: Find inventory from BattleManager's active player
+        BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+        if (battleManager != null)
+        {
+            Character playerCharacter = battleManager.GetPlayerCharacter();
+            if (playerCharacter != null)
+            {
+                Inventory playerInventory = playerCharacter.GetComponent<Inventory>();
+                if (playerInventory != null && playerInventory.gameObject.activeInHierarchy)
+                {
+                    inventory = playerInventory;
+                    return;
+                }
+            }
+        }
+        
+        // Priority 2: Find inventory from GameManager's persistent player
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            Inventory persistentInventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
+            if (persistentInventory != null && persistentInventory.gameObject.activeInHierarchy)
+            {
+                inventory = persistentInventory;
+                return;
+            }
+        }
+        
+        // Priority 3: Find any active inventory in the scene
         Inventory[] allInventories = FindObjectsByType<Inventory>(FindObjectsSortMode.None);
-        
-        if (allInventories.Length == 0) return;
-        
-        // Look for Inventory components that have items (the instantiated ones)
         foreach (var inv in allInventories)
         {
-            // Check if this Inventory has any items
-            bool hasItems = inv.items.Count > 0;
-            if (hasItems)
+            if (inv.gameObject.activeInHierarchy)
             {
-                // Only switch if we don't already have the correct reference
-                if (inventory != inv)
-                {
-                    inventory = inv;
-                }
-                break;
+                inventory = inv;
+                return;
             }
         }
     }
