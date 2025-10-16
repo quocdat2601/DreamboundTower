@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public enum GearType 
 { 
@@ -18,8 +18,19 @@ public class GearItem : ScriptableObject
     public GearType gearType;
     public Sprite icon;
 
+    [Header("Shop & Rarity")]
+    public ItemRarity rarity;
+    public int basePrice;
+
     [Header("Stats Bonus")]
     public int attackBonus;
     public int defenseBonus;
     public int hpBonus;
+    public int intBonus;
+    public int manaBonus;
+    public int agiBonus;
+
+    // SAU NÀY BẠN CÓ THỂ THÊM CÁC THUỘC TÍNH PHỨC TẠP HƠN
+    // public float hpBonusPercent;
+    // public List<Affix> affixes;
 }

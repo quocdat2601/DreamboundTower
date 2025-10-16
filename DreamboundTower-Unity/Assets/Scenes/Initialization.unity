@@ -153,8 +153,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -1000, y: -400}
+  m_AnchoredPosition: {x: 0, y: -60}
+  m_SizeDelta: {x: -1000, y: -520}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &147066354
 MonoBehaviour:
@@ -938,7 +938,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 90e79aba28f500149afc71761a9cde05, type: 2}
   - {fileID: 11400000, guid: 5b167a0c72db5a34a83ae7cf1b6decf3, type: 2}
   - {fileID: 11400000, guid: ffa0a07ffff5cb14b9c337b867db7ce5, type: 2}
-  allItems: []
+  allItems:
+  - {fileID: 11400000, guid: af5307ff5e673304da97776c105ccbe7, type: 2}
   pauseButton: {fileID: 512191573}
   pauseMenuPanel: {fileID: 1868390659}
   settingsPanel: {fileID: 147066352}

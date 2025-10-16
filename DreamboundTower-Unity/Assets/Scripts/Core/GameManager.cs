@@ -32,6 +32,8 @@ public class GameManager : MonoBehaviour
     public GameObject settingsMenuPrefab;
     private GameObject currentSettingsInstance;
 
+
+
     private bool isPaused = false;
     private bool isPausable = false;
 

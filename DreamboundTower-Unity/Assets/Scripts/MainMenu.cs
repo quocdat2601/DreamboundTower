@@ -5,7 +5,6 @@ using System.Collections;
 
 public class MainMenu : MonoBehaviour
 {
-    // ... (Tất cả các biến và hàm animation giữ nguyên) ...
     [Header("UI References")]
     public GameObject settingPanel; // Parent panel (transparent background)
     public GameObject settingMenuPrefab; // Setting menu prefab
