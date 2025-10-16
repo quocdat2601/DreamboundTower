@@ -15,6 +15,11 @@ MonoBehaviour:
   itemName: Chainmail
   gearType: 2
   icon: {fileID: -3785111168148064795, guid: ba3b96cee9462584cab4706f359d666a, type: 3}
+  rarity: 0
+  basePrice: 20
   attackBonus: 0
   defenseBonus: 20
   hpBonus: 5
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 0

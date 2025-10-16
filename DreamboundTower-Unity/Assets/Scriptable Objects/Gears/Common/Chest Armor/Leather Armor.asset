@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Arcanum Robe
+  m_Name: Leather Armor
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Arcanum Robe
+  itemName: Leather Armor
   gearType: 2
-  icon: {fileID: 3134763797266659634, guid: 0f9c87da62ca88e49b59c3643f980afc, type: 3}
+  icon: {fileID: 972524890855885471, guid: cabafdc649f47cd45abf636f6ecd7fa5, type: 3}
   rarity: 0
-  basePrice: 30
-  attackBonus: 5
-  defenseBonus: 10
-  hpBonus: 15
+  basePrice: 20
+  attackBonus: 0
+  defenseBonus: 0
+  hpBonus: 10
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
