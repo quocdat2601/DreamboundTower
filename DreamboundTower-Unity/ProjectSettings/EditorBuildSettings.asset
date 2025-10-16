@@ -6,11 +6,53 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/MainGame.unity
-    guid: 8c9cfa26abfee488c85f1582747f6a02
+    path: Assets/Scenes/Initialization.unity
+    guid: 548f0d25a2036da4d85ef7e6e1fdd421
+  - enabled: 1
+    path: Assets/Scenes/MainMenu.unity
+    guid: 6974b52ff40fe1e46b2db75fb4b40f73
+  - enabled: 1
+    path: Assets/Scenes/Character Selection.unity
+    guid: d2fc226d6c42b2b4f8166b38ac5fc7ea
   - enabled: 1
     path: Assets/Scenes/DialogueDemo.unity
     guid: e342402810dd6304f9c628b539fac558
+  - enabled: 1
+    path: Assets/Scenes/MainGame.unity
+    guid: d218c68ee6a067d4e9f7df5c5693b6f7
+  - enabled: 1
+    path: Assets/Scenes/RestScene.unity
+    guid: 691287b05fd6fca40acbb96ba22f61ba
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone1.unity
+    guid: 7812bac038f4ef94d933f39dbd22ce14
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone2.unity
+    guid: 4026585d1f5c1214394503a6b029237c
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone3.unity
+    guid: 539a3c82a408ca34d9d51432ec6420aa
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone4.unity
+    guid: 25a13224eafde9b41acd349a47800524
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone5.unity
+    guid: 280471084662f9e43858990bc3e9affd
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone6.unity
+    guid: 28f266cd92ecb8e45afb33b56ae2694e
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone7.unity
+    guid: 5437859380a24fa43bec30e2a6f51b6d
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone8.unity
+    guid: b1941e31552825a4e905890a7ef0977f
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone9.unity
+    guid: d4eee9d441f812946b13df836ffa5dcd
+  - enabled: 1
+    path: Assets/Scenes/MapScene/Zone10.unity
+    guid: fc4fc3c57fe8fd64db89c27ad3535d03
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 668faf1ce7f83cf43a7f22d8ae6af9f4, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}

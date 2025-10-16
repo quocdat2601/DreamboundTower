@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
+  m_Name: Boss Config
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
+  kind: 2
+  sprites:
+  - {fileID: 7320638716566625714, guid: d3fd91f71426f43449a3ad24f7d76159, type: 3}
+  baseStatsAtFloor1:
+    HP: 40
+    STR: 20
+    DEF: 8
+    MANA: 5
+    INT: 5
+    AGI: 0
+  hpMultiplier: 1
+  strMultiplier: 1
+  defMultiplier: 1
+  baseRate: 0.012
+  endlessAfterFloor: 100
+  endlessBonus: 0.002

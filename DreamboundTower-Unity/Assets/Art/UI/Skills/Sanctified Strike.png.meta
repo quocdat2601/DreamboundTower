@@ -1,0 +1,429 @@
+fileFormatVersion: 2
+guid: 720336132a19dcc4b9e2dfec5acb2d6a
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 2034191766250167892
+    second: Sanctified Strike_0
+  - first:
+      213: -9100684200072139208
+    second: Sanctified Strike_1
+  - first:
+      213: 2439403619056070523
+    second: Sanctified Strike_2
+  - first:
+      213: 4414042285037803653
+    second: Sanctified Strike_3
+  - first:
+      213: 9169445858409344836
+    second: Sanctified Strike_4
+  - first:
+      213: 7847385913914124510
+    second: Sanctified Strike_5
+  - first:
+      213: 6827348662752843299
+    second: Sanctified Strike_6
+  - first:
+      213: 1079427263965058357
+    second: Sanctified Strike_7
+  - first:
+      213: -3886327410855602585
+    second: Sanctified Strike_8
+  - first:
+      213: -8782064985783246731
+    second: Sanctified Strike_9
+  - first:
+      213: -3634054394237829718
+    second: Sanctified Strike_10
+  - first:
+      213: -2010638289928217878
+    second: Sanctified Strike_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Sanctified Strike_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1
+        width: 270
+        height: 589
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 45e9d5042a6ea3c10800000000000000
+      internalID: 2034191766250167892
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_1
+      rect:
+        serializedVersion: 2
+        x: 279
+        y: 418
+        width: 45
+        height: 71
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 83ea0b100ffd3b180800000000000000
+      internalID: -9100684200072139208
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_2
+      rect:
+        serializedVersion: 2
+        x: 359
+        y: 417
+        width: 55
+        height: 161
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b7fa3a1caa08ad120800000000000000
+      internalID: 2439403619056070523
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_3
+      rect:
+        serializedVersion: 2
+        x: 410
+        y: 404
+        width: 46
+        height: 84
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5885b375214d14d30800000000000000
+      internalID: 4414042285037803653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_4
+      rect:
+        serializedVersion: 2
+        x: 459
+        y: 385
+        width: 61
+        height: 61
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 44f6aa92d6a604f70800000000000000
+      internalID: 9169445858409344836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_5
+      rect:
+        serializedVersion: 2
+        x: 506
+        y: 346
+        width: 207
+        height: 125
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed8614659e387ec60800000000000000
+      internalID: 7847385913914124510
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_6
+      rect:
+        serializedVersion: 2
+        x: 176
+        y: 345
+        width: 61
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3261f199f6d9fbe50800000000000000
+      internalID: 6827348662752843299
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_7
+      rect:
+        serializedVersion: 2
+        x: 207
+        y: 26
+        width: 310
+        height: 377
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5355285a065eafe00800000000000000
+      internalID: 1079427263965058357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_8
+      rect:
+        serializedVersion: 2
+        x: 161
+        y: 285
+        width: 50
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 766961b7fcdf01ac0800000000000000
+      internalID: -3886327410855602585
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_9
+      rect:
+        serializedVersion: 2
+        x: 175
+        y: 211
+        width: 29
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5706effbc66df1680800000000000000
+      internalID: -8782064985783246731
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_10
+      rect:
+        serializedVersion: 2
+        x: 522
+        y: 209
+        width: 41
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aadb10158ce319dc0800000000000000
+      internalID: -3634054394237829718
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Sanctified Strike_11
+      rect:
+        serializedVersion: 2
+        x: 528
+        y: 54
+        width: 205
+        height: 250
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aea970dc027c814e0800000000000000
+      internalID: -2010638289928217878
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Sanctified Strike_0: 2034191766250167892
+      Sanctified Strike_1: -9100684200072139208
+      Sanctified Strike_10: -3634054394237829718
+      Sanctified Strike_11: -2010638289928217878
+      Sanctified Strike_2: 2439403619056070523
+      Sanctified Strike_3: 4414042285037803653
+      Sanctified Strike_4: 9169445858409344836
+      Sanctified Strike_5: 7847385913914124510
+      Sanctified Strike_6: 6827348662752843299
+      Sanctified Strike_7: 1079427263965058357
+      Sanctified Strike_8: -3886327410855602585
+      Sanctified Strike_9: -8782064985783246731
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

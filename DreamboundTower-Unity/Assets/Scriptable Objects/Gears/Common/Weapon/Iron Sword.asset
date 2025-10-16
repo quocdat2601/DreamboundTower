@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Iron Sword
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Iron Sword
+  gearType: 0
+  icon: {fileID: 7916634273140305847, guid: 458502a88deb67b4b829913cea0ee281, type: 3}
+  rarity: 0
+  basePrice: 15
+  attackBonus: 15
+  defenseBonus: 0
+  hpBonus: 0
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 0

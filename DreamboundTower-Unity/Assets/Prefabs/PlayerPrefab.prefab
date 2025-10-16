@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 8813460649633710721}
   - component: {fileID: 7019581509134334698}
   - component: {fileID: 8539783741002260096}
+  - component: {fileID: 1733475963534266983}
   m_Layer: 5
   m_Name: PlayerPrefab
   m_TagString: Untagged
@@ -109,10 +110,16 @@ MonoBehaviour:
   baseMaxHP: 300
   baseAttackPower: 40
   baseDefense: 10
+  baseMana: 50
+  baseIntelligence: 10
+  baseAgility: 10
   maxHP: 0
   currentHP: 0
   attackPower: 0
   defense: 0
+  mana: 0
+  intelligence: 0
+  agility: 0
   hpSlider: {fileID: 0}
   hpFillImage: {fileID: 0}
 --- !u!114 &7019581509134334698
@@ -141,9 +148,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a3d1490e2bf3e5247bf5f1cd5a62ab1a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Equipment
-  weapon: {fileID: 0}
-  armor: {fileID: 0}
-  accessory: {fileID: 0}
   equipmentSlots:
   - {fileID: 0}
   - {fileID: 0}
@@ -155,3 +159,15 @@ MonoBehaviour:
   - {fileID: 0}
   inventory: {fileID: 7019581509134334698}
   character: {fileID: 8813460649633710721}
+--- !u!114 &1733475963534266983
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5219465382312568686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23349700180c3ba489aa48df0cf54053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSkills

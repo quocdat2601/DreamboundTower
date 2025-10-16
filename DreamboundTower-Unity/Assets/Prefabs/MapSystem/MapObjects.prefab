@@ -1,0 +1,216 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &298829012982809546
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 426671597099314889}
+  - component: {fileID: 4462501714740186190}
+  m_Layer: 0
+  m_Name: MapView
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &426671597099314889
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 298829012982809546}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7777755429843436003}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4462501714740186190
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 298829012982809546}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01bf39a2c626134380bfb7948991a8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Map.MapView
+  mapManager: {fileID: 9124814956810944979}
+  orientation: 3
+  allMapConfigs:
+  - {fileID: 11400000, guid: 19bf411c79e522b4b8e54f82b0140314, type: 2}
+  nodePrefab: {fileID: 6746199761131337685, guid: 621ccae6afb8e8949ba963674577578a, type: 3}
+  orientationOffset: -4
+  background: {fileID: 21300000, guid: 154be9da94274494592f60439cfd560e, type: 3}
+  backgroundColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  xSize: 11.5
+  yOffset: 2
+  linePrefab: {fileID: 5857439060437771865, guid: 71ba31cc6fc8c2748afbb475b9f1307a, type: 3}
+  linePointsCount: 10
+  offsetFromNodes: 0.5
+  visitedColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  lockedColor:
+    serializedVersion: 2
+    rgba: 4278190080
+  lineVisitedColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  lineLockedColor:
+    serializedVersion: 2
+    rgba: 4278190080
+  floorDisplayText: {fileID: 0}
+  floorDisplayFormat: Floor {0}
+  floorDisplayFontSize: 24
+  floorDisplayColor:
+    serializedVersion: 2
+    rgba: 4294967295
+--- !u!1 &4164742728559498880
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6100521299673831763}
+  - component: {fileID: 814069522364512789}
+  m_Layer: 0
+  m_Name: MapPlayerTracker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6100521299673831763
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4164742728559498880}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7777755429843436003}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &814069522364512789
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4164742728559498880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f93fc134ff62bd24b88cd7e4e795b0ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Map.MapPlayerTracker
+  lockAfterSelecting: 0
+  enterNodeDelay: 1
+  mapManager: {fileID: 9124814956810944979}
+  view: {fileID: 4462501714740186190}
+--- !u!1 &5243514246866534760
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7777755429843436003}
+  m_Layer: 0
+  m_Name: MapObjects
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7777755429843436003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5243514246866534760}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 426671597099314889}
+  - {fileID: 4799925602521152902}
+  - {fileID: 6100521299673831763}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6315715678515920361
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4799925602521152902}
+  - component: {fileID: 9124814956810944979}
+  m_Layer: 0
+  m_Name: MapManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4799925602521152902
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6315715678515920361}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7777755429843436003}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9124814956810944979
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6315715678515920361}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04e080a79fff225458b5ebd8a0e35918, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Map.MapManager
+  config: {fileID: 11400000, guid: 19bf411c79e522b4b8e54f82b0140314, type: 2}
+  view: {fileID: 4462501714740186190}
+  currentZone: 1
+  currentFloor: 1
+  totalFloorsPerZone: 10
+  totalNodesPerFloor: 5
+  steadfastHeartRestores: 3
+  maxSteadfastHeartRestores: 3
+  normalTemplate: {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
+  eliteTemplate: {fileID: 11400000, guid: 7cbe9f4e0dd1ece42a2dd52ec4fdfa10, type: 2}
+  bossTemplate: {fileID: 11400000, guid: efd0bc707d05df3439782351c405e199, type: 2}
