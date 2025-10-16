@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 public enum GearType 
 { 
@@ -29,6 +30,15 @@ public class GearItem : ScriptableObject
     public int intBonus;
     public int manaBonus;
     public int agiBonus;
+
+    [Header("Description")]
+    [Tooltip("Mô tả hiệu ứng đặc biệt hoặc passive của vật phẩm.")]
+    [TextArea(3, 5)] // Giúp ô nhập liệu trong Inspector lớn hơn, dễ gõ hơn
+    public string description;
+
+    [Header("Effects & Modifiers")]
+    [Tooltip("Danh sách tất cả các hiệu ứng mà vật phẩm này mang lại.")]
+    public List<StatModifierSO> modifiers;
 
     // SAU NÀY BẠN CÓ THỂ THÊM CÁC THUỘC TÍNH PHỨC TẠP HƠN
     // public float hpBonusPercent;

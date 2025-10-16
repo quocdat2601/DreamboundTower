@@ -11,19 +11,6 @@ public class BattleUIManager : MonoBehaviour
     public GameObject skillIconPrefab;
     public Transform skillIconContainer;
 
-    [Header("Skill Tooltip")]
-    public GameObject skillTooltipPanel;
-    public TextMeshProUGUI tooltipSkillName;
-    public TextMeshProUGUI tooltipDescription;
-    [Tooltip("Kéo GameObject cha 'ManaCostBar' vào đây")]
-    public GameObject tooltipManaCostBar;
-    [Tooltip("Kéo GameObject cha 'CooldownBar' vào đây")]
-    public GameObject tooltipCooldownBar;
-    [Tooltip("Kéo TextMeshPro 'ManaCostValue' vào đây")]
-    public TextMeshProUGUI tooltipManaCostValue;
-    [Tooltip("Kéo TextMeshPro 'CD_Value' vào đây")]
-    public TextMeshProUGUI tooltipCooldownValue;
-
     private BattleManager battleManager;
     private List<SkillIconUI> spawnedSkillIcons = new List<SkillIconUI>();
     private SkillIconUI selectedIcon = null;
@@ -31,10 +18,6 @@ public class BattleUIManager : MonoBehaviour
     public void Initialize(BattleManager manager)
     {
         this.battleManager = manager;
-        if (skillTooltipPanel != null)
-        {
-            skillTooltipPanel.SetActive(false);
-        }
     }
 
     public void CreatePlayerSkillIcons(PlayerSkills playerSkills)
@@ -77,48 +60,26 @@ public class BattleUIManager : MonoBehaviour
 
     public void ShowTooltip(BaseSkillSO skill, RectTransform iconTransform)
     {
-        if (skillTooltipPanel == null || skill == null) return;
-
+        // Bây giờ, nhiệm vụ của hàm này là:
+        // 1. Lấy dữ liệu cần thiết (characterStats)
         Character playerCharacter = battleManager.GetPlayerCharacter();
         if (playerCharacter == null) return;
-
-        skillTooltipPanel.SetActive(true);
-        skillTooltipPanel.transform.position = iconTransform.position + new Vector3(0, iconTransform.sizeDelta.y + 10f, 0);
-
-        if (tooltipSkillName) tooltipSkillName.text = skill.displayName;
-
-        if (skill is SkillData activeSkill)
+        StatBlock currentStats = new StatBlock
         {
-            // 1. Tạo StatBlock tạm thời từ chỉ số hiện tại của nhân vật
-            StatBlock currentStats = new StatBlock
-            {
-                HP = playerCharacter.maxHP,
-                STR = playerCharacter.attackPower,
-                DEF = playerCharacter.defense,
-                MANA = playerCharacter.mana,
-                INT = playerCharacter.intelligence,
-                AGI = playerCharacter.agility
-            };
-
-            // 2. Truyền StatBlock đó vào TooltipFormatter
-            if (tooltipDescription) tooltipDescription.text = $"<b>ACTIVE:</b> {TooltipFormatter.GenerateDescription(activeSkill, currentStats)}";
-
-            if (tooltipManaCostBar) tooltipManaCostBar.SetActive(true);
-            if (tooltipCooldownBar) tooltipCooldownBar.SetActive(true);
-            if (tooltipManaCostValue) tooltipManaCostValue.text = activeSkill.cost.ToString();
-            if (tooltipCooldownValue) tooltipCooldownValue.text = activeSkill.cooldown.ToString();
-        }
-        else if (skill is PassiveSkillData passiveSkill)
-        {
-            if (tooltipDescription) tooltipDescription.text = $"<b>PASSIVE:</b> {passiveSkill.descriptionTemplate}";
-            if (tooltipManaCostBar) tooltipManaCostBar.SetActive(false);
-            if (tooltipCooldownBar) tooltipCooldownBar.SetActive(false);
-        }
+            HP = playerCharacter.maxHP,
+            STR = playerCharacter.attackPower,
+            DEF = playerCharacter.defense,
+            MANA = playerCharacter.mana,
+            INT = playerCharacter.intelligence,
+            AGI = playerCharacter.agility
+        };
+        // 2. Ra lệnh cho TooltipManager hiển thị
+        TooltipManager.Instance.ShowSkillTooltip(skill, currentStats);
     }
-
     public void HideTooltip()
     {
-        if (skillTooltipPanel != null) skillTooltipPanel.SetActive(false);
+        // Chỉ cần ra lệnh cho TooltipManager ẩn tất cả
+        TooltipManager.Instance.HideAllTooltips();
     }
 
     private void OnSkillIconClicked(BaseSkillSO skillSO)
