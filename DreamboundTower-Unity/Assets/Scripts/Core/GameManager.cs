@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour
     public List<RacePresetSO> allRaces;
     public List<ClassPresetSO> allClasses;
     public List<GearItem> allItems;
+    public List<EnemyTemplateSO> allEnemyTemplates;
 
     [Header("Pause & Settings Panels")]
     public Button pauseButton;

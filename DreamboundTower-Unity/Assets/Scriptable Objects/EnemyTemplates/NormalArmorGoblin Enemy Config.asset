@@ -10,13 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Normal Enemy Config
+  m_Name: NormalArmorGoblin Enemy Config
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
   kind: 0
+  gimmick: 0
   sprites:
-  - {fileID: 2572365745140355499, guid: facbffd5307849e45a5912aedd48cb4b, type: 3}
   - {fileID: 391932375611520008, guid: c3b8d21ecdcad8747b56227803cc189f, type: 3}
-  - {fileID: 6479153587181500979, guid: 1bd5e3ccbfcbba94e84a13a83c07eee9, type: 3}
   baseStatsAtFloor1:
     HP: 4
     STR: 6

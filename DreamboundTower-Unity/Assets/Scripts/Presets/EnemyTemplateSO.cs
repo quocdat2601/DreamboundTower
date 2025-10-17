@@ -1,14 +1,27 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace Presets
 {
 	public enum EnemyKind { Normal, Elite, Boss }
 
-	[CreateAssetMenu(fileName = "EnemyTemplate", menuName = "Presets/EnemyTemplate", order = 2)]
+    [System.Flags]
+    public enum EnemyGimmick
+    {
+        // Giá trị phải là lũy thừa của 2 (0, 1, 2, 4, 8, ...)
+        None = 0,      // 0
+        Resurrect = 1 << 0, // 1
+        SplitOnDamage = 1 << 1, // 2
+        CounterAttack = 1 << 2, // 4
+                                // Gimmick tiếp theo sẽ là 1 << 3 = 8
+    }
+
+    [CreateAssetMenu(fileName = "EnemyTemplate", menuName = "Presets/EnemyTemplate", order = 2)]
 	public class EnemyTemplateSO : ScriptableObject
 	{
-		public EnemyKind kind;
+        [Header("Classification")]
+        public EnemyKind kind;
+        public EnemyGimmick gimmick;
 
         [Header("Visuals")]
         public List<Sprite> sprites;
@@ -18,7 +31,7 @@ namespace Presets
 
 		[Header("Multipliers (Elite/Boss)")]
 		public float hpMultiplier = 1f;
-		public float strMultiplier = 1f;
+		public float strMultiplier = 1f;	
 		public float defMultiplier = 1f;
 
 		[Header("Growth")]
@@ -41,6 +54,4 @@ namespace Presets
 		}
 	}
 }
-
-
 

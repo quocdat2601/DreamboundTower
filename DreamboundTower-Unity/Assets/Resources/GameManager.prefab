@@ -280,6 +280,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6c39959cf57c32b48a01336bccd286dd, type: 2}
   - {fileID: 11400000, guid: 44d01aae5b0010a4aa72daa74b5afb0e, type: 2}
   - {fileID: 11400000, guid: b705395bb62edf541a6c801190622595, type: 2}
+  allEnemyTemplates:
+  - {fileID: 11400000, guid: efd0bc707d05df3439782351c405e199, type: 2}
+  - {fileID: 11400000, guid: 7cbe9f4e0dd1ece42a2dd52ec4fdfa10, type: 2}
+  - {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
+  - {fileID: 11400000, guid: d28eb5e22e1cf9c47ad4491f5336b0e7, type: 2}
+  - {fileID: 11400000, guid: 10b620da49e84aa479c0756954b54e4f, type: 2}
   pauseButton: {fileID: 264984047341425492}
   pauseMenuPanel: {fileID: 3262179359201872303}
   settingsPanel: {fileID: 945546455477581145}

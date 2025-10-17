@@ -21,9 +21,12 @@ public class Character : MonoBehaviour
     public int currentMana;                 // <-- THÊM MỚI
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
-
+    // Nó sẽ gửi đi thông tin về kẻ tấn công.
+    public event Action<Character> OnDamaged;
     // Sự kiện này sẽ gửi đi 2 giá trị: currentHP và maxHP
     public event Action<int, int> OnHealthChanged;
+    // Sự kiện này đã có, dùng cho Resurrect
+    public System.Action<Character> OnDeath;
 
     // ... (các biến UI giữ nguyên) ...
     [Header("UI")]
@@ -91,25 +94,30 @@ public class Character : MonoBehaviour
     public void Attack(Character target)
     {
         if (target == null) return;
-        target.TakeDamage(attackPower);
+        // Truyền "this" với tư cách là kẻ tấn công (attacker)
+        target.TakeDamage(attackPower, this);
     }
 
-    public void TakeDamage(int damage)
+    // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
+    public void TakeDamage(int damage, Character attacker)
     {
         int actualDamage = Mathf.Max(1, damage - defense);
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
 
-        // ✅ PHÁT SÓNG TÍN HIỆU SAU KHI HP THAY ĐỔI
-        UpdateHPUI();
+        UpdateHPUI(); // Phát tín hiệu cho UI
 
-        Debug.Log($"[BATTLE] {gameObject.name} took {actualDamage} damage (defense reduced {damage} to {actualDamage})");
+        // Phát tín hiệu cho các gimmick như CounterAttack
+        OnDamaged?.Invoke(attacker);
+
+        Debug.Log($"[BATTLE] {gameObject.name} took {actualDamage} damage from {(attacker != null ? attacker.name : "an unknown source")}");
 
         if (currentHP <= 0)
         {
             Die();
         }
     }
+
     public void UpdateHPUI()
     {
         // NHIỆM VỤ 1: PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
@@ -135,24 +143,23 @@ public class Character : MonoBehaviour
         OnHealthChanged?.Invoke(currentHP, maxHP);
     }
 
-    public System.Action<Character> OnDeath;
 
     void Die()
     {
         Debug.Log($"[BATTLE] {gameObject.name} has been defeated!");
 
         OnDeath?.Invoke(this);
-
-        Destroy(gameObject);
+        // Chỉ phát tín hiệu rằng nó đã chết.
+        // BattleManager sẽ lắng nghe tín hiệu này và quyết định có nên Destroy() hay không,
+        // sau khi các gimmick như Resurrect đã có cơ hội hành động.
+        //Destroy(gameObject);
     }
-
-// ... (bên trong class Character)
 
     /// <summary>
     /// Hồi máu cho nhân vật một lượng bằng % máu tối đa.
     /// </summary>
     /// <param name="percentage">Tỷ lệ phần trăm để hồi, ví dụ 0.5f cho 50%</param>
-public void HealPercentage(float percentage)
+    public void HealPercentage(float percentage)
     {
         int healAmount = Mathf.FloorToInt(maxHP * percentage);
         currentHP += healAmount;

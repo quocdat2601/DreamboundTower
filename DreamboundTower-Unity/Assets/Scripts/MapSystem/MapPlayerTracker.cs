@@ -1,8 +1,9 @@
-using System;
-using System.Linq;
 using DG.Tweening;
-using UnityEngine.SceneManagement;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Map
 {
@@ -142,36 +143,33 @@ namespace Map
 
         private void TryWriteCombatPreset(MapNode mapNode)
         {
-            if (mapNode == null || mapManager == null) return;
-            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null) return;
+            if (mapNode == null || mapManager == null || GameManager.Instance == null) return;
 
-            Presets.EnemyTemplateSO template = null;
+            // 1. Xác định "Cấp bậc" (Kind) cần tìm dựa trên loại node
+            Presets.EnemyKind requiredKind;
             switch (mapNode.Node.nodeType)
             {
-                case NodeType.MinorEnemy: template = mapManager.normalTemplate; break;
-                case NodeType.EliteEnemy: template = mapManager.eliteTemplate; break;
-                case NodeType.Boss: template = mapManager.bossTemplate; break;
-                default: return;
+                case NodeType.MinorEnemy:
+                    requiredKind = Presets.EnemyKind.Normal;
+                    break;
+                case NodeType.EliteEnemy:
+                    requiredKind = Presets.EnemyKind.Elite;
+                    break;
+                case NodeType.Boss:
+                    requiredKind = Presets.EnemyKind.Boss;
+                    break;
+                default:
+                    return; // Không phải node combat, không làm gì cả
             }
 
-            if (template == null)
-            {
-                Debug.LogWarning($"[MAP] Enemy template not assigned for node type {mapNode.Node.nodeType}");
-                return;
-            }
-
-            int floorInZone = mapNode.Node.point.y + 1;
-            int absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + floorInZone;
-
-            // Lấy RunData ra
+            // 2. Lọc "Kho" quái vật trong GameManager để tìm các "Binh chủng" phù hợp
+            int absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(mapNode.Node.point);
             var runData = GameManager.Instance.currentRunData;
-
-            // Ghi trực tiếp thông tin combat vào RunData
-            runData.mapData.pendingEnemyArchetypeId = template.name;
-            runData.mapData.pendingEnemyKind = (int)template.kind;
+            runData.mapData.pendingEnemyArchetypeId = "";
+            runData.mapData.pendingEnemyKind = (int)requiredKind;
             runData.mapData.pendingEnemyFloor = absoluteFloor;
 
-            Debug.Log($"[MAP] Wrote pending combat data to RunData: kind={template.kind}, archetype={template.name}, floor={absoluteFloor}");
+            Debug.Log($"[MAP] Wrote pending combat encounter: kind={requiredKind}, floor={absoluteFloor}");
         }
 
         private void PlayWarningThatNodeCannotBeAccessed()

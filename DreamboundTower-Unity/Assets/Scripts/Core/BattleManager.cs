@@ -3,6 +3,7 @@ using Map;
 using Newtonsoft.Json;
 using Presets;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -242,6 +243,11 @@ public class BattleManager : MonoBehaviour
                 }
                 playerCharacter.UpdateHPUI();
             }
+            // Đăng ký lắng nghe sự kiện "chết" của người chơi
+            if (playerCharacter != null)
+            {
+                playerCharacter.OnDeath += HandleCharacterDeath;
+            }
         }
     }
     //Get baseStats of player
@@ -250,8 +256,7 @@ public class BattleManager : MonoBehaviour
         return playerCharacter;
     }
 
-    // Đặt đoạn code này vào trong file BattleManager.cs, thay thế hoàn toàn hàm SpawnEnemies() cũ.
-
+  
     void SpawnEnemies()
     {
         if (enemySlots == null || enemySlots.Length == 0) return;
@@ -324,10 +329,25 @@ public class BattleManager : MonoBehaviour
         enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
         Debug.Log($"[BATTLE] Spawning {enemyCount} enemies for a {encounterKind} encounter.");
 
+        // Lấy danh sách tất cả các "binh chủng" có cấp bậc phù hợp từ kho của GameManager
+        List<EnemyTemplateSO> availableEnemies = GameManager.Instance.allEnemyTemplates
+            .Where(template => template.kind == encounterKind)
+            .ToList();
+
+        // Nếu không có quái vật nào phù hợp trong kho, báo lỗi và dừng lại
+        if (availableEnemies.Count == 0)
+        {
+            Debug.LogError($"[BATTLE] Không tìm thấy EnemyTemplateSO nào có Kind là '{encounterKind}' trong kho!");
+            return;
+        }
+
         // Vòng lặp tạo kẻ địch
         for (int i = 0; i < enemyCount; i++)
         {
             if (enemyPrefab == null || enemySlots[i] == null) continue;
+
+            // Chọn ngẫu nhiên một loài quái vật TỪ DANH SÁCH CÓ SẴN cho MỖI LẦN lặp
+            EnemyTemplateSO finalTemplate = availableEnemies[Random.Range(0, availableEnemies.Count)];
 
             var enemyGO = Instantiate(enemyPrefab, enemySlots[i], false);
             enemyGO.transform.localPosition = Vector2.zero;
@@ -341,19 +361,15 @@ public class BattleManager : MonoBehaviour
                 ApplyEnemyData(enemyGO, overrideStats, null);
                 continue;
             }
-
-            // Tìm template dựa trên archetypeId đã lấy được
-            EnemyTemplateSO finalTemplate = FindTemplateByArchetype(archetypeId);
-
+            // Áp dụng dữ liệu từ template vừa được chọn ngẫu nhiên
             if (finalTemplate != null)
             {
                 StatBlock finalStats = finalTemplate.GetStatsAtFloor(absoluteFloor);
                 ApplyEnemyData(enemyGO, finalStats, finalTemplate);
             }
-            else
+            else // Trường hợp này rất khó xảy ra
             {
-                // Bây giờ, nếu có lỗi, log sẽ hiển thị đầy đủ!
-                Debug.LogError($"[BATTLE] Could not find EnemyTemplateSO named: '{archetypeId}'. Make sure it is in a 'Resources/EnemyTemplates' folder.");
+                Debug.LogError($"[BATTLE] Lỗi không mong muốn: finalTemplate là null.");
             }
         }
 
@@ -394,7 +410,21 @@ public class BattleManager : MonoBehaviour
             ch.baseAgility = stats.AGI;
             ch.ResetToBaseStats();
             ch.currentHP = ch.maxHP; // Hồi đầy máu
-        }
+            // Đăng ký lắng nghe sự kiện "chết" của kẻ địch này
+            ch.OnDeath += HandleCharacterDeath;
+        }
+
+        // Duyệt qua tất cả các gimmick trong danh sách của template
+        if ((template.gimmick & EnemyGimmick.Resurrect) != 0)
+        {
+            enemyGO.AddComponent<ResurrectBehavior>();
+        }
+
+        // Kiểm tra xem cờ 'CounterAttack' có được bật không
+        if ((template.gimmick & EnemyGimmick.CounterAttack) != 0)
+        {
+            enemyGO.AddComponent<CounterAttackBehavior>();
+        }
     }
 
     /// <summary>
@@ -542,12 +572,6 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(attackDelay);
 
-        if (DidEnemyDie(enemyIndex))
-        {
-            enemyInstances[enemyIndex] = null;
-            selectedEnemyIndex = -1;
-            RefreshSelectionVisual();
-        }
 
         if (AllEnemiesDead())
         {
@@ -576,18 +600,11 @@ public class BattleManager : MonoBehaviour
         {
             // This is a simplified damage calculation, you can use your TooltipFormatter logic here
             int damage = skill.baseDamage; // Add scaling stat calculation here
-            target.TakeDamage(damage);
+            target.TakeDamage(damage, playerCharacter);
             Debug.Log($"[BATTLE] Player used {skill.displayName} on {target.name} for {damage} damage.");
         }
 
         yield return new WaitForSeconds(attackDelay);
-
-        if (DidEnemyDie(enemyIndex))
-        {
-            enemyInstances[enemyIndex] = null;
-            selectedEnemyIndex = -1;
-            RefreshSelectionVisual();
-        }
 
         selectedSkill = null; // Reset selected skill after use
 
@@ -611,7 +628,6 @@ public class BattleManager : MonoBehaviour
             if (enemyInstances[i] == null) continue;
             if (playerInstance == null)
             {
-                yield return StartCoroutine(DefeatRoutine());
                 yield break;
             }
 
@@ -624,11 +640,6 @@ public class BattleManager : MonoBehaviour
             yield return new WaitForSeconds(attackDelay);
         }
 
-        if (playerCharacter != null && playerCharacter.currentHP <= 0)
-        {
-            yield return StartCoroutine(DefeatRoutine());
-            yield break;
-        }
         Debug.Log("--- Player Turn ---");
     }
 
@@ -821,6 +832,65 @@ public class BattleManager : MonoBehaviour
         // 5. Tải lại scene của zone hiện tại để bắt đầu lại
         string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
         SceneManager.LoadScene(zoneSceneToLoad);
+    }
+
+    private void HandleCharacterDeath(Character deadCharacter)
+    {
+        // Dùng một coroutine nhỏ để đợi một chút, cho phép các hiệu ứng
+        // như animation chết hoặc gimmick hồi sinh có thời gian để chạy.
+        StartCoroutine(ProcessDeathRoutine(deadCharacter));
+    }
+
+    private IEnumerator ProcessDeathRoutine(Character deadCharacter)
+    {
+        // Đợi một khoảng thời gian rất ngắn (ví dụ: cuối frame)
+        // để các script gimmick (như Resurrect) có cơ hội can thiệp vào currentHP
+        yield return new WaitForEndOfFrame();
+
+        // 1. KIỂM TRA XEM ĐÓ LÀ NGƯỜI CHƠI HAY KẺ ĐỊCH
+
+        // Nếu là người chơi
+        if (deadCharacter == playerCharacter)
+        {
+            Debug.Log("[BATTLE] Player death signal received.");
+            // Bắt đầu chuỗi sự kiện thua cuộc
+            StartCoroutine(DefeatRoutine());
+            yield break; // Dừng coroutine ở đây
+        }
+
+        // Nếu là kẻ địch
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] != null && enemyInstances[i] == deadCharacter.gameObject)
+            {
+                // SAU KHI ĐỢI, KIỂM TRA LẠI MÁU CỦA KẺ ĐỊCH
+                // Nếu HP của nó lớn hơn 0 (do được hồi sinh), thì không làm gì cả!
+                if (deadCharacter.currentHP > 0)
+                {
+                    Debug.Log($"[BATTLE] {deadCharacter.name} đã được hồi sinh, không hủy đối tượng.");
+                    yield break;
+                }
+
+                Debug.Log($"[BATTLE] Dọn dẹp kẻ địch đã chết: {deadCharacter.name}");
+
+                // Hủy đăng ký sự kiện để tránh lỗi
+                deadCharacter.OnDeath -= HandleCharacterDeath;
+
+                // Hủy đối tượng GameObject
+                Destroy(enemyInstances[i]);
+
+                // Đánh dấu là slot đó đã trống
+                enemyInstances[i] = null;
+
+                // Nếu kẻ địch này đang được chọn làm mục tiêu, hãy bỏ chọn
+                if (selectedEnemyIndex == i)
+                {
+                    selectedEnemyIndex = -1;
+                    RefreshSelectionVisual();
+                }
+                break; // Thoát khỏi vòng lặp vì đã tìm thấy và xử lý
+            }
+        }
     }
 
     #endregion
