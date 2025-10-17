@@ -23,8 +23,12 @@ public class GearManager : MonoBehaviour
     public Character character;
     
     [Header("Test Items")]
-    public GearItem testSword;
+    public GearItem testHelm;
+    public GearItem testAmulet;
     public GearItem testArmor;
+    public GearItem testWeapon;
+    public GearItem testLegs;
+    public GearItem testBoots;
     public GearItem testRing;
     
     void Start()
@@ -72,6 +76,73 @@ public class GearManager : MonoBehaviour
         {
             // Try to equip the item
             equipment.EquipItem(item);
+        }
+    }
+    
+    // Context menu methods for testing - using GearType system
+    [ContextMenu("Add Test Helm")]
+    public void AddTestHelm() => AddTestItem(GearType.Helmet, testHelm);
+    
+    [ContextMenu("Add Test Amulet")]
+    public void AddTestAmulet() => AddTestItem(GearType.Amulet, testAmulet);
+    
+    [ContextMenu("Add Test Armor")]
+    public void AddTestArmor() => AddTestItem(GearType.ChestArmor, testArmor);
+    
+    [ContextMenu("Add Test Weapon")]
+    public void AddTestWeapon() => AddTestItem(GearType.Weapon, testWeapon);
+    
+    [ContextMenu("Add Test Legs")]
+    public void AddTestLegs() => AddTestItem(GearType.Pants, testLegs);
+    
+    [ContextMenu("Add Test Boots")]
+    public void AddTestBoots() => AddTestItem(GearType.Boots, testBoots);
+    
+    [ContextMenu("Add Test Ring")]
+    public void AddTestRing() => AddTestItem(GearType.Ring, testRing);
+    
+    [ContextMenu("Add All Test Items")]
+    public void AddAllTestItems()
+    {
+        AddTestHelm();
+        AddTestAmulet();
+        AddTestArmor();
+        AddTestWeapon();
+        AddTestLegs();
+        AddTestBoots();
+        AddTestRing();
+    }
+    
+    // Helper method to add test items by gear type
+    private void AddTestItem(GearType gearType, GearItem testItem)
+    {
+        if (testItem != null && inventory != null)
+        {
+            inventory.AddItem(testItem);
+            Debug.Log($"[GEAR MANAGER] Added test {gearType}: {testItem.itemName}");
+        }
+        else
+        {
+            Debug.LogWarning($"[GEAR MANAGER] Test {gearType} or inventory not assigned!");
+        }
+    }
+    
+    [ContextMenu("Clear Inventory")]
+    public void ClearInventory()
+    {
+        if (inventory != null)
+        {
+            // Clear all items from inventory
+            for (int i = 0; i < inventory.items.Count; i++)
+            {
+                inventory.items[i] = null;
+            }
+            inventory.OnInventoryChanged?.Invoke();
+            Debug.Log("[GEAR MANAGER] Cleared inventory");
+        }
+        else
+        {
+            Debug.LogWarning("[GEAR MANAGER] Inventory not assigned!");
         }
     }
     

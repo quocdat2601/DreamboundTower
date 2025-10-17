@@ -198,11 +198,11 @@ public class DragDropSystem : MonoBehaviour
         // Create drag preview
         CreateDragPreview(draggableItem.item);
         
-        // Calculate offset from mouse to item center
-        Vector3 itemWorldPos = draggableItem.transform.position;
-        Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(mousePosition);
-        mouseWorldPos.z = 0;
-        dragOffset = itemWorldPos - mouseWorldPos;
+        // For Screen Space - Overlay, position directly at mouse cursor
+        // No need for complex offset calculation
+        dragOffset = Vector3.zero;
+        
+        Debug.Log($"[DRAG] StartDrag - Mouse: {mousePosition}, Offset set to zero for ScreenSpaceOverlay");
         
         // Hide original item during drag
         draggableItem.SetDragging(true);
@@ -292,10 +292,41 @@ public class DragDropSystem : MonoBehaviour
         if (dragPreview == null) return;
         
         Vector3 mousePos = Mouse.current.position.ReadValue();
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(mousePos);
-        worldPos.z = dragPreviewZOffset;
         
-        dragPreview.transform.position = worldPos + dragOffset;
+        Debug.Log($"[DRAG] UpdateDragPreview - Mouse: {mousePos}, CanvasMode: {dragCanvas.renderMode}");
+        
+        // For UI elements, use RectTransform.anchoredPosition instead of transform.position
+        RectTransform rectTransform = dragPreview.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            // Check canvas render mode
+            if (dragCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            {
+                // For Screen Space - Overlay, use mouse position directly
+                rectTransform.position = mousePos;
+            }
+            else
+            {
+                // For Screen Space - Camera or World Space, convert to local position
+                Vector3 screenPos = mousePos + dragOffset;
+                Vector2 localPos;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    dragCanvas.transform as RectTransform, 
+                    screenPos, 
+                    dragCanvas.worldCamera, 
+                    out localPos
+                );
+                rectTransform.anchoredPosition = localPos;
+            }
+        }
+        else
+        {
+            // Fallback for non-UI elements
+            Vector3 screenPos = mousePos + dragOffset;
+            Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
+            worldPos.z = dragPreviewZOffset;
+            dragPreview.transform.position = worldPos;
+        }
     }
     
     /// <summary>

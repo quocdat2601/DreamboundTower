@@ -280,7 +280,8 @@ public class DraggableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         Equipment[] allEquipment = FindObjectsByType<Equipment>(FindObjectsSortMode.None);
         foreach (var equip in allEquipment)
         {
-            if (equip.gameObject.name.Contains("(Clone)"))
+            // Look for instantiated player equipment (not prefab)
+            if (equip.gameObject.name.Contains("(Clone)") || equip.gameObject.name.Contains("DontDestroy"))
             {
                 return equip;
             }
@@ -296,7 +297,8 @@ public class DraggableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         Inventory[] allInventories = FindObjectsByType<Inventory>(FindObjectsSortMode.None);
         foreach (var inv in allInventories)
         {
-            if (inv.gameObject.name.Contains("(Clone)"))
+            // Look for instantiated player inventory (not prefab)
+            if (inv.gameObject.name.Contains("(Clone)") || inv.gameObject.name.Contains("DontDestroy"))
             {
                 return inv;
             }
