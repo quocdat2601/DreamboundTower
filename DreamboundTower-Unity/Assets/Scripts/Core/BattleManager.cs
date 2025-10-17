@@ -74,12 +74,34 @@ public class BattleManager : MonoBehaviour
 
     void Start()
     {
+        // --- CƠ CHẾ FALLBACK ĐỂ TEST SCENE ---
+        if (GameManager.Instance == null)
+        {
+            Debug.LogWarning("[BATTLE] Không tìm thấy GameManager! Đang tạo một GameManager tạm thời để test...");
+            GameObject gameManagerPrefab = Resources.Load<GameObject>("GameManager");
+            if (gameManagerPrefab != null)
+            {
+                // Tạo ra GameManager. Hàm Awake() của nó sẽ tự động gán Instance.
+                Instantiate(gameManagerPrefab);
+                // Tạo một RunData tạm thời để các script khác không bị lỗi NullReference.
+                // Các hàm SpawnPlayer và SpawnEnemies sẽ tự động dùng các giá trị
+                // fallback/override có sẵn trong BattleManager.
+                GameManager.Instance.currentRunData = new RunData();
+            }
+            else
+            {
+                Debug.LogError("[BATTLE] Không tìm thấy prefab 'GameManager' trong thư mục 'Resources'! Scene test sẽ không hoạt động đúng.");
+                return; // Dừng thực thi nếu không thể tạo GameManager.
+            }
+        }
+        // ------------------------------------
+
+        // Các logic cũ của hàm Start sẽ được thực thi sau khi đảm bảo GameManager đã tồn tại.
         if (defeatPanel != null)
         {
             defeatPanel.SetActive(false);
         }
-        // Initialize the UI Manager
-        if (uiManager != null)
+        if (uiManager != null)
         {
             uiManager.Initialize(this);
         }
@@ -203,17 +225,16 @@ public class BattleManager : MonoBehaviour
             {
                 // ✅ QUAN TRỌNG: CẬP NHẬT UI SAU KHI ĐÃ CÓ HP CHÍNH XÁC
                 playerCharacter.UpdateHPUI();
-                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.maxHP}, ...");
+                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.maxHP},STR={playerCharacter.attackPower}, DEF={playerCharacter.defense}, MANA={playerCharacter.mana}, INT={playerCharacter.intelligence}, AGI={playerCharacter.agility}");
             }
 
             PlayerSkills skills = playerInstance.GetComponent<PlayerSkills>();
-            if (uiManager != null && skills != null)
-            {
-                uiManager.CreatePlayerSkillIcons(skills);
-            }
+            //if (uiManager != null && skills != null)
+            //{
+            //    uiManager.CreatePlayerSkillIcons(skills);
+            //}
             if (playerCharacter != null)
             {
-                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.maxHP}, STR={playerCharacter.attackPower}, DEF={playerCharacter.defense}, MANA={playerCharacter.mana}, INT={playerCharacter.intelligence}, AGI={playerCharacter.agility}");
                 if (skills != null)
                 {
                     foreach (var pSkill in skills.passiveSkills) Debug.Log($"[BATTLE] Player has Passive: {pSkill.displayName}");
