@@ -133,6 +133,7 @@ namespace Map
                     return "RestScene";
                 case NodeType.Treasure:
                 case NodeType.Store:
+                    return "ShopScene";
                 case NodeType.Mystery: // Tạm thời để auto complete
                 default:
                     return "";
