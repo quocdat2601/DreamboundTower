@@ -293,7 +293,6 @@ public class DragDropSystem : MonoBehaviour
         
         Vector3 mousePos = Mouse.current.position.ReadValue();
         
-        Debug.Log($"[DRAG] UpdateDragPreview - Mouse: {mousePos}, CanvasMode: {dragCanvas.renderMode}");
         
         // For UI elements, use RectTransform.anchoredPosition instead of transform.position
         RectTransform rectTransform = dragPreview.GetComponent<RectTransform>();
@@ -479,18 +478,42 @@ public class DragDropSystem : MonoBehaviour
     {
         if (equipment == null || inventory == null) return;
         
+        // Get the existing item in the target inventory slot
+        GearItem existingItem = inventory.GetItemAt(inventorySlot);
+        
         // Remove from equipment
         equipment.UnequipItemFromSlot(equipmentSlot);
         
-        // Add to inventory at specific slot
-        GearItem existingItem = inventory.GetItemAt(inventorySlot);
+        // Put the equipped item in the inventory slot
         inventory.items[inventorySlot] = item;
         
-        // If there was an item in the target slot, put it in the equipment slot
+        // If there was an item in the target slot, try to equip it to the SAME equipment slot
         if (existingItem != null)
         {
-            // Use the existing EquipItem method instead of the removed EquipItemToSlot
-            equipment.EquipItem(existingItem);
+            // Check if the existing item can be equipped to this slot type
+            GearType slotType = equipment.GetGearTypeFromSlot(equipmentSlot);
+            if (existingItem.gearType == slotType)
+            {
+                // Directly equip to the specific slot without removing from inventory first
+                // (since we're doing a direct swap)
+                GearItem oldItem = equipment.equipmentSlots[equipmentSlot];
+                equipment.equipmentSlots[equipmentSlot] = existingItem;
+                
+                // Apply stat bonuses
+                equipment.ApplyGearStats();
+                
+                // Trigger events
+                equipment.OnItemEquipped?.Invoke(existingItem, existingItem.gearType);
+                equipment.OnEquipmentChanged?.Invoke();
+                
+                Debug.Log($"[DRAG DROP] Swapped {item.itemName} with {existingItem.itemName} in equipment slot {equipmentSlot}");
+            }
+            else
+            {
+                // If gear type doesn't match, add it back to inventory
+                inventory.AddItem(existingItem);
+                Debug.Log($"[DRAG DROP] Could not equip {existingItem.itemName} (type: {existingItem.gearType}) to equipment slot {equipmentSlot} (type: {slotType}), added back to inventory");
+            }
         }
         
         // Trigger events
