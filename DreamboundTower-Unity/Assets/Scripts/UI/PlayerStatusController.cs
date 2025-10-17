@@ -4,14 +4,32 @@ using TMPro;
 
 public class PlayerStatusController : MonoBehaviour
 {
+    public static PlayerStatusController Instance { get; private set; }
+    
     [Header("Player Info")]
     public Slider hpSlider;
     public TextMeshProUGUI hpText;
+    
+    [Header("Gold")]
+    public TextMeshProUGUI goldText;
 
     [Header("Steadfast Heart")]
     public Sprite redHeartSprite;
     public Sprite blackHeartSprite;
     public Image[] heartIcons;
+
+    void Awake()
+    {
+        // Set up singleton
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
 
     // ✅ OnEnable() vẫn hữu ích để cập nhật giao diện mỗi khi nó được bật lên
     void OnEnable()
@@ -66,6 +84,26 @@ public class PlayerStatusController : MonoBehaviour
             {
                 heartIcons[i].sprite = (i < durability) ? redHeartSprite : blackHeartSprite;
             }
+        }
+    }
+    
+    public void UpdateGold(int amount)
+    {
+        if (goldText != null)
+        {
+            goldText.text = amount.ToString();
+        }
+    }
+    
+    public void FindAndRefresh()
+    {
+        // Find and refresh UI elements
+        if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+        {
+            var playerData = GameManager.Instance.currentRunData.playerData;
+            // Use correct property names from PlayerData
+            UpdateHealth(playerData.currentHP, playerData.currentStats.HP);
+            UpdateSteadfastHeart(playerData.steadfastDurability);
         }
     }
 }

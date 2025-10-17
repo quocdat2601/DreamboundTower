@@ -236,9 +236,9 @@ public class GameManager : MonoBehaviour
 
             isPausable = isGameplayScene;
             // Nếu đây là scene gameplay, ra lệnh cho PlayerHUDController tìm và cập nhật
-            if (isGameplayScene && PlayerHUDController.Instance != null)
+            if (isGameplayScene && PlayerStatusController.Instance != null)
             {
-                PlayerHUDController.Instance.FindAndRefresh();
+                PlayerStatusController.Instance.FindAndRefresh();
             }
             if (pauseButton != null)
             {

@@ -198,6 +198,11 @@ public class TooltipManager : MonoBehaviour
         if (value == 0) return; // Chỉ hiển thị chỉ số khác 0
 
         // Tạo một đối tượng Text từ prefab
+        if (statTextPrefab == null)
+        {
+            Debug.LogWarning("[TOOLTIP] statTextPrefab is not assigned! Please assign a TextMeshPro prefab in the Inspector.");
+            return;
+        }
         GameObject statGO = Instantiate(statTextPrefab, statContainer);
         TextMeshProUGUI statText = statGO.GetComponent<TextMeshProUGUI>();
 

@@ -159,7 +159,7 @@ public class DragDropInventoryUI : MonoBehaviour
                     UpdateInventoryUI();
                     
                 }
-                break;
+                    break;
             }
         }
     }

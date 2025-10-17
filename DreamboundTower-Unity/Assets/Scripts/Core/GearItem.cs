@@ -17,6 +17,10 @@ public class GearItem : ScriptableObject
     public string itemName;
     public GearType gearType;
     public Sprite icon;
+    
+    [Header("Description")]
+    [TextArea(3, 5)]
+    public string description;
 
     [Header("Shop & Rarity")]
     public ItemRarity rarity;
