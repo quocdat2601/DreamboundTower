@@ -28,19 +28,9 @@ public class BattleManager : MonoBehaviour
 
     [Header("Combat")]
     public float attackDelay = 0.35f;
-    [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP.")]
+    [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP, Mana for 5.")]
     public int hpUnit = 10;
-
-    // --- UPDATED SECTION ---
-    [Header("Debug / Player Overrides")]
-    [Tooltip("Default Race data if no GameManager is found")]
-    public RacePresetSO fallbackRace;
-    [Tooltip("Default Class data if no GameManager is found")]
-    public ClassPresetSO fallbackClass;
-    [Tooltip("If checked, custom stats below will be used instead of fallback Race/Class stats")]
-    public bool overridePlayerStats = false;
-    public StatBlock customPlayerStats;
-    // -----------------------
+    public int manaUnit = 5;
 
     [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
@@ -69,45 +59,59 @@ public class BattleManager : MonoBehaviour
     private bool playerTurn = true;
     private bool busy = false;
 
-    #endregion
+    #endregion
 
-    #region Unity Lifecycle
+    #region Unity Lifecycle
 
-    void Start()
+    void Start()
     {
-        // --- CƠ CHẾ FALLBACK ĐỂ TEST SCENE ---
+        // Use a coroutine for setup, similar to ShopManager
+        StartCoroutine(SetupBattle());
+    }
+
+    private IEnumerator SetupBattle()
+    {
+        // --- FALLBACK MECHANISM ---
         if (GameManager.Instance == null)
         {
-            Debug.LogWarning("[BATTLE] Không tìm thấy GameManager! Đang tạo một GameManager tạm thời để test...");
+            Debug.LogWarning("[BATTLE] GameManager not found! Creating temporary one...");
             GameObject gameManagerPrefab = Resources.Load<GameObject>("GameManager");
             if (gameManagerPrefab != null)
             {
-                // Tạo ra GameManager. Hàm Awake() của nó sẽ tự động gán Instance.
                 Instantiate(gameManagerPrefab);
-                // Tạo một RunData tạm thời để các script khác không bị lỗi NullReference.
-                // Các hàm SpawnPlayer và SpawnEnemies sẽ tự động dùng các giá trị
-                // fallback/override có sẵn trong BattleManager.
-                GameManager.Instance.currentRunData = new RunData();
+                yield return null; // 1. Đợi GameManager.Awake() chạy, gán Instance
+
+                // 2. Yêu cầu GameManager tạo player fallback
+                // (Nó sẽ tự dùng fallbackRace/Class đã gán trên prefab GameManager)
+                GameManager.Instance.InitializePlayerCharacter();
+
+                // 3. Giả lập sự kiện SceneLoaded để kích hoạt PlayerHUD
+                // Đây là bước then chốt để UI được cập nhật
+                GameManager.Instance.OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+
+                // 4. Đợi 1 frame để UI (PlayerHUD) kịp chạy FindAndRefresh()
+                yield return null;
             }
             else
             {
-                Debug.LogError("[BATTLE] Không tìm thấy prefab 'GameManager' trong thư mục 'Resources'! Scene test sẽ không hoạt động đúng.");
-                return; // Dừng thực thi nếu không thể tạo GameManager.
+                Debug.LogError("[BATTLE] GameManager prefab not found in Resources!");
+                yield break;
             }
         }
-        // ------------------------------------
+        // -------------------------
 
-        // Các logic cũ của hàm Start sẽ được thực thi sau khi đảm bảo GameManager đã tồn tại.
-        if (defeatPanel != null)
-        {
-            defeatPanel.SetActive(false);
-        }
+        // Các logic khởi tạo cũ
+        if (defeatPanel != null) defeatPanel.SetActive(false);
+
+        // SpawnPlayer giờ chỉ còn 1 nhiệm vụ: tìm và đặt player vào vị trí
+        SpawnPlayer();
+
+        // Initialize UI Manager SAU KHI player và HUD đã sẵn sàng
         if (uiManager != null)
         {
             uiManager.Initialize(this);
         }
 
-        SpawnPlayer();
         SpawnEnemies();
         AutoBindEnemySlotButtons();
         RefreshSelectionVisual();
@@ -141,8 +145,8 @@ public class BattleManager : MonoBehaviour
     // Handles finding the persistent player or spawning a fallback for testing
     void SpawnPlayer()
     {
-        // Priority 1: Find the player instance from GameManager
-        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        // Chỉ còn lại Priority 1: Tìm player instance từ GameManager
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
             playerInstance = GameManager.Instance.playerInstance;
             playerInstance.transform.SetParent(playerSlot, false);
@@ -151,105 +155,37 @@ public class BattleManager : MonoBehaviour
             playerInstance.SetActive(true);
 
             playerCharacter = playerInstance.GetComponent<Character>();
-            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
-            {
-                // Nạp HP đã lưu từ RunData vào Character trong trận đấu
-                playerCharacter.currentHP = GameManager.Instance.currentRunData.playerData.currentHP;
-                Debug.Log($"[BATTLE] Loaded Player HP from RunData: {playerCharacter.currentHP}/{playerCharacter.maxHP}");
-                // Tương tự cho Mana
-                // playerCharacter.currentMana = GameManager.Instance.currentRunData.playerData.currentMana;
-            }
-            playerCharacter.UpdateHPUI();
-            Debug.Log("[BATTLE] Player Spawned from GameManager.");
-        }
-        // Priority 2: Spawn a default player for testing purposes
-        else
-        {
-            Debug.LogWarning("Player instance from GameManager not found. Spawning a default player for testing.");
-            if (playerPrefab == null || playerSlot == null) return;
-            if (fallbackRace == null || fallbackClass == null)
-            {
-                Debug.LogError("Fallback Race/Class is not set in BattleManager Inspector!");
-                return;
-            }
 
-            playerInstance = Instantiate(playerPrefab, playerSlot, false);
-            playerCharacter = playerInstance.GetComponent<Character>();
-            var playerSkills = playerInstance.GetComponent<PlayerSkills>();
-            var playerImage = playerInstance.GetComponent<Image>();
-
-            // Always get visuals and skills from fallback SOs
-            Sprite characterSprite = null;
-            switch (fallbackClass.id)
-            {
-                case "class_cleric": characterSprite = fallbackRace.clericSprite; break;
-                case "class_mage": characterSprite = fallbackRace.mageSprite; break;
-                case "class_warrior": characterSprite = fallbackRace.warriorSprite; break;
-                case "class_rogue": characterSprite = fallbackRace.rogueSprite; break;
-            }
-            if (playerImage != null) playerImage.sprite = characterSprite;
-
-            if (playerSkills != null)
-            {
-                playerSkills.LearnSkills(fallbackRace, fallbackClass);
-            }
-
-            // Override stats if requested
-            if (overridePlayerStats)
-            {
-                playerCharacter.baseMaxHP = customPlayerStats.HP;
-                playerCharacter.baseAttackPower = customPlayerStats.STR;
-                playerCharacter.baseDefense = customPlayerStats.DEF;
-                playerCharacter.baseMana = customPlayerStats.MANA;
-                playerCharacter.baseIntelligence = customPlayerStats.INT;
-                playerCharacter.baseAgility = customPlayerStats.AGI;
-                Debug.LogWarning("[BATTLE] Player spawned with CUSTOM OVERRIDE stats on fallback model.");
-            }
-            else // Otherwise, use stats from fallback SOs
-            {
-                StatBlock baseStats = fallbackRace.baseStats;
-                playerCharacter.baseMaxHP = baseStats.HP;
-                playerCharacter.baseAttackPower = baseStats.STR;
-                playerCharacter.baseDefense = baseStats.DEF;
-                playerCharacter.baseMana = baseStats.MANA;
-                playerCharacter.baseIntelligence = baseStats.INT;
-                playerCharacter.baseAgility = baseStats.AGI;
-                Debug.LogWarning($"[BATTLE] Player spawned with FALLBACK stats (Race: {fallbackRace.displayName}, Class: {fallbackClass.displayName}).");
-            }
-            playerCharacter.ResetToBaseStats();
-        }
-
-        // --- COMMON ACTIONS AFTER GETTING A PLAYER INSTANCE ---
-        if (playerInstance != null)
-        {
             if (playerCharacter != null)
             {
-                // ✅ QUAN TRỌNG: CẬP NHẬT UI SAU KHI ĐÃ CÓ HP CHÍNH XÁC
-                playerCharacter.UpdateHPUI();
-                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.maxHP},STR={playerCharacter.attackPower}, DEF={playerCharacter.defense}, MANA={playerCharacter.mana}, INT={playerCharacter.intelligence}, AGI={playerCharacter.agility}");
-            }
-
-            PlayerSkills skills = playerInstance.GetComponent<PlayerSkills>();
-            //if (uiManager != null && skills != null)
-            //{
-            //    uiManager.CreatePlayerSkillIcons(skills);
-            //}
-            if (playerCharacter != null)
-            {
-                if (skills != null)
+                // Nạp HP/Mana (nếu bạn muốn duy trì HP/Mana giữa các trận đấu)
+                if (GameManager.Instance.currentRunData != null)
                 {
-                    foreach (var pSkill in skills.passiveSkills) Debug.Log($"[BATTLE] Player has Passive: {pSkill.displayName}");
-                    foreach (var aSkill in skills.activeSkills) Debug.Log($"[BATTLE] Player has Active: {aSkill.displayName}");
+                    playerCharacter.currentHP = GameManager.Instance.currentRunData.playerData.currentHP;
+                    // playerCharacter.currentMana = GameManager.Instance.currentRunData.playerData.currentMana;
                 }
-                playerCharacter.UpdateHPUI();
-            }
-            // Đăng ký lắng nghe sự kiện "chết" của người chơi
-            if (playerCharacter != null)
-            {
+
+                // Đăng ký lắng nghe sự kiện "chết"
                 playerCharacter.OnDeath += HandleCharacterDeath;
+
+                // Cập nhật UI lần cuối
+                playerCharacter.UpdateHPUI();
+
+                Debug.Log("[BATTLE] Player Spawned from GameManager.");
+                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.currentHP}/{playerCharacter.maxHP}, STR={playerCharacter.attackPower}, DEF={playerCharacter.defense}, MANA={playerCharacter.mana}, INT={playerCharacter.intelligence}, AGI={playerCharacter.agility}");
             }
+            else
+            {
+                Debug.LogError("[BATTLE] playerInstance không có component Character!");
+            }
+        }
+        else
+        {
+            // Đây là một lỗi nghiêm trọng nếu nó xảy ra
+            Debug.LogError("[BATTLE] GameManager.Instance hoặc playerInstance là null! Không thể spawn người chơi.");
         }
     }
+
     //Get baseStats of player
     public Character GetPlayerCharacter()
     {
@@ -291,7 +227,7 @@ public class BattleManager : MonoBehaviour
             archetypeId = mapData.pendingEnemyArchetypeId;
             absoluteFloor = mapData.pendingEnemyFloor;
             encounterKind = (EnemyKind)mapData.pendingEnemyKind;
-            Debug.Log($"[BATTLE] Loaded enemy data from RunData: floor={absoluteFloor}, kind={encounterKind}, archetype={archetypeId}");
+            Debug.Log($"[BATTLE] Loaded enemy data from RunData: floor={absoluteFloor}, kind={encounterKind}");
         }
         // Lựa chọn cuối: Dùng fallback từ PlayerPrefs (để phòng trường hợp cũ)
         else
@@ -479,15 +415,35 @@ public class BattleManager : MonoBehaviour
     /// </summary>
     public void ReloadScene()
     {
-        // Nếu có người chơi, "giải cứu" nó trước khi tải lại scene
-        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
-            // Gọi hàm có sẵn để đưa người chơi về GameManager và ẩn đi
-            RestorePersistentPlayer();
+            var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
+            if (playerChar != null)
+            {
+                Debug.Log("[BATTLE] Reloading scene... Resetting player HP/Mana.");
+
+                // 1. Reset dữ liệu "live"
+                playerChar.currentHP = playerChar.maxHP;
+                playerChar.currentMana = playerChar.mana;
+                playerChar.UpdateHPUI();
+
+                // 2. Reset dữ liệu "lưu trữ" trong RunData
+                var runData = GameManager.Instance.currentRunData;
+                runData.playerData.currentHP = playerChar.maxHP;
+                runData.playerData.currentMana = playerChar.mana;
+
+                // (Tùy chọn) Reset cả Steadfast Heart
+                // runData.playerData.steadfastDurability = 3;
+                // GameManager.Instance.playerStatusUI.UpdateSteadfastHeart(3);
+
+                // 3. Lưu lại trạng thái đã reset
+                RunSaveService.SaveRun(runData);
+            }
+
+            RestorePersistentPlayer();
         }
 
-        // Tải lại scene hiện tại
-        string currentSceneName = SceneManager.GetActiveScene().name;
+        string currentSceneName = SceneManager.GetActiveScene().name;
         SceneManager.LoadScene(currentSceneName);
     }
     #endregion

@@ -252,6 +252,8 @@ MonoBehaviour:
       pendingEnemyKind: 0
       pendingEnemyFloor: 0
   playerInstance: {fileID: 0}
+  fallbackRace: {fileID: 11400000, guid: ae09f101437f1534398ba84c3f5ca9c0, type: 2}
+  fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
   playerStatusUI: {fileID: 8636026782780025911}
   playerPrefab: {fileID: 5219465382312568686, guid: a27e2eb3858100042940cd56a1935089, type: 3}
   allRaces:

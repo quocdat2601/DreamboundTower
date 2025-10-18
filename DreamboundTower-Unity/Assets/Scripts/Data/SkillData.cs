@@ -7,6 +7,11 @@ public class SkillData : BaseSkillSO // Kế thừa từ BaseSkillSO
 {
     // Các trường chung (id, displayName, icon, descriptionTemplate) đã có từ lớp cha
     // Chúng ta chỉ cần định nghĩa các trường riêng của Active Skill
+
+    [Header("Visuals & Audio")]
+    [Tooltip("Prefab chứa hiệu ứng hình ảnh (VFX) sẽ được tạo ra khi dùng skill.")]
+    public GameObject vfxPrefab;
+
     public ResourceType resource = ResourceType.Mana;
     public int cost = 0;
     public int baseDamage = 10;

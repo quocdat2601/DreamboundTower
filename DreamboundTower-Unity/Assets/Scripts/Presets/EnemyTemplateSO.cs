@@ -23,6 +23,13 @@ namespace Presets
         public EnemyKind kind;
         public EnemyGimmick gimmick;
 
+		[Header("Combat Details")]
+		[Tooltip("Lượng mana quái vật hồi lại vào đầu mỗi lượt của nó.")]
+		public int manaRegenPerTurnn;
+
+        [Tooltip("Danh sách các kỹ năng mà loài quái vật này có thể sử dụng.")]
+        public List<SkillData> skills;
+
         [Header("Visuals")]
         public List<Sprite> sprites;
 
