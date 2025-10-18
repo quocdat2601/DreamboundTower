@@ -9,6 +9,9 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    [HideInInspector] // Ẩn khỏi Inspector để tránh nhầm lẫn
+    public bool isDebugRun = false; // Cờ này sẽ được bật bởi các script fallback
+
     [Header("Player Data")]
     public RunData currentRunData;
     public GameObject playerInstance;
@@ -237,7 +240,7 @@ public class GameManager : MonoBehaviour
         {
             bool isGameplayScene = scene.name.StartsWith("Zone") || scene.name == "MainGame"
                                    || scene.name == "EventScene" || scene.name == "RestScene"
-                                   || scene.name == "ShopScene";
+                                   || scene.name == "ShopScene" || scene.name == "MysteryScene";
 
             // Thêm dòng log này để xem kết quả của việc kiểm tra scene
             Debug.Log($"<color=cyan>Is Gameplay Scene? {isGameplayScene}</color>");

@@ -65,6 +65,8 @@ public class ShopManager : MonoBehaviour
                 }
 
                 GameManager.Instance.currentRunData = currentRunData;
+                // ✅ BÁO HIỆU RẰNG ĐÂY LÀ CHẾ ĐỘ DEBUG
+                GameManager.Instance.isDebugRun = true;
                 // YÊU CẦU GAMEMANAGER TẠO RA MỘT PLAYERINSTANCE TẠM THỜI
                 GameManager.Instance.InitializePlayerCharacter();
             }

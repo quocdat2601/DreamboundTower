@@ -47,6 +47,7 @@ public class BattleManager : MonoBehaviour
     [Header("UI References")]
     public BattleUIManager uiManager;   // Assign your UIManager here
     public GameObject defeatPanel;
+    public Image battleBackground;
 
     // runtime
     private GameObject playerInstance;
@@ -91,6 +92,9 @@ public class BattleManager : MonoBehaviour
 
                 // 4. Đợi 1 frame để UI (PlayerHUD) kịp chạy FindAndRefresh()
                 yield return null;
+                GameManager.Instance.currentRunData = new RunData();
+                // ✅ BÁO HIỆU RẰNG ĐÂY LÀ CHẾ ĐỘ DEBUG
+    GameManager.Instance.isDebugRun = true;
             }
             else
             {
@@ -191,27 +195,23 @@ public class BattleManager : MonoBehaviour
     {
         return playerCharacter;
     }
-
-  
-    void SpawnEnemies()
+    void SpawnEnemies()
     {
         if (enemySlots == null || enemySlots.Length == 0) return;
 
-        // Khởi tạo mảng instance với kích thước tối đa
-        enemyInstances = new GameObject[enemySlots.Length];
+        enemyInstances = new GameObject[enemySlots.Length];
 
-        // --- LOGIC MỚI: Ưu tiên đọc từ các nguồn dữ liệu khác nhau ---
-        string archetypeId = null;
+        // --- 1. LẤY DỮ LIỆU ---
+        string archetypeId = null;
         int absoluteFloor = 1;
         EnemyKind encounterKind = EnemyKind.Normal;
 
-        // Ưu tiên 1: Ghi đè (Override) từ Inspector để debug
-        if (overrideUseCustomStats)
+        // (Code đọc dữ liệu từ Override và RunData của bạn giữ nguyên)
+        if (overrideUseCustomStats)
         {
             Debug.LogWarning("[BATTLE] Using CUSTOM STATS override for spawning.");
             encounterKind = overrideKind;
-            // Với custom stats, không có archetype cụ thể, nhưng ta có thể gán một tên tạm
-            archetypeId = "CustomOverride";
+            archetypeId = "CustomOverride";
         }
         else if (overrideUseTemplate)
         {
@@ -220,101 +220,122 @@ public class BattleManager : MonoBehaviour
             archetypeId = overrideTemplate.name;
             absoluteFloor = overrideFloor;
         }
-        // Ưu tiên 2: Đọc từ RunData (luồng game chính)
-        else if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+        else if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
         {
             var mapData = GameManager.Instance.currentRunData.mapData;
             archetypeId = mapData.pendingEnemyArchetypeId;
             absoluteFloor = mapData.pendingEnemyFloor;
             encounterKind = (EnemyKind)mapData.pendingEnemyKind;
-            Debug.Log($"[BATTLE] Loaded enemy data from RunData: floor={absoluteFloor}, kind={encounterKind}");
+            Debug.Log($"[BATTLE] Loaded enemy data from RunData: floor={absoluteFloor}, kind={encounterKind}, archetype={archetypeId}");
         }
-        // Lựa chọn cuối: Dùng fallback từ PlayerPrefs (để phòng trường hợp cũ)
-        else
+        else
         {
-            Debug.LogWarning("[BATTLE] RunData not found. Falling back to PlayerPrefs.");
-            int kind, hp, str, def, mana, intel, agi;
-            if (Map.MapTravel.TryReadAndClearPendingEnemy(out kind, out hp, out str, out def, out mana, out intel, out agi, out absoluteFloor, out archetypeId))
+            Debug.LogError("[BATTLE] No enemy data found from any source! Cannot spawn enemies.");
+            return;
+        }
+
+        // --- 2. KIỂM TRA MIMIC (SAU KHI ĐÃ CÓ archetypeId) ---
+        // Tên file SO của bạn phải là "Mimic"
+        bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
+
+        // --- 3. TÍNH TOÁN SỐ LƯỢNG KẺ ĐỊCH ---
+        int enemyCount = 1;
+        if (isMimicEncounter)
+        {
+            Debug.Log("[BATTLE] MIMIC ENCOUNTER! Ép số lượng quái = 1.");
+            enemyCount = 1;
+        }
+        else
+        {
+            switch (encounterKind)
             {
-                encounterKind = (EnemyKind)kind;
-                Debug.Log($"[BATTLE] Loaded enemy from PlayerPrefs fallback: floor={absoluteFloor}, kind={encounterKind}");
+                case EnemyKind.Normal: enemyCount = UnityEngine.Random.Range(1, 4); break;
+                case EnemyKind.Elite: enemyCount = UnityEngine.Random.Range(1, 3); break;
+                case EnemyKind.Boss: enemyCount = 1; break;
             }
-            else
+        }
+        enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
+        Debug.Log($"[BATTLE] Spawning {enemyCount} enemies...");
+
+        // --- 4. LỌC DANH SÁCH QUÁI VẬT PHÙ HỢP ---
+        List<EnemyTemplateSO> availableEnemies = null;
+        if (!isMimicEncounter && !overrideUseCustomStats) // Chỉ cần lọc nếu không phải Mimic hoặc custom stats
+        {
+            availableEnemies = GameManager.Instance.allEnemyTemplates
+                .Where(template => template.kind == encounterKind)
+                .ToList();
+            if (availableEnemies.Count == 0)
             {
-                Debug.LogError("[BATTLE] No enemy data found from any source! Cannot spawn enemies.");
+                Debug.LogError($"[BATTLE] Không tìm thấy EnemyTemplateSO nào có Kind là '{encounterKind}'!");
                 return;
             }
         }
 
-        // Tính toán số lượng kẻ địch dựa trên loại encounter
-        int enemyCount = 1;
-        switch (encounterKind)
+        // --- 5. TẠO QUÁI VẬT ---
+        for (int i = 0; i < enemyCount; i++)
         {
-            case EnemyKind.Normal:
-                enemyCount = Random.Range(1, 4); // Ngẫu nhiên 1, 2, hoặc 3
-                break;
-            case EnemyKind.Elite:
-                enemyCount = Random.Range(1, 3); // Ngẫu nhiên 1 hoặc 2
-                break;
-            case EnemyKind.Boss:
-                enemyCount = 1;
-                break;
-        }
+            if (enemyPrefab == null) continue;
 
-        // Đảm bảo không tạo nhiều kẻ địch hơn số slot có sẵn
-        enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
-        Debug.Log($"[BATTLE] Spawning {enemyCount} enemies for a {encounterKind} encounter.");
-
-        // Lấy danh sách tất cả các "binh chủng" có cấp bậc phù hợp từ kho của GameManager
-        List<EnemyTemplateSO> availableEnemies = GameManager.Instance.allEnemyTemplates
-            .Where(template => template.kind == encounterKind)
-            .ToList();
-
-        // Nếu không có quái vật nào phù hợp trong kho, báo lỗi và dừng lại
-        if (availableEnemies.Count == 0)
-        {
-            Debug.LogError($"[BATTLE] Không tìm thấy EnemyTemplateSO nào có Kind là '{encounterKind}' trong kho!");
-            return;
-        }
-
-        // Vòng lặp tạo kẻ địch
-        for (int i = 0; i < enemyCount; i++)
-        {
-            if (enemyPrefab == null || enemySlots[i] == null) continue;
-
-            // Chọn ngẫu nhiên một loài quái vật TỪ DANH SÁCH CÓ SẴN cho MỖI LẦN lặp
-            EnemyTemplateSO finalTemplate = availableEnemies[Random.Range(0, availableEnemies.Count)];
-
-            var enemyGO = Instantiate(enemyPrefab, enemySlots[i], false);
-            enemyGO.transform.localPosition = Vector2.zero;
-            enemyGO.transform.localScale = Vector3.one;
-            enemyGO.name = "Enemy_" + i;
-            enemyInstances[i] = enemyGO;
-
-            // Nếu là override custom stats, áp dụng trực tiếp
-            if (overrideUseCustomStats)
+            // ✅ SỬA LẠI LOGIC CHỌN SLOT
+            int slotIndex = i; // Vị trí bình thường
+            if (isMimicEncounter)
             {
-                ApplyEnemyData(enemyGO, overrideStats, null);
+                slotIndex = 0; // Ép vào Slot 1 (index 0)
+            }
+            if (enemySlots[slotIndex] == null)
+            {
+                Debug.LogError($"[BATTLE] Enemy Slot {slotIndex} bị null!");
                 continue;
             }
-            // Áp dụng dữ liệu từ template vừa được chọn ngẫu nhiên
-            if (finalTemplate != null)
+
+            // Chọn template
+            EnemyTemplateSO finalTemplate;
+            if (overrideUseCustomStats)
+            {
+                finalTemplate = null; // Sẽ chỉ áp dụng custom stats
+            }
+            else if (isMimicEncounter)
+            {
+                finalTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Mimic");
+            }
+            else
+            {
+                finalTemplate = availableEnemies[UnityEngine.Random.Range(0, availableEnemies.Count)];
+            }
+
+            // ✅ SỬA LẠI LOGIC TẠO QUÁI
+            // Tạo GameObject tại đúng slotIndex
+            var enemyGO = Instantiate(enemyPrefab, enemySlots[slotIndex], false);
+            enemyGO.transform.localPosition = Vector2.zero;
+            enemyGO.transform.localScale = Vector3.one;
+            enemyGO.name = $"Enemy_{slotIndex}_{(finalTemplate != null ? finalTemplate.name : "Custom")}";
+
+            // Gán vào mảng enemyInstances tại đúng slotIndex
+            enemyInstances[slotIndex] = enemyGO;
+
+            // Áp dụng dữ liệu
+            if (overrideUseCustomStats)
+            {
+                ApplyEnemyData(enemyGO, overrideStats, null);
+            }
+            else if (finalTemplate != null)
             {
                 StatBlock finalStats = finalTemplate.GetStatsAtFloor(absoluteFloor);
                 ApplyEnemyData(enemyGO, finalStats, finalTemplate);
             }
-            else // Trường hợp này rất khó xảy ra
+            else
             {
                 Debug.LogError($"[BATTLE] Lỗi không mong muốn: finalTemplate là null.");
             }
         }
 
-        // Tắt các slot kẻ địch không được sử dụng
-        for (int i = enemyCount; i < enemySlots.Length; i++)
+        // Tắt các slot không dùng
+        for (int i = 0; i < enemySlots.Length; i++)
         {
-            if (enemySlots[i] != null)
+            // Nếu slot này không có instance nào (bị rỗng)
+            if (enemyInstances[i] == null)
             {
-                enemySlots[i].gameObject.SetActive(false);
+                if (enemySlots[i] != null) enemySlots[i].gameObject.SetActive(false);
             }
         }
     }
@@ -327,10 +348,31 @@ public class BattleManager : MonoBehaviour
         if (template != null && template.sprites != null && template.sprites.Count > 0)
         {
             Image enemyImage = enemyGO.GetComponent<Image>();
-            if (enemyImage != null)
+
+            if (template.name == "Mimic") // Tên file SO của bạn phải là "Mimic"
             {
-                // Chọn một sprite ngẫu nhiên từ danh sách
-                enemyImage.sprite = template.sprites[Random.Range(0, template.sprites.Count)];
+                // 1. Đổi background (giả sử sprite nền là Element 1)
+                if (battleBackground != null && template.sprites.Count > 1)
+                {
+                    battleBackground.sprite = template.sprites[1];
+                }
+                else if (battleBackground != null)
+                {
+                    Debug.LogWarning("Mimic template cần 2 sprites: [0] cho quái, [1] cho nền.");
+                }
+
+                // 2. Gán sprite cho quái (sprite quái là Element 0)
+                if (enemyImage != null)
+                {
+                    enemyImage.sprite = template.sprites[0];
+                }
+            }
+            else // Logic gán sprite ngẫu nhiên cũ cho quái thường
+            {
+                if (enemyImage != null)
+                {
+                    enemyImage.sprite = template.sprites[Random.Range(0, template.sprites.Count)];
+                }
             }
         }
 
@@ -361,17 +403,6 @@ public class BattleManager : MonoBehaviour
         {
             enemyGO.AddComponent<CounterAttackBehavior>();
         }
-    }
-
-    /// <summary>
-    /// Finds an EnemyTemplateSO in the Resources/EnemyTemplates folder by its asset name.
-    /// </summary>
-    private EnemyTemplateSO FindTemplateByArchetype(string archetypeId)
-    {
-        if (string.IsNullOrEmpty(archetypeId)) return null;
-
-        var templates = Resources.LoadAll<EnemyTemplateSO>("EnemyTemplates");
-        return templates.FirstOrDefault(t => t.name == archetypeId);
     }
 
     #endregion

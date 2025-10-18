@@ -319,63 +319,70 @@ namespace Map
 
             return path;
         }
-        
+
         // GDD Node Type Probabilities Implementation
         private static NodeType GetNodeTypeByGDDProbabilities(int layerIndex)
         {
             // Convert layer index to absolute floor (assuming 10 layers = 10 floors per zone)
-            int absoluteFloor = layerIndex + 1; // layerIndex is 0-based, floor is 1-based
-            
-            // Determine floor region
+            // Tầng 1 (layerIndex 0) đã được xử lý riêng, nên tầng 2 (layerIndex 1) là tầng tuyệt đối 2
+            int absoluteFloor;
+            if (MapManager.Instance != null)
+            {
+                // Lấy zone hiện tại để tính tầng tuyệt đối chính xác
+                absoluteFloor = (MapManager.Instance.currentZone - 1) * 10 + (layerIndex + 1);
+            }
+            else
+            {
+                // Fallback nếu test scene
+                absoluteFloor = layerIndex + 1;
+            }
+
+            // Xác định vùng
             FloorRegion region;
             if (absoluteFloor <= 20) region = FloorRegion.Early;
             else if (absoluteFloor <= 60) region = FloorRegion.Mid;
             else region = FloorRegion.Late;
-            
-            // GDD Node Type Probabilities by Floor Region
-            float randomValue = Random.Range(0f, 1f);
-            
+
+            float randomValue = UnityEngine.Random.Range(0f, 1f);
+
             switch (region)
             {
-                case FloorRegion.Early: // Floors 1-20
-                    // Combat 55%, Event 20%, Rest 12%, Shop 8%, Treasure 5%
-                    if (randomValue < 0.55f) return NodeType.MinorEnemy;
-                    if (randomValue < 0.75f) return NodeType.Mystery; // Event
-                    if (randomValue < 0.87f) return NodeType.RestSite;
-                    if (randomValue < 0.95f) return NodeType.Store;
-                    return NodeType.Treasure;
-                    
-                case FloorRegion.Mid: // Floors 21-60
-                    // Combat 60%, Event 18%, Rest 10%, Shop 7%, Elite chance increases
-                    if (randomValue < 0.60f) 
+                case FloorRegion.Early: // Tầng 1-20
+                                        // GDD MỚI: Combat 55%, Event 20%, Rest 12%, Shop 8%, Mystery 5%
+                    if (randomValue < 0.55f) return NodeType.MinorEnemy; // 55%
+                    if (randomValue < 0.75f) return NodeType.Event;     // 20% (0.75 - 0.55)
+                    if (randomValue < 0.87f) return NodeType.RestSite;  // 12% (0.87 - 0.75)
+                    if (randomValue < 0.95f) return NodeType.Store;     // 8% (0.95 - 0.87)
+                    return NodeType.Mystery;                           // 5% (1.00 - 0.95)
+
+                case FloorRegion.Mid: // Tầng 21-60
+                                      // GDD MỚI: Combat 60%, Event 18%, Rest 10%, Shop 7%, Mystery 5%
+                    if (randomValue < 0.60f)
                     {
-                        // Elite chance increases with floor
                         float eliteChance = Mathf.Min(0.25f, 0.05f + 0.002f * absoluteFloor);
-                        return Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
+                        return UnityEngine.Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
                     }
-                    if (randomValue < 0.78f) return NodeType.Mystery; // Event
-                    if (randomValue < 0.88f) return NodeType.RestSite;
-                    if (randomValue < 0.95f) return NodeType.Store;
-                    return NodeType.Treasure;
-                    
-                case FloorRegion.Late: // Floors 61-100
-                    // Combat 65%, Event 12%, Rest 8%, Shop 5%, Treasure 5%
-                    if (randomValue < 0.65f) 
+                    if (randomValue < 0.78f) return NodeType.Event;     // 18% (0.78 - 0.60)
+                    if (randomValue < 0.88f) return NodeType.RestSite;  // 10% (0.88 - 0.78)
+                    if (randomValue < 0.95f) return NodeType.Store;     // 7% (0.95 - 0.88)
+                    return NodeType.Mystery;                           // 5% (1.00 - 0.95)
+
+                case FloorRegion.Late: // Tầng 61-100
+                                       // GDD MỚI (giả định): Combat 65%, Event 12%, Rest 8%, Shop 5%, Mystery 10%
+                    if (randomValue < 0.65f)
                     {
-                        // Elite chance increases with floor
                         float eliteChance = Mathf.Min(0.25f, 0.05f + 0.002f * absoluteFloor);
-                        return Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
+                        return UnityEngine.Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
                     }
-                    if (randomValue < 0.77f) return NodeType.Mystery; // Event
-                    if (randomValue < 0.85f) return NodeType.RestSite;
-                    if (randomValue < 0.90f) return NodeType.Store;
-                    return NodeType.Treasure;
-                    
+                    if (randomValue < 0.77f) return NodeType.Event;     // 12% (0.77 - 0.65)
+                    if (randomValue < 0.85f) return NodeType.RestSite;  // 8% (0.85 - 0.77)
+                    if (randomValue < 0.90f) return NodeType.Store;     // 5% (0.90 - 0.85)
+                    return NodeType.Mystery;                           // 10% (1.00 - 0.90)
+
                 default:
                     return NodeType.MinorEnemy;
             }
         }
-        
         // Get Boss Blueprint for specific floor from configuration
         private static NodeBlueprint GetBossBlueprintForFloor(int floorNumber)
         {

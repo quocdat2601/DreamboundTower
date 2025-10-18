@@ -254,6 +254,14 @@ MonoBehaviour:
   playerInstance: {fileID: 0}
   fallbackRace: {fileID: 11400000, guid: ae09f101437f1534398ba84c3f5ca9c0, type: 2}
   fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
+  overridePlayerStats: 0
+  customPlayerStats:
+    HP: 0
+    STR: 0
+    DEF: 0
+    MANA: 0
+    INT: 0
+    AGI: 0
   playerStatusUI: {fileID: 8636026782780025911}
   playerPrefab: {fileID: 5219465382312568686, guid: a27e2eb3858100042940cd56a1935089, type: 3}
   allRaces:
@@ -288,6 +296,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
   - {fileID: 11400000, guid: d28eb5e22e1cf9c47ad4491f5336b0e7, type: 2}
   - {fileID: 11400000, guid: 10b620da49e84aa479c0756954b54e4f, type: 2}
+  - {fileID: 11400000, guid: a074866f8349fb44f954a32dd4543f3a, type: 2}
   pauseButton: {fileID: 264984047341425492}
   pauseMenuPanel: {fileID: 3262179359201872303}
   settingsPanel: {fileID: 945546455477581145}

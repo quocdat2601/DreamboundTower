@@ -211,6 +211,3 @@ MonoBehaviour:
   totalNodesPerFloor: 5
   steadfastHeartRestores: 3
   maxSteadfastHeartRestores: 3
-  normalTemplate: {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
-  eliteTemplate: {fileID: 11400000, guid: 7cbe9f4e0dd1ece42a2dd52ec4fdfa10, type: 2}
-  bossTemplate: {fileID: 11400000, guid: efd0bc707d05df3439782351c405e199, type: 2}

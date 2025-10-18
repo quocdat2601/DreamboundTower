@@ -126,16 +126,14 @@ namespace Map
                 case NodeType.EliteEnemy:
                 case NodeType.Boss:
                     return "MainGame";
-                // case NodeType.Mystery:
-                //     return "EventScene";
-
-                // Các node không cần chuyển scene sẽ trả về chuỗi rỗng
                 case NodeType.RestSite:
                     return "RestScene";
-                case NodeType.Treasure:
                 case NodeType.Store:
-                    return "ShopScene";
-                case NodeType.Mystery: // Tạm thời để auto complete
+                    return "ShopScene"; 
+                case NodeType.Mystery:
+                    return "MysteryScene";
+                case NodeType.Event:
+                //return "EventScene"
                 default:
                     return "";
             }
