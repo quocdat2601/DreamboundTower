@@ -521,10 +521,13 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    // Updates the visual feedback for the selected enemy
-    void RefreshSelectionVisual()
+    /// <summary>
+    /// Updates the visual feedback for the selected enemy
+    /// </summary>
+    void RefreshSelectionVisual()
     {
         if (enemySlots == null) return;
+        
         for (int i = 0; i < enemySlots.Length; i++)
         {
             var slotImg = enemySlots[i]?.GetComponent<Image>();
@@ -532,10 +535,12 @@ public class BattleManager : MonoBehaviour
 
             if (i == selectedEnemyIndex)
             {
+                // Golden tint for selected enemy
                 slotImg.color = new Color(1f, 0.95f, 0.8f, 0.3f);
             }
             else
             {
+                // Transparent for unselected enemies
                 slotImg.color = new Color(1f, 1f, 1f, 0f);
             }
         }
@@ -554,7 +559,6 @@ public class BattleManager : MonoBehaviour
         if (target != null)
         {
             playerCharacter.Attack(target);
-            Debug.Log($"[BATTLE] Player attacked {target.name} for {playerCharacter.attackPower} damage");
         }
 
         yield return new WaitForSeconds(attackDelay);
@@ -858,24 +862,25 @@ public class BattleManager : MonoBehaviour
                     yield break;
                 }
 
-                Debug.Log($"[BATTLE] Dọn dẹp kẻ địch đã chết: {deadCharacter.name}");
-
-                // Hủy đăng ký sự kiện để tránh lỗi
+                // Unsubscribe from death event to prevent errors
                 deadCharacter.OnDeath -= HandleCharacterDeath;
 
-                // Hủy đối tượng GameObject
+                // Wait for death animation to complete (1 second) before destroying
+                yield return new WaitForSeconds(1.1f); // Slightly longer than animation duration
+
+                // Destroy the enemy GameObject
                 Destroy(enemyInstances[i]);
 
-                // Đánh dấu là slot đó đã trống
+                // Mark slot as empty
                 enemyInstances[i] = null;
 
-                // Nếu kẻ địch này đang được chọn làm mục tiêu, hãy bỏ chọn
+                // If this enemy was selected as target, deselect it
                 if (selectedEnemyIndex == i)
                 {
                     selectedEnemyIndex = -1;
                     RefreshSelectionVisual();
                 }
-                break; // Thoát khỏi vòng lặp vì đã tìm thấy và xử lý
+                break; // Exit loop since we found and processed the enemy
             }
         }
     }
