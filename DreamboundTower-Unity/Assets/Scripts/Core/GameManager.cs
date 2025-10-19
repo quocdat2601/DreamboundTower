@@ -68,6 +68,9 @@ public class GameManager : MonoBehaviour
         {
             DontDestroyOnLoad(playerStatusUI.gameObject.transform.root.gameObject);
         }
+        
+        // Setup PassiveSkillManager
+        SetupPassiveSkillManager();
 
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
@@ -87,6 +90,22 @@ public class GameManager : MonoBehaviour
             currentRunData = new RunData();
         }
         SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+    
+    void SetupPassiveSkillManager()
+    {
+        // Check if PassiveSkillManager already exists
+        if (FindFirstObjectByType<PassiveSkillManager>() == null)
+        {
+            // Create a new GameObject with PassiveSkillManager
+            GameObject passiveSkillManagerGO = new GameObject("PassiveSkillManager");
+            passiveSkillManagerGO.AddComponent<PassiveSkillManager>();
+            
+            // Make it persistent across scenes
+            DontDestroyOnLoad(passiveSkillManagerGO);
+            
+            Debug.Log("[GAMEMANAGER] Created PassiveSkillManager GameObject");
+        }
     }
 
     private void Update()

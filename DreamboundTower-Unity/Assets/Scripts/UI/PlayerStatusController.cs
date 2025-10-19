@@ -7,6 +7,8 @@ public class PlayerStatusController : MonoBehaviour
     [Header("Player Info")]
     public Slider hpSlider;
     public TextMeshProUGUI hpText;
+    public Slider manaSlider;
+    public TextMeshProUGUI manaText;
 
     [Header("Steadfast Heart")]
     public Sprite redHeartSprite;
@@ -31,12 +33,14 @@ public class PlayerStatusController : MonoBehaviour
                 if (playerChar != null)
                 {
                     UpdateHealth(playerData.currentHP, playerChar.maxHP);
+                    UpdateMana(playerData.currentMana, playerChar.mana);
                 }
             }
             else
             {
                 // Nếu chưa có người chơi, hiển thị trạng thái mặc định/trống
                 UpdateHealth(0, 1);
+                UpdateMana(0, 1);
             }
 
             // Luôn cập nhật Steadfast Heart
@@ -58,6 +62,20 @@ public class PlayerStatusController : MonoBehaviour
         {
             // Đảm bảo max không bằng 0 để tránh lỗi chia cho 0
             hpText.text = (max > 0) ? $"{current} / {max}" : "0 / 0";
+        }
+    }
+
+    public void UpdateMana(int current, int max)
+    {
+        if (manaSlider != null)
+        {
+            manaSlider.maxValue = max;
+            manaSlider.value = current;
+        }
+        if (manaText != null)
+        {
+            // Đảm bảo max không bằng 0 để tránh lỗi chia cho 0
+            manaText.text = (max > 0) ? $"{current} / {max}" : "0 / 0";
         }
     }
 

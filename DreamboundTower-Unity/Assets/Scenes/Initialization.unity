@@ -379,6 +379,18 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 585003377079373856, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+      propertyPath: m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 585003377079373856, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+      propertyPath: m_HandleRect
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 585003377079373856, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+      propertyPath: m_TargetGraphic
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 823762324567432504, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
       propertyPath: m_Name
       value: GameManager
@@ -676,7 +688,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 6420050950622147695, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+    - {fileID: 1224170015150120616, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}

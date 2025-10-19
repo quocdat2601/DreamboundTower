@@ -36,6 +36,8 @@ public class Character : MonoBehaviour
     public event Action<Character> OnDamaged;
     // Sự kiện này sẽ gửi đi 2 giá trị: currentHP và maxHP
     public event Action<int, int> OnHealthChanged;
+    // Sự kiện này sẽ gửi đi 2 giá trị: currentMana và maxMana
+    public event Action<int, int> OnManaChanged;
     // Sự kiện này đã có, dùng cho Resurrect
     public System.Action<Character> OnDeath;
     #endregion
@@ -93,7 +95,6 @@ public class Character : MonoBehaviour
         }
 
         UpdateHPUI();
-        Debug.Log($"[EQUIP] Applied gear bonus from {gear.itemName}: +{gear.hpBonus} HP, +{gear.attackBonus} ATK, +{gear.defenseBonus} DEF");
     }
 
     public void RemoveGearBonus(GearItem gear)
@@ -114,7 +115,6 @@ public class Character : MonoBehaviour
         }
 
         UpdateHPUI();
-        Debug.Log($"[EQUIP] Removed gear bonus from {gear.itemName}: -{gear.hpBonus} HP, -{gear.attackBonus} ATK, -{gear.defenseBonus} DEF");
     }
     #endregion
 
@@ -132,8 +132,15 @@ public class Character : MonoBehaviour
             CombatEffectManager.Instance.PlayHitEffect(target.transform.position);
         }
         
-        // Truyền "this" với tư cách là kẻ tấn công (attacker)
-        target.TakeDamage(attackPower, this);
+        // Use shield system for player, regular damage for enemies
+        if (target.isPlayer)
+        {
+            target.TakeDamageWithShield(attackPower, this);
+        }
+        else
+        {
+            target.TakeDamage(attackPower, this);
+        }
     }
 
     // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
@@ -178,6 +185,22 @@ public class Character : MonoBehaviour
             hpFillImage.fillAmount = t;
     }
 
+    /// <summary>
+    /// Updates mana UI display
+    /// </summary>
+    public void UpdateManaUI()
+    {
+        // PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
+        OnManaChanged?.Invoke(currentMana, mana);
+
+        // CẬP NHẬT UI CỤC BỘ
+        float t = (float)currentMana / mana;
+        if (manaSlider != null)
+            manaSlider.value = t;
+        if (manaFillImage != null)
+            manaFillImage.fillAmount = t;
+    }
+
     // Tương tự, nếu bạn có hàm Heal(int amount), cũng hãy gọi event ở cuối
     public void Heal(int amount)
     {
@@ -186,6 +209,18 @@ public class Character : MonoBehaviour
 
         // ✅ PHÁT SÓNG TÍN HIỆU
         OnHealthChanged?.Invoke(currentHP, maxHP);
+    }
+
+    /// <summary>
+    /// Restores mana by the specified amount
+    /// </summary>
+    public void RestoreMana(int amount)
+    {
+        currentMana += amount;
+        if (currentMana > mana) currentMana = mana;
+
+        // ✅ PHÁT SÓNG TÍN HIỆU
+        OnManaChanged?.Invoke(currentMana, mana);
     }
 
     void Die()
@@ -228,6 +263,106 @@ public class Character : MonoBehaviour
     public void RestoreFullMana()
     {
         currentMana = mana; // 'mana' là maxMana
+        UpdateManaUI(); // Update mana display
+    }
+    
+    public void RestoreHealth(int amount)
+    {
+        currentHP = Mathf.Min(currentHP + amount, maxHP);
+        UpdateHPUI();
+    }
+    
+    // Shield system
+    private int currentShield = 0;
+    private int shieldTurnsRemaining = 0;
+    private float damageReflectionPercent = 0f;
+    
+    public int CurrentShield => currentShield;
+    public int ShieldTurnsRemaining => shieldTurnsRemaining;
+    public float DamageReflectionPercent => damageReflectionPercent;
+    
+    /// <summary>
+    /// Applies a shield that absorbs damage
+    /// </summary>
+    public void ApplyShield(int shieldAmount, int turns, float reflectionPercent = 0f)
+    {
+        currentShield = shieldAmount;
+        shieldTurnsRemaining = turns;
+        damageReflectionPercent = reflectionPercent;
+        Debug.Log($"[CHARACTER] Applied shield: {shieldAmount} HP for {turns} turns, {reflectionPercent}% reflection");
+    }
+    
+    /// <summary>
+    /// Reduces shield turns and removes if expired
+    /// </summary>
+    public void ReduceShieldTurns()
+    {
+        if (shieldTurnsRemaining > 0)
+        {
+            shieldTurnsRemaining--;
+            if (shieldTurnsRemaining <= 0)
+            {
+                currentShield = 0;
+                damageReflectionPercent = 0f;
+                Debug.Log("[CHARACTER] Shield expired");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Takes damage with shield protection and reflection
+    /// </summary>
+    public int TakeDamageWithShield(int damage, Character attacker)
+    {
+        int reflectedDamage = 0;
+        int actualDamage = damage;
+        
+        // Shield absorbs damage first
+        if (currentShield > 0)
+        {
+            int shieldAbsorbed = Mathf.Min(damage, currentShield);
+            currentShield -= shieldAbsorbed;
+            actualDamage = damage - shieldAbsorbed;
+            
+            Debug.Log($"[CHARACTER] Shield absorbed {shieldAbsorbed} damage. Shield remaining: {currentShield}");
+            
+            // Reflect damage back to attacker
+            if (damageReflectionPercent > 0 && attacker != null)
+            {
+                reflectedDamage = Mathf.RoundToInt(damage * damageReflectionPercent / 100f);
+                attacker.TakeDamage(reflectedDamage, this);
+                Debug.Log($"[CHARACTER] Reflected {reflectedDamage} damage back to {attacker.name}");
+            }
+        }
+        
+        // Apply remaining damage to HP
+        if (actualDamage > 0)
+        {
+            TakeDamage(actualDamage, attacker);
+        }
+        
+        return reflectedDamage;
+    }
+
+    /// <summary>
+    /// Regenerates mana over time (call this in Update or coroutine)
+    /// </summary>
+    public void RegenerateMana(int amount)
+    {
+        if (currentMana < mana)
+        {
+            currentMana = Mathf.Min(mana, currentMana + amount);
+            UpdateManaUI();
+        }
+    }
+    
+    /// <summary>
+    /// Regenerates mana based on percentage of max mana
+    /// </summary>
+    public void RegenerateManaPercent(float percent)
+    {
+        int regenAmount = Mathf.RoundToInt(mana * percent / 100.0f);
+        RegenerateMana(regenAmount);
     }
 
     /// <summary>

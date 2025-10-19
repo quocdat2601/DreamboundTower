@@ -1071,12 +1071,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStatusController
   hpSlider: {fileID: 4161013320489085703}
   hpText: {fileID: 3000845225275520492}
+  manaSlider: {fileID: 4864626374965094248}
+  manaText: {fileID: 1161142902801089491}
   redHeartSprite: {fileID: -205270267638800340, guid: 2ce18ab81c83fac4a9d92e5f5f379f40, type: 3}
   blackHeartSprite: {fileID: 7904136456745960365, guid: 2ce18ab81c83fac4a9d92e5f5f379f40, type: 3}
   heartIcons:
   - {fileID: 1374151748218530528}
   - {fileID: 8357314662665721039}
   - {fileID: 8321321885761188480}
+  goldValueText: {fileID: 0}
 --- !u!1 &4632847021941950732
 GameObject:
   m_ObjectHideFlags: 0
@@ -1307,7 +1310,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0, g: 0.30144882, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1382,7 +1385,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 1, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

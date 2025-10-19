@@ -10,6 +10,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using TMPro;
+using Assets.Scripts.Data;
 
 /// <summary>
 /// Battle system manager for turn-based combat
@@ -45,20 +47,36 @@ public class BattleManager : MonoBehaviour
     public StatBlock overrideStats;
 
     [Header("UI References")]
-    public BattleUIManager uiManager;   // Assign your UIManager here
-    public GameObject defeatPanel;
+    public BattleUIManager uiManager;   // Assign your UIManager here
+    public GameObject defeatPanel;
     public Image battleBackground;
+    
+    [Header("Turn Display")]
+    public TextMeshProUGUI turnText;    // UI text to display turn number
+    
+    [Header("Skill System")]
+    public SkillManager skillManager;   // Reference to skill manager
+    public PassiveSkillManager passiveSkillManager;   // Reference to passive skill manager
 
     // runtime
     private GameObject playerInstance;
     private GameObject[] enemyInstances;
     private Character playerCharacter; // Reference to the player's Character component for quick access
 
-    // state & selection
-    private int selectedEnemyIndex = -1;
+    // state & selection
+    private int selectedEnemyIndex = -1;
     private SkillData selectedSkill = null; // Stores the currently selected skill
-    private bool playerTurn = true;
-    private bool busy = false;
+    private bool playerTurn = true;
+    
+    // turn counter
+    private int currentTurn = 1;
+    
+    // Public properties for SkillManager access
+    public bool PlayerTurn 
+    { 
+        get { return playerTurn; } 
+    }
+    
 
     #endregion
 
@@ -66,6 +84,20 @@ public class BattleManager : MonoBehaviour
 
     void Start()
     {
+        // Auto-assign SkillManager if not set
+        if (skillManager == null)
+        {
+            skillManager = FindFirstObjectByType<SkillManager>();
+            if (skillManager != null)
+            {
+                Debug.Log("[BATTLE] Auto-assigned SkillManager from scene");
+            }
+            else
+            {
+                Debug.LogError("[BATTLE] No SkillManager found in scene! Please assign one in Inspector.");
+            }
+        }
+        
         // Use a coroutine for setup, similar to ShopManager
         StartCoroutine(SetupBattle());
     }
@@ -116,14 +148,19 @@ public class BattleManager : MonoBehaviour
             uiManager.Initialize(this);
         }
 
+        // Initialize turn display
+        UpdateTurnDisplay();
+
         SpawnEnemies();
         AutoBindEnemySlotButtons();
         RefreshSelectionVisual();
+        
+        // Debug battle state after initialization
     }
     void Update()
     {
-        // Check for debug key presses if the battle is not busy
-        if (busy) return;
+        // Check for debug key presses if the battle is not busy
+        // Removed busy check - players can now use multiple actions per turn
 
         // Make sure a keyboard is connected before trying to read from it
         if (Keyboard.current == null) return;
@@ -162,21 +199,54 @@ public class BattleManager : MonoBehaviour
 
             if (playerCharacter != null)
             {
+                // Initialize SkillManager
+                if (skillManager != null)
+                {
+                    skillManager.AssignPlayerCharacter(playerCharacter);
+                    skillManager.battleManager = this;
+                }
+                
+                // Initialize PassiveSkillManager
+                if (passiveSkillManager != null)
+                {
+                    passiveSkillManager.playerCharacter = playerCharacter;
+                    passiveSkillManager.playerSkills = playerInstance.GetComponent<PlayerSkills>();
+                    passiveSkillManager.ApplyAllPassiveSkills();
+                }
+                else
+                {
+                    // Auto-assign PassiveSkillManager if not set
+                    passiveSkillManager = FindFirstObjectByType<PassiveSkillManager>();
+                    if (passiveSkillManager != null)
+                    {
+                        passiveSkillManager.playerCharacter = playerCharacter;
+                        passiveSkillManager.playerSkills = playerInstance.GetComponent<PlayerSkills>();
+                        passiveSkillManager.ApplyAllPassiveSkills();
+                        Debug.Log("[BATTLE] Auto-assigned PassiveSkillManager from scene");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[BATTLE] No PassiveSkillManager found in scene! Passive skills won't work.");
+                    }
+                }
+
                 // Nạp HP/Mana (nếu bạn muốn duy trì HP/Mana giữa các trận đấu)
                 if (GameManager.Instance.currentRunData != null)
                 {
                     playerCharacter.currentHP = GameManager.Instance.currentRunData.playerData.currentHP;
-                    // playerCharacter.currentMana = GameManager.Instance.currentRunData.playerData.currentMana;
+                    playerCharacter.currentMana = GameManager.Instance.currentRunData.playerData.currentMana;
                 }
 
                 // Đăng ký lắng nghe sự kiện "chết"
                 playerCharacter.OnDeath += HandleCharacterDeath;
+                
+                // Subscribe to mana changes for UI updates
+                playerCharacter.OnManaChanged += OnPlayerManaChanged;
 
-                // Cập nhật UI lần cuối
-                playerCharacter.UpdateHPUI();
+        // Cập nhật UI lần cuối
+        playerCharacter.UpdateHPUI();
+        playerCharacter.UpdateManaUI();
 
-                Debug.Log("[BATTLE] Player Spawned from GameManager.");
-                Debug.Log($"[BATTLE] Player Stats: HP={playerCharacter.currentHP}/{playerCharacter.maxHP}, STR={playerCharacter.attackPower}, DEF={playerCharacter.defense}, MANA={playerCharacter.mana}, INT={playerCharacter.intelligence}, AGI={playerCharacter.agility}");
             }
             else
             {
@@ -226,7 +296,6 @@ public class BattleManager : MonoBehaviour
             archetypeId = mapData.pendingEnemyArchetypeId;
             absoluteFloor = mapData.pendingEnemyFloor;
             encounterKind = (EnemyKind)mapData.pendingEnemyKind;
-            Debug.Log($"[BATTLE] Loaded enemy data from RunData: floor={absoluteFloor}, kind={encounterKind}, archetype={archetypeId}");
         }
         else
         {
@@ -255,7 +324,6 @@ public class BattleManager : MonoBehaviour
             }
         }
         enemyCount = Mathf.Min(enemyCount, enemySlots.Length);
-        Debug.Log($"[BATTLE] Spawning {enemyCount} enemies...");
 
         // --- 4. LỌC DANH SÁCH QUÁI VẬT PHÙ HỢP ---
         List<EnemyTemplateSO> availableEnemies = null;
@@ -409,21 +477,25 @@ public class BattleManager : MonoBehaviour
 
     #region Player Actions
 
-    // Called by SkillIconUI when a skill button is clicked
-    public void OnPlayerSelectSkill(BaseSkillSO skill)
+    // Called by SkillIconUI when a skill button is clicked
+    public void OnPlayerSelectSkill(BaseSkillSO skill)
     {
-        if (!playerTurn || busy) return;
+        if (!playerTurn) return;
         if (skill is SkillData activeSkill)
         {
-            Debug.Log($"Player selected skill: {activeSkill.displayName}");
             selectedSkill = activeSkill;
-            // TODO: Highlight selected skill, maybe show targeting UI cursor
-        }
+            
+            // If it's a self-targeting skill, execute it immediately
+            if (activeSkill.target == TargetType.Self || activeSkill.target == TargetType.AllAlly)
+            {
+                StartCoroutine(PlayerUseSkillRoutine(activeSkill, -1)); // -1 indicates no enemy target
+            }
+            // TODO: Highlight selected skill, maybe show targeting UI cursor
+        }
     }
 
     public void OnPlayerDeselectSkill()
     {
-        Debug.Log("Player deselected skill.");
         selectedSkill = null;
         // (Logic để bỏ highlight mục tiêu sẽ ở đây)
     }
@@ -431,7 +503,7 @@ public class BattleManager : MonoBehaviour
     // Called from the UI Attack button's OnClick event
     public void OnAttackButton()
     {
-        if (!playerTurn || busy) return;
+        if (!playerTurn) return;
         if (playerInstance == null) return;
         if (selectedEnemyIndex < 0 || enemyInstances == null || selectedEnemyIndex >= enemyInstances.Length || enemyInstances[selectedEnemyIndex] == null)
         {
@@ -502,19 +574,35 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    // Called when an enemy slot is clicked
-    public void SelectEnemy(int index)
+    // Called when an enemy slot is clicked
+    public void SelectEnemy(int index)
     {
-        if (!playerTurn || busy) return;
+        
+        if (!playerTurn) 
+        {
+            Debug.LogWarning($"[BATTLE] Cannot select enemy - not player turn");
+            return;
+        }
+        
         if (enemyInstances == null || index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return;
 
-        // If a skill is selected, clicking an enemy executes the skill
-        if (selectedSkill != null)
+
+        // If a skill is selected, check if it needs an enemy target
+        if (selectedSkill != null)
         {
-            StartCoroutine(PlayerUseSkillRoutine(selectedSkill, index));
+            // Self-targeting skills don't need enemy selection
+            if (selectedSkill.target == TargetType.Self || selectedSkill.target == TargetType.AllAlly)
+            {
+                StartCoroutine(PlayerUseSkillRoutine(selectedSkill, -1)); // -1 indicates no enemy target
+            }
+            else
+            {
+                // Enemy-targeting skills need enemy selection
+                StartCoroutine(PlayerUseSkillRoutine(selectedSkill, index));
+            }
         }
-        // If no skill is selected, clicking an enemy selects them for a basic attack
-        else
+        // If no skill is selected, clicking an enemy selects them for a basic attack
+        else
         {
             selectedEnemyIndex = index;
             RefreshSelectionVisual();
@@ -545,14 +633,25 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
+    
+    /// <summary>
+    /// Updates the turn display UI
+    /// </summary>
+    void UpdateTurnDisplay()
+    {
+        if (turnText != null)
+        {
+            turnText.text = $"Turn {currentTurn}";
+        }
+        
+    }
     #endregion
 
     #region Turn Coroutines
 
-    // Coroutine for the player's basic attack
-    IEnumerator PlayerAttackRoutine(int enemyIndex)
+    // Coroutine for the player's basic attack
+    IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
-        busy = true;
         playerTurn = false;
 
         var target = enemyInstances[enemyIndex].GetComponent<Character>();
@@ -563,6 +662,125 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(attackDelay);
 
+        if (AllEnemiesDead())
+        {
+            yield return StartCoroutine(VictoryRoutine());
+            yield break;
+        }
+
+        yield return StartCoroutine(EnemyTurnRoutine());
+        
+        // End of complete turn - increment turn counter
+        currentTurn++;
+        playerTurn = true;
+        UpdateTurnDisplay();
+        
+        // Regenerate mana at the start of player turn
+        if (playerCharacter != null)
+        {
+            // Simple mana regeneration: 5% of max mana per turn
+            int oldMana = playerCharacter.currentMana;
+            playerCharacter.RegenerateManaPercent(5.0f);
+            if (playerCharacter.currentMana > oldMana)
+            {
+                Debug.Log($"[BATTLE] Mana regenerated: {playerCharacter.currentMana - oldMana} (now {playerCharacter.currentMana}/{playerCharacter.mana})");
+            }
+            
+            // Reduce shield turns
+            playerCharacter.ReduceShieldTurns();
+        }
+    }
+
+    // Coroutine for the player using a skill
+    IEnumerator PlayerUseSkillRoutine(SkillData skill, int enemyIndex)
+    {
+        
+        // Use SkillManager to handle skill usage
+        if (skillManager != null)
+        {
+            // Check if skill can be used (mana, cooldown, turn state) BEFORE changing battle state
+            if (!skillManager.CanUseSkill(skill))
+            {
+                Debug.LogWarning($"[BATTLE] Cannot use skill '{skill.displayName}' - insufficient mana or on cooldown");
+                selectedSkill = null;
+                yield break;
+            }
+            
+            // Now that we know the skill can be used, change battle state
+            playerTurn = false;
+            
+            // Use the skill (consumes mana and sets cooldown)
+            skillManager.UseSkill(skill);
+            
+            // Calculate damage
+            int damage = skillManager.CalculateSkillDamage(skill);
+            
+            // Apply skill effect based on target type
+            switch (skill.target)
+            {
+                case TargetType.SingleEnemy:
+                    if (enemyIndex >= 0 && enemyIndex < enemyInstances.Length)
+                    {
+                        var target = enemyInstances[enemyIndex].GetComponent<Character>();
+                        if (target != null)
+                        {
+                            // Use shield system for player, regular damage for enemies
+                            if (target == playerCharacter)
+                            {
+                                target.TakeDamageWithShield(damage, playerCharacter);
+                            }
+                            else
+                            {
+                                target.TakeDamage(damage, playerCharacter);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError($"[BATTLE] Invalid enemy index {enemyIndex} for SingleEnemy skill");
+                    }
+                    break;
+                    
+                case TargetType.AllEnemies:
+                    for (int i = 0; i < enemyInstances.Length; i++)
+                    {
+                        if (enemyInstances[i] != null)
+                        {
+                            var enemyTarget = enemyInstances[i].GetComponent<Character>();
+                            if (enemyTarget != null)
+                            {
+                                enemyTarget.TakeDamage(damage, playerCharacter);
+                            }
+                        }
+                    }
+                    break;
+                    
+                case TargetType.Self:
+                    // Apply self-targeting effects (buffs, heals, shields)
+                    ApplySelfTargetSkill(skill, damage);
+                    break;
+                    
+                case TargetType.AllAlly:
+                    // Apply to all allies (including player)
+                    ApplySelfTargetSkill(skill, damage);
+                    break;
+                    
+                default:
+                    Debug.LogWarning($"[BATTLE] Unhandled target type: {skill.target}");
+                    break;
+            }
+        }
+        else
+        {
+            Debug.LogError("[BATTLE] SkillManager not assigned!");
+            selectedSkill = null;
+            playerTurn = true;
+            yield break;
+        }
+
+        yield return new WaitForSeconds(attackDelay);
+
+        selectedSkill = null; // Reset selected skill after use
 
         if (AllEnemiesDead())
         {
@@ -571,49 +789,73 @@ public class BattleManager : MonoBehaviour
         }
 
         yield return StartCoroutine(EnemyTurnRoutine());
+        
+        // Reduce skill cooldowns at the end of each turn
+        if (skillManager != null)
+        {
+            skillManager.ReduceSkillCooldowns();
+        }
+        
+        // End of complete turn - increment turn counter
+        currentTurn++;
         playerTurn = true;
-        busy = false;
+        UpdateTurnDisplay();
+        
+        // Regenerate mana at the start of player turn
+        if (playerCharacter != null)
+        {
+            // Simple mana regeneration: 5% of max mana per turn
+            int oldMana = playerCharacter.currentMana;
+            playerCharacter.RegenerateManaPercent(5.0f);
+            if (playerCharacter.currentMana > oldMana)
+            {
+                Debug.Log($"[BATTLE] Mana regenerated: {playerCharacter.currentMana - oldMana} (now {playerCharacter.currentMana}/{playerCharacter.mana})");
+            }
+            
+            // Reduce shield turns
+            playerCharacter.ReduceShieldTurns();
+        }
     }
 
-    // Coroutine for the player using a skill
-    IEnumerator PlayerUseSkillRoutine(SkillData skill, int enemyIndex)
+    /// <summary>
+    /// Checks if a skill can be used (delegates to SkillManager)
+    /// </summary>
+    public bool CanUseSkill(SkillData skill)
     {
-        busy = true;
-        playerTurn = false;
-
-        Debug.Log($"Executing skill '{skill.displayName}'...");
-        // TODO: Subtract mana, check cooldown
-        // TODO: Apply skill effects (damage, buffs/debuffs)
-
-        // Example: Apply damage from skill
-        var target = enemyInstances[enemyIndex].GetComponent<Character>();
-        if (target != null)
+        if (skillManager != null)
         {
-            // This is a simplified damage calculation, you can use your TooltipFormatter logic here
-            int damage = skill.baseDamage; // Add scaling stat calculation here
-            target.TakeDamage(damage, playerCharacter);
-            Debug.Log($"[BATTLE] Player used {skill.displayName} on {target.name} for {damage} damage.");
+            return skillManager.CanUseSkill(skill);
         }
-
-        yield return new WaitForSeconds(attackDelay);
-
-        selectedSkill = null; // Reset selected skill after use
-
-        if (AllEnemiesDead())
+        return false;
+    }
+    
+    /// <summary>
+    /// Checks if a skill is on cooldown (delegates to SkillManager)
+    /// </summary>
+    public bool IsSkillOnCooldown(SkillData skill)
+    {
+        if (skillManager != null)
         {
-            yield return StartCoroutine(VictoryRoutine());
-            yield break;
+            return skillManager.IsSkillOnCooldown(skill);
         }
-
-        yield return StartCoroutine(EnemyTurnRoutine());
-        playerTurn = true;
-        busy = false;
+        return false;
+    }
+    
+    /// <summary>
+    /// Gets skill cooldown (delegates to SkillManager)
+    /// </summary>
+    public int GetSkillCooldown(SkillData skill)
+    {
+        if (skillManager != null)
+        {
+            return skillManager.GetSkillCooldown(skill);
+        }
+        return 0;
     }
 
-    // Coroutine for the enemy's turn
+    // Coroutine for the enemy's turn
     IEnumerator EnemyTurnRoutine()
     {
-        Debug.Log("--- Enemy Turn ---");
         for (int i = 0; i < (enemyInstances?.Length ?? 0); i++)
         {
             if (enemyInstances[i] == null) continue;
@@ -626,12 +868,10 @@ public class BattleManager : MonoBehaviour
             if (enemyChar != null && playerCharacter != null)
             {
                 enemyChar.Attack(playerCharacter);
-                Debug.Log($"[BATTLE] Enemy {i} attacked player for {enemyChar.attackPower} damage");
             }
             yield return new WaitForSeconds(attackDelay);
         }
 
-        Debug.Log("--- Player Turn ---");
     }
 
     #endregion
@@ -639,10 +879,9 @@ public class BattleManager : MonoBehaviour
     #region Battle Outcome
 
     // Coroutine for when the player is victorious
-    IEnumerator VictoryRoutine()
+    IEnumerator VictoryRoutine()
     {
         Debug.Log("[BATTLE] Victory! All enemies defeated!");
-        busy = true;
         yield return new WaitForSeconds(1.5f);
 
         string sceneToReturnTo = "Zone1"; // Scene mặc định nếu có lỗi
@@ -697,7 +936,6 @@ public class BattleManager : MonoBehaviour
     IEnumerator DefeatRoutine()
     {
         Debug.Log("[BATTLE] Player died.");
-        busy = true;
 
         // ✅ GỌI GAMEMANAGER ĐỂ XỬ LÝ HẬU QUẢ
         bool runEnded = GameManager.Instance.HandlePlayerDefeat();
@@ -755,12 +993,26 @@ public class BattleManager : MonoBehaviour
         persistentPlayer.SetActive(false);
     }
 
-    // Checks if all enemies are dead
-    bool AllEnemiesDead()
+    // Checks if all enemies are dead
+    bool AllEnemiesDead()
     {
-        if (enemyInstances == null) return true;
-        foreach (var e in enemyInstances) if (e != null) return false;
-        return true;
+        if (enemyInstances == null) 
+        {
+            Debug.Log("[BATTLE] AllEnemiesDead: enemyInstances is null, returning true");
+            return true;
+        }
+        
+        int aliveEnemies = 0;
+        foreach (var e in enemyInstances) 
+        {
+            if (e != null) 
+            {
+                aliveEnemies++;
+            }
+        }
+        
+        Debug.Log($"[BATTLE] AllEnemiesDead: {aliveEnemies} enemies alive out of {enemyInstances.Length}");
+        return aliveEnemies == 0;
     }
 
     // Checks if a specific enemy has died
@@ -827,9 +1079,63 @@ public class BattleManager : MonoBehaviour
 
     private void HandleCharacterDeath(Character deadCharacter)
     {
+        Debug.Log($"[BATTLE] Character {deadCharacter.name} has died!");
+        Debug.Log($"[BATTLE] Starting ProcessDeathRoutine for {deadCharacter.name}");
         // Dùng một coroutine nhỏ để đợi một chút, cho phép các hiệu ứng
         // như animation chết hoặc gimmick hồi sinh có thời gian để chạy.
         StartCoroutine(ProcessDeathRoutine(deadCharacter));
+    }
+    
+    void OnPlayerManaChanged(int currentMana, int maxMana)
+    {
+        // Update mana UI through PlayerStatusController
+        PlayerStatusController statusController = FindFirstObjectByType<PlayerStatusController>();
+        if (statusController != null)
+        {
+            statusController.UpdateMana(currentMana, maxMana);
+        }
+    }
+    
+    /// <summary>
+    /// Applies self-targeting skills (buffs, heals, shields, etc.)
+    /// </summary>
+    void ApplySelfTargetSkill(SkillData skill, int effectValue)
+    {
+        if (playerCharacter == null) return;
+        
+        // For now, we'll implement basic effects based on skill name or description
+        // In a full system, you'd have more sophisticated effect handling
+        
+        string skillName = skill.displayName.ToLower();
+        
+        if (skillName.Contains("heal") || skillName.Contains("restore"))
+        {
+            // Healing skill
+            int healAmount = effectValue;
+            playerCharacter.RestoreHealth(healAmount);
+            Debug.Log($"[BATTLE] Player healed for {healAmount} HP");
+        }
+        else if (skillName.Contains("shield") || skillName.Contains("barrier"))
+        {
+            // Shield skill - apply shield based on skill description
+            int shieldAmount = Mathf.RoundToInt(playerCharacter.maxHP * 0.15f); // 15% of max HP
+            int turns = 2; // 2 turns duration
+            float reflection = 20f; // 20% damage reflection
+            
+            playerCharacter.ApplyShield(shieldAmount, turns, reflection);
+            Debug.Log($"[BATTLE] Player gained shield: {shieldAmount} HP for {turns} turns, {reflection}% reflection");
+        }
+        else if (skillName.Contains("buff") || skillName.Contains("boost"))
+        {
+            // Buff skill - could add temporary stat bonuses
+            Debug.Log($"[BATTLE] Player gained buff effect (value: {effectValue})");
+            // TODO: Implement buff system
+        }
+        else
+        {
+            // Generic self-targeting skill
+            Debug.Log($"[BATTLE] Applied self-targeting skill '{skill.displayName}' with value {effectValue}");
+        }
     }
 
     private IEnumerator ProcessDeathRoutine(Character deadCharacter)
@@ -870,9 +1176,11 @@ public class BattleManager : MonoBehaviour
 
                 // Destroy the enemy GameObject
                 Destroy(enemyInstances[i]);
+                Debug.Log($"[BATTLE] Destroyed enemy {i}");
 
                 // Mark slot as empty
                 enemyInstances[i] = null;
+                Debug.Log($"[BATTLE] Marked enemy slot {i} as null");
 
                 // If this enemy was selected as target, deselect it
                 if (selectedEnemyIndex == i)
@@ -880,6 +1188,15 @@ public class BattleManager : MonoBehaviour
                     selectedEnemyIndex = -1;
                     RefreshSelectionVisual();
                 }
+                
+                // Check if all enemies are now dead after destroying this one
+                Debug.Log($"[BATTLE] Checking victory condition after destroying enemy {i}");
+                if (AllEnemiesDead())
+                {
+                    Debug.Log($"[BATTLE] All enemies defeated! Starting victory routine...");
+                    StartCoroutine(VictoryRoutine());
+                }
+                
                 break; // Exit loop since we found and processed the enemy
             }
         }
