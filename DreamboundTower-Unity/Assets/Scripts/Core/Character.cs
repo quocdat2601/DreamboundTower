@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System;
 using DG.Tweening;
+using StatusEffects;
 
 /// <summary>
 /// Core character class handling stats, combat, and visual effects
@@ -29,6 +30,21 @@ public class Character : MonoBehaviour
     public int currentMana;                 // <-- THÊM MỚI
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
+    
+    [Header("Passive Bonuses")]
+    [Tooltip("Percentage bonus to mana regeneration from passive skills")]
+    public float manaRegenBonus = 0f; // <-- THÊM MỚI
+    [Tooltip("Percentage bonus to physical damage from passive skills")]
+    public float physicalDamageBonus = 0f; // Physical damage bonus (0.05 = 5%)
+    [Tooltip("Percentage bonus to magic damage from passive skills")]
+    public float magicDamageBonus = 0f; // Magic damage bonus (0.05 = 5%)
+    [Tooltip("Percentage of damage dealt returned as healing")]
+    public float lifestealPercent = 0f; // Lifesteal percentage (0.05 = 5%)
+    [Tooltip("Chance to dodge incoming attacks")]
+    public float dodgeChance = 0f; // Dodge chance (0.1 = 10%)
+    [Tooltip("Percentage damage reduction from all sources")]
+    public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
+    
     #endregion
 
     #region Events
@@ -126,6 +142,9 @@ public class Character : MonoBehaviour
         // Play attack animation
         PlayAttackAnimation();
         
+        // Calculate damage with passive bonuses
+        int totalDamage = CalculatePhysicalDamage(attackPower, target);
+        
         // Trigger hit effect at target position
         if (CombatEffectManager.Instance != null)
         {
@@ -135,18 +154,132 @@ public class Character : MonoBehaviour
         // Use shield system for player, regular damage for enemies
         if (target.isPlayer)
         {
-            target.TakeDamageWithShield(attackPower, this);
+            target.TakeDamageWithShield(totalDamage, this);
         }
         else
         {
-            target.TakeDamage(attackPower, this);
+            target.TakeDamage(totalDamage, this);
+        }
+        
+        // Apply regular lifesteal if available
+        if (lifestealPercent > 0f)
+        {
+            int healAmount = Mathf.RoundToInt(totalDamage * lifestealPercent);
+            RestoreHealth(healAmount);
+            Debug.Log($"[PASSIVE] Lifesteal: {healAmount} HP restored from {totalDamage} damage");
+        }
+        
+        // Apply conditional lifesteal if ConditionalPassiveManager exists
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            conditionalManager.ApplyConditionalLifesteal(totalDamage);
         }
     }
+    
+    /// <summary>
+    /// Calculates physical damage with passive bonuses
+    /// </summary>
+    public int CalculatePhysicalDamage(int baseDamage)
+    {
+        float bonusMultiplier = 1f + physicalDamageBonus;
+        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
+    }
+    
+    /// <summary>
+    /// Calculates physical damage with conditional bonuses against a specific target
+    /// </summary>
+    public int CalculatePhysicalDamage(int baseDamage, Character target)
+    {
+        float bonusMultiplier = 1f + physicalDamageBonus;
+        
+        // Apply conditional bonuses if ConditionalPassiveManager exists
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            return conditionalManager.CalculatePhysicalDamage(Mathf.RoundToInt(baseDamage * bonusMultiplier), target);
+        }
+        
+        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
+    }
+    
+    /// <summary>
+    /// Calculates magic damage with passive bonuses
+    /// </summary>
+    public int CalculateMagicDamage(int baseDamage)
+    {
+        float bonusMultiplier = 1f + magicDamageBonus;
+        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
+    }
+    
+    /// <summary>
+    /// Checks if character dodges an attack
+    /// </summary>
+    public bool CheckDodge()
+    {
+        if (dodgeChance <= 0f) return false;
+        
+        float roll = UnityEngine.Random.Range(0f, 1f);
+        bool dodged = roll < dodgeChance;
+        
+        if (dodged)
+        {
+            Debug.Log($"[PASSIVE] {name} dodged! Roll: {roll:F2} < {dodgeChance:F2}");
+        }
+        
+        return dodged;
+    }
+    
+    /// <summary>
+    /// Checks if character is a boss enemy
+    /// </summary>
+    public bool IsBoss()
+    {
+        // This could be determined by a tag, name, or specific property
+        // For now, we'll check if the name contains "Boss"
+        return name.ToLower().Contains("boss");
+    }
+
+    /// <summary>
+    /// Applies damage reduction to incoming damage
+    /// </summary>
+    public int ApplyDamageReduction(int damage)
+    {
+        if (damageReduction <= 0f) return damage;
+        
+        int reducedDamage = Mathf.RoundToInt(damage * (1f - damageReduction));
+        int reductionAmount = damage - reducedDamage;
+        
+        if (reductionAmount > 0)
+        {
+            Debug.Log($"[PASSIVE] Damage reduction: {damage} -> {reducedDamage} (-{reductionAmount})");
+        }
+        
+        return reducedDamage;
+    }
+    
 
     // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
     public void TakeDamage(int damage, Character attacker)
     {
-        int actualDamage = Mathf.Max(1, damage - defense);
+        // Check for dodge first
+        if (CheckDodge())
+        {
+            return; // Attack missed, no damage taken
+        }
+        
+        // Apply conditional damage reduction first if ConditionalPassiveManager exists
+        int conditionallyReducedDamage = damage;
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            conditionallyReducedDamage = conditionalManager.ApplyConditionalDamageReduction(damage, attacker);
+        }
+        
+        // Apply regular damage reduction
+        int reducedDamage = ApplyDamageReduction(conditionallyReducedDamage);
+        
+        int actualDamage = Mathf.Max(1, reducedDamage - defense);
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
 
@@ -272,41 +405,58 @@ public class Character : MonoBehaviour
         UpdateHPUI();
     }
     
-    // Shield system
-    private int currentShield = 0;
-    private int shieldTurnsRemaining = 0;
-    private float damageReflectionPercent = 0f;
-    
-    public int CurrentShield => currentShield;
-    public int ShieldTurnsRemaining => shieldTurnsRemaining;
-    public float DamageReflectionPercent => damageReflectionPercent;
+    // Generic Status Effect Integration
+    public int CurrentShield => ShieldEffectHandler.GetShieldAmount(this);
+    public int ShieldTurnsRemaining => ShieldEffectHandler.GetShieldTurns(this);
+    public float DamageReflectionPercent => ShieldEffectHandler.GetReflectPercent(this);
     
     /// <summary>
-    /// Applies a shield that absorbs damage
+    /// Gets the intensity value of a status effect
     /// </summary>
-    public void ApplyShield(int shieldAmount, int turns, float reflectionPercent = 0f)
+    private int GetStatusEffectValue<T>() where T : StatusEffect
     {
-        currentShield = shieldAmount;
-        shieldTurnsRemaining = turns;
-        damageReflectionPercent = reflectionPercent;
-        Debug.Log($"[CHARACTER] Applied shield: {shieldAmount} HP for {turns} turns, {reflectionPercent}% reflection");
+        if (StatusEffectManager.Instance == null) return 0;
+        
+        var effect = StatusEffectManager.Instance.GetEffect(this, typeof(T)) as T;
+        return effect?.intensity ?? 0;
     }
     
     /// <summary>
-    /// Reduces shield turns and removes if expired
+    /// Gets the duration of a status effect
     /// </summary>
+    private int GetStatusEffectDuration<T>() where T : StatusEffect
+    {
+        if (StatusEffectManager.Instance == null) return 0;
+        
+        var effect = StatusEffectManager.Instance.GetEffect(this, typeof(T)) as T;
+        return effect?.duration ?? 0;
+    }
+    
+    /// <summary>
+    /// Checks if character has a specific status effect
+    /// </summary>
+    public bool HasStatusEffect<T>() where T : StatusEffect
+    {
+        if (StatusEffectManager.Instance == null) return false;
+        return StatusEffectManager.Instance.HasEffect(this, typeof(T));
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility - now uses ShieldEffectHandler
+    /// </summary>
+    [System.Obsolete("Use ShieldEffectHandler.ApplyShield() instead")]
+    public void ApplyShield(int shieldAmount, int turns, float reflectionPercent = 0f)
+    {
+        ShieldEffectHandler.ApplyShield(this, shieldAmount, turns, reflectionPercent);
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility - now handled by StatusEffectManager
+    /// </summary>
+    [System.Obsolete("Status effects are now handled automatically by StatusEffectManager")]
     public void ReduceShieldTurns()
     {
-        if (shieldTurnsRemaining > 0)
-        {
-            shieldTurnsRemaining--;
-            if (shieldTurnsRemaining <= 0)
-            {
-                currentShield = 0;
-                damageReflectionPercent = 0f;
-                Debug.Log("[CHARACTER] Shield expired");
-            }
-        }
+        // This is now handled automatically by StatusEffectManager
     }
     
     /// <summary>
@@ -317,21 +467,24 @@ public class Character : MonoBehaviour
         int reflectedDamage = 0;
         int actualDamage = damage;
         
+        // Get current shield and reflect values from status effects
+        int currentShield = CurrentShield;
+        float reflectPercent = DamageReflectionPercent;
+        
         // Shield absorbs damage first
         if (currentShield > 0)
         {
             int shieldAbsorbed = Mathf.Min(damage, currentShield);
-            currentShield -= shieldAbsorbed;
             actualDamage = damage - shieldAbsorbed;
             
-            Debug.Log($"[CHARACTER] Shield absorbed {shieldAbsorbed} damage. Shield remaining: {currentShield}");
+            // Reduce shield amount using ShieldEffectHandler
+            ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
             
             // Reflect damage back to attacker
-            if (damageReflectionPercent > 0 && attacker != null)
+            if (reflectPercent > 0 && attacker != null)
             {
-                reflectedDamage = Mathf.RoundToInt(damage * damageReflectionPercent / 100f);
+                reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
                 attacker.TakeDamage(reflectedDamage, this);
-                Debug.Log($"[CHARACTER] Reflected {reflectedDamage} damage back to {attacker.name}");
             }
         }
         
@@ -361,7 +514,14 @@ public class Character : MonoBehaviour
     /// </summary>
     public void RegenerateManaPercent(float percent)
     {
-        int regenAmount = Mathf.RoundToInt(mana * percent / 100.0f);
+        // Add passive bonus to base regeneration percentage
+        // percent is already in percentage form (5.0f = 5%)
+        // manaRegenBonus is in decimal form (0.05 = 5%)
+        float totalPercent = percent + (manaRegenBonus * 100f);
+        int regenAmount = Mathf.RoundToInt(mana * totalPercent / 100.0f);
+        
+        // Mana regeneration with passive bonus
+        
         RegenerateMana(regenAmount);
     }
 
@@ -370,8 +530,40 @@ public class Character : MonoBehaviour
     /// </summary>
     public void RemoveAllNegativeStatusEffects()
     {
-        // TODO: Implement when status effect system is added
-        // activeEffects.RemoveAll(effect => effect.isNegative == true);
+        // Use StatusEffectManager to remove negative effects
+        if (StatusEffectManager.Instance != null)
+        {
+            StatusEffectManager.Instance.RemoveAllNegativeEffects(this);
+        }
+    }
+    
+
+    /// <summary>
+    /// Resets mana regeneration bonus to zero (used when clearing passive skills)
+    /// </summary>
+    public void ResetManaRegenBonus()
+    {
+        manaRegenBonus = 0f;
+    }
+    
+    /// <summary>
+    /// Resets all passive skill bonuses to zero (used when clearing passive skills)
+    /// </summary>
+    public void ResetAllPassiveBonuses()
+    {
+        manaRegenBonus = 0f;
+        physicalDamageBonus = 0f;
+        magicDamageBonus = 0f;
+        lifestealPercent = 0f;
+        dodgeChance = 0f;
+        damageReduction = 0f;
+        
+        // Reset conditional passive bonuses if ConditionalPassiveManager exists
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            conditionalManager.ResetAllConditionalBonuses();
+        }
     }
     #endregion
     

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Assets.Scripts.Data;
+using StatusEffects;
 
 /// <summary>
 /// Manages skill cooldowns, validation, and usage for the battle system

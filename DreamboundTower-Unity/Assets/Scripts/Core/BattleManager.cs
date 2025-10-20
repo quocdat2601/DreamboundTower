@@ -8,6 +8,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
+using StatusEffects;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
@@ -150,6 +151,9 @@ public class BattleManager : MonoBehaviour
 
         // Initialize turn display
         UpdateTurnDisplay();
+        
+        // Refresh CombatEffectManager canvas reference for new scene
+        CombatEffectManager.Instance?.RefreshCanvasReference();
 
         SpawnEnemies();
         AutoBindEnemySlotButtons();
@@ -206,12 +210,17 @@ public class BattleManager : MonoBehaviour
                     skillManager.battleManager = this;
                 }
                 
-                // Initialize PassiveSkillManager
+                // Initialize PassiveSkillManager (only if not already applied)
                 if (passiveSkillManager != null)
                 {
                     passiveSkillManager.playerCharacter = playerCharacter;
                     passiveSkillManager.playerSkills = playerInstance.GetComponent<PlayerSkills>();
-                    passiveSkillManager.ApplyAllPassiveSkills();
+                    
+                    // Only apply passive skills if they haven't been applied yet
+                    if (passiveSkillManager.appliedModifiers.Count == 0)
+                    {
+                        passiveSkillManager.ApplyAllPassiveSkills();
+                    }
                 }
                 else
                 {
@@ -222,7 +231,6 @@ public class BattleManager : MonoBehaviour
                         passiveSkillManager.playerCharacter = playerCharacter;
                         passiveSkillManager.playerSkills = playerInstance.GetComponent<PlayerSkills>();
                         passiveSkillManager.ApplyAllPassiveSkills();
-                        Debug.Log("[BATTLE] Auto-assigned PassiveSkillManager from scene");
                     }
                     else
                     {
@@ -670,24 +678,51 @@ public class BattleManager : MonoBehaviour
 
         yield return StartCoroutine(EnemyTurnRoutine());
         
+        // Process end-of-turn status effects
+        if (StatusEffectManager.Instance != null)
+        {
+            StatusEffectManager.Instance.ProcessEndOfTurnEffects();
+        }
+        
+        // Reduce skill cooldowns at the end of each turn
+        if (skillManager != null)
+        {
+            skillManager.ReduceSkillCooldowns();
+        }
+        
         // End of complete turn - increment turn counter
         currentTurn++;
         playerTurn = true;
         UpdateTurnDisplay();
         
+        // Process start-of-turn status effects
+        if (StatusEffectManager.Instance != null)
+        {
+            StatusEffectManager.Instance.ProcessStartOfTurnEffects();
+        }
+        
         // Regenerate mana at the start of player turn
         if (playerCharacter != null)
         {
-            // Simple mana regeneration: 5% of max mana per turn
+            // Calculate total mana regeneration: base 5% + passive bonuses
             int oldMana = playerCharacter.currentMana;
-            playerCharacter.RegenerateManaPercent(5.0f);
+            float totalRegenPercent = 5.0f; // Base 5% per turn
+            
+            // Add passive skill mana regeneration per turn (Divine Resonance)
+            var conditionalManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
+            if (conditionalManager != null && conditionalManager.manaRegenPerTurn > 0f)
+            {
+                totalRegenPercent += conditionalManager.manaRegenPerTurn * 100f; // Convert decimal to percentage
+            }
+            
+            // Apply combined mana regeneration
+            playerCharacter.RegenerateManaPercent(totalRegenPercent);
             if (playerCharacter.currentMana > oldMana)
             {
                 Debug.Log($"[BATTLE] Mana regenerated: {playerCharacter.currentMana - oldMana} (now {playerCharacter.currentMana}/{playerCharacter.mana})");
             }
             
-            // Reduce shield turns
-            playerCharacter.ReduceShieldTurns();
+            // Shield turns are now handled automatically by StatusEffectManager
         }
     }
 
@@ -695,7 +730,7 @@ public class BattleManager : MonoBehaviour
     IEnumerator PlayerUseSkillRoutine(SkillData skill, int enemyIndex)
     {
         
-        // Use SkillManager to handle skill usage
+        // Use SkillManager to handle skill usage   
         if (skillManager != null)
         {
             // Check if skill can be used (mana, cooldown, turn state) BEFORE changing battle state
@@ -706,16 +741,12 @@ public class BattleManager : MonoBehaviour
                 yield break;
             }
             
-            // Now that we know the skill can be used, change battle state
-            playerTurn = false;
+            // Skills don't end the player's turn - player can continue using skills/attacks
             
             // Use the skill (consumes mana and sets cooldown)
             skillManager.UseSkill(skill);
             
-            // Calculate damage
-            int damage = skillManager.CalculateSkillDamage(skill);
-            
-            // Apply skill effect based on target type
+            // Apply skill effects using the new system
             switch (skill.target)
             {
                 case TargetType.SingleEnemy:
@@ -724,15 +755,8 @@ public class BattleManager : MonoBehaviour
                         var target = enemyInstances[enemyIndex].GetComponent<Character>();
                         if (target != null)
                         {
-                            // Use shield system for player, regular damage for enemies
-                            if (target == playerCharacter)
-                            {
-                                target.TakeDamageWithShield(damage, playerCharacter);
-                            }
-                            else
-                            {
-                                target.TakeDamage(damage, playerCharacter);
-                            }
+                            // Use the new skill effect processor
+                            SkillEffectProcessor.ProcessSkillEffects(skill, playerCharacter, target);
                         }
                     }
                     else
@@ -749,7 +773,8 @@ public class BattleManager : MonoBehaviour
                             var enemyTarget = enemyInstances[i].GetComponent<Character>();
                             if (enemyTarget != null)
                             {
-                                enemyTarget.TakeDamage(damage, playerCharacter);
+                                // Use the new skill effect processor
+                                SkillEffectProcessor.ProcessSkillEffects(skill, playerCharacter, enemyTarget);
                             }
                         }
                     }
@@ -757,12 +782,12 @@ public class BattleManager : MonoBehaviour
                     
                 case TargetType.Self:
                     // Apply self-targeting effects (buffs, heals, shields)
-                    ApplySelfTargetSkill(skill, damage);
+                    SkillEffectProcessor.ProcessSkillEffects(skill, playerCharacter, playerCharacter);
                     break;
                     
                 case TargetType.AllAlly:
                     // Apply to all allies (including player)
-                    ApplySelfTargetSkill(skill, damage);
+                    SkillEffectProcessor.ProcessSkillEffects(skill, playerCharacter, playerCharacter);
                     break;
                     
                 default:
@@ -782,39 +807,18 @@ public class BattleManager : MonoBehaviour
 
         selectedSkill = null; // Reset selected skill after use
 
+        // Check if all enemies are dead after skill use
         if (AllEnemiesDead())
         {
             yield return StartCoroutine(VictoryRoutine());
             yield break;
         }
 
-        yield return StartCoroutine(EnemyTurnRoutine());
+        // Skills don't end the player's turn - player can continue using skills/attacks
+        // Only normal attack ends the turn
         
-        // Reduce skill cooldowns at the end of each turn
-        if (skillManager != null)
-        {
-            skillManager.ReduceSkillCooldowns();
-        }
-        
-        // End of complete turn - increment turn counter
-        currentTurn++;
-        playerTurn = true;
-        UpdateTurnDisplay();
-        
-        // Regenerate mana at the start of player turn
-        if (playerCharacter != null)
-        {
-            // Simple mana regeneration: 5% of max mana per turn
-            int oldMana = playerCharacter.currentMana;
-            playerCharacter.RegenerateManaPercent(5.0f);
-            if (playerCharacter.currentMana > oldMana)
-            {
-                Debug.Log($"[BATTLE] Mana regenerated: {playerCharacter.currentMana - oldMana} (now {playerCharacter.currentMana}/{playerCharacter.mana})");
-            }
-            
-            // Reduce shield turns
-            playerCharacter.ReduceShieldTurns();
-        }
+        // Note: The turn-ending logic (cooldown reduction, mana regen, etc.) 
+        // should only happen when the player chooses to end their turn with a normal attack
     }
 
     /// <summary>
@@ -1096,47 +1100,6 @@ public class BattleManager : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Applies self-targeting skills (buffs, heals, shields, etc.)
-    /// </summary>
-    void ApplySelfTargetSkill(SkillData skill, int effectValue)
-    {
-        if (playerCharacter == null) return;
-        
-        // For now, we'll implement basic effects based on skill name or description
-        // In a full system, you'd have more sophisticated effect handling
-        
-        string skillName = skill.displayName.ToLower();
-        
-        if (skillName.Contains("heal") || skillName.Contains("restore"))
-        {
-            // Healing skill
-            int healAmount = effectValue;
-            playerCharacter.RestoreHealth(healAmount);
-            Debug.Log($"[BATTLE] Player healed for {healAmount} HP");
-        }
-        else if (skillName.Contains("shield") || skillName.Contains("barrier"))
-        {
-            // Shield skill - apply shield based on skill description
-            int shieldAmount = Mathf.RoundToInt(playerCharacter.maxHP * 0.15f); // 15% of max HP
-            int turns = 2; // 2 turns duration
-            float reflection = 20f; // 20% damage reflection
-            
-            playerCharacter.ApplyShield(shieldAmount, turns, reflection);
-            Debug.Log($"[BATTLE] Player gained shield: {shieldAmount} HP for {turns} turns, {reflection}% reflection");
-        }
-        else if (skillName.Contains("buff") || skillName.Contains("boost"))
-        {
-            // Buff skill - could add temporary stat bonuses
-            Debug.Log($"[BATTLE] Player gained buff effect (value: {effectValue})");
-            // TODO: Implement buff system
-        }
-        else
-        {
-            // Generic self-targeting skill
-            Debug.Log($"[BATTLE] Applied self-targeting skill '{skill.displayName}' with value {effectValue}");
-        }
-    }
 
     private IEnumerator ProcessDeathRoutine(Character deadCharacter)
     {
