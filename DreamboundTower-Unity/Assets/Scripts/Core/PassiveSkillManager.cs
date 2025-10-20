@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Assets.Scripts.Data;
+using StatusEffects;
 
 /// <summary>
 /// Manages passive skills and applies their modifiers to the player character
@@ -18,7 +19,10 @@ public class PassiveSkillManager : MonoBehaviour
     public PlayerSkills playerSkills;
     
     // Track applied modifiers for cleanup
-    private List<StatModifierSO> appliedModifiers = new List<StatModifierSO>();
+    public List<StatModifierSO> appliedModifiers = new List<StatModifierSO>();
+    
+    // Cache ConditionalPassiveManager to avoid repeated GetComponent calls
+    private ConditionalPassiveManager conditionalPassiveManager;
     
     #endregion
     
@@ -35,6 +39,16 @@ public class PassiveSkillManager : MonoBehaviour
         if (playerSkills == null)
         {
             playerSkills = FindFirstObjectByType<PlayerSkills>();
+        }
+        
+        // Cache ConditionalPassiveManager reference
+        if (playerCharacter != null)
+        {
+            conditionalPassiveManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
+            if (conditionalPassiveManager == null)
+            {
+                Debug.LogWarning("[PASSIVE] ConditionalPassiveManager not found on player character in Awake()");
+            }
         }
     }
     
@@ -68,8 +82,13 @@ public class PassiveSkillManager : MonoBehaviour
         // Only apply if not already applied
         if (appliedModifiers.Count > 0)
         {
-            Debug.Log("[PASSIVE] Passive skills already applied, skipping");
             return;
+        }
+        
+        // Refresh ConditionalPassiveManager reference in case it was added after Awake
+        if (conditionalPassiveManager == null && playerCharacter != null)
+        {
+            conditionalPassiveManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
         }
         
         // Apply each passive skill
@@ -80,8 +99,6 @@ public class PassiveSkillManager : MonoBehaviour
                 ApplyPassiveSkill(passiveSkill);
             }
         }
-        
-        Debug.Log($"[PASSIVE] Applied {playerSkills.passiveSkills.Count} passive skills to player");
         
         // Update UI after applying passive skills
         if (playerCharacter != null)
@@ -101,8 +118,6 @@ public class PassiveSkillManager : MonoBehaviour
             Debug.LogWarning("[PASSIVE] Cannot apply passive skill - null reference");
             return;
         }
-        
-        Debug.Log($"[PASSIVE] Applying passive skill: {passiveSkill.displayName}");
         
         // Apply each modifier in the passive skill
         foreach (var modifier in passiveSkill.modifiers)
@@ -130,6 +145,9 @@ public class PassiveSkillManager : MonoBehaviour
                 RemoveStatModifier(modifier);
             }
         }
+        
+        // Reset mana regeneration bonus
+        playerCharacter.ResetAllPassiveBonuses();
         
         appliedModifiers.Clear();
     }
@@ -166,7 +184,6 @@ public class PassiveSkillManager : MonoBehaviour
                 ApplyMultiplicativeModifier(modifier.targetStat, modifierValue);
                 break;
         }
-        
     }
     
     /// <summary>
@@ -217,38 +234,80 @@ public class PassiveSkillManager : MonoBehaviour
             case StatType.AGI:
                 playerCharacter.agility += Mathf.RoundToInt(value);
                 break;
-            case StatType.ManaRegenPercent:
-                // TODO: Implement mana regeneration system
+            case StatType.LowHpPhysicalDamageBonus:
+                // Add low HP physical damage bonus (additive)
+                if (conditionalPassiveManager != null)
+                {
+                    conditionalPassiveManager.lowHpPhysicalDamageBonus += value;
+                }
                 break;
-            case StatType.PhysicalDamagePercent:
-                // TODO: Implement physical damage bonus system
+            case StatType.LowHpDamageReduction:
+                // Add low HP damage reduction (additive)
+                if (conditionalPassiveManager != null)
+                {
+                    conditionalPassiveManager.lowHpDamageReduction += value;
+                }
+                break;
+            case StatType.LowHpLifesteal:
+                // Add low HP lifesteal (additive)
+                if (conditionalPassiveManager != null)
+                {
+                    conditionalPassiveManager.lowHpLifesteal += value;
+                }
+                break;
+            case StatType.NonBossDamageReduction:
+                // Add non-boss damage reduction (additive)
+                if (conditionalPassiveManager != null)
+                {
+                    conditionalPassiveManager.nonBossDamageReduction += value;
+                }
+                break;
+            case StatType.LowDefDamageBonus:
+                // Add low DEF damage bonus (additive)
+                if (conditionalPassiveManager != null)
+                {
+                    conditionalPassiveManager.lowDefDamageBonus += value;
+                }
+                break;
+            case StatType.ManaRegenPerTurn:
+                // Add mana regen per turn (additive)
+                if (conditionalPassiveManager != null)
+                {
+                    conditionalPassiveManager.manaRegenPerTurn += value;
+                }
                 break;
             case StatType.MagicDamagePercent:
-                // TODO: Implement magic damage bonus system
+                // Add magic damage bonus (additive)
+                playerCharacter.magicDamageBonus += value;
                 break;
-            case StatType.LifestealPercent:
-                // TODO: Implement lifesteal system
+            case StatType.AdaptiveSpiritBonus:
+                // Add +2 to all base stats (Adaptive Spirit)
+                int bonusPoints = Mathf.RoundToInt(value);
+                playerCharacter.baseMaxHP += bonusPoints * 10; // 1 point = 10 HP
+                playerCharacter.baseAttackPower += bonusPoints;
+                playerCharacter.baseDefense += bonusPoints;
+                playerCharacter.baseMana += bonusPoints * 5; // 1 point = 5 mana
+                playerCharacter.baseIntelligence += bonusPoints;
+                playerCharacter.baseAgility += bonusPoints;
+                
+                // Recalculate current stats
+                playerCharacter.ResetToBaseStats();
                 break;
-            case StatType.DodgeChance:
-                // TODO: Implement dodge system
-                break;
-            case StatType.DamageReduction:
-                // TODO: Implement damage reduction system
+            default:
+                Debug.LogWarning($"[PASSIVE] Unhandled StatType in ApplyAdditiveModifier: {statType} ({(int)statType})");
                 break;
         }
     }
     
     /// <summary>
     /// Applies a multiplicative modifier (percentage bonus)
-    /// </summary>
+    /// </summary> 
     private void ApplyMultiplicativeModifier(StatType statType, float percentageValue)
     {
         // If the value is already a percentage (like 10 for 10%), use it directly
         // If the value is a decimal (like 0.1 for 10%), multiply by 100
         float actualPercentage = percentageValue < 1.0f ? percentageValue * 100.0f : percentageValue;
         float multiplier = 1.0f + (actualPercentage / 100.0f);
-        
-        Debug.Log($"[PASSIVE] Applied StatBonusPercent modifier: {statType} +{actualPercentage}% (original value: {percentageValue})");
         
         switch (statType)
         {
@@ -271,22 +330,28 @@ public class PassiveSkillManager : MonoBehaviour
                 playerCharacter.agility = Mathf.RoundToInt(playerCharacter.agility * multiplier);
                 break;
             case StatType.ManaRegenPercent:
-                // TODO: Implement mana regeneration system
+                // Add mana regeneration bonus (multiplicative)
+                playerCharacter.manaRegenBonus += actualPercentage / 100f; // Convert percentage to decimal
                 break;
             case StatType.PhysicalDamagePercent:
-                // TODO: Implement physical damage bonus system
+                // Add physical damage bonus (multiplicative)
+                playerCharacter.physicalDamageBonus += actualPercentage / 100f;
                 break;
             case StatType.MagicDamagePercent:
-                // TODO: Implement magic damage bonus system
+                // Add magic damage bonus (multiplicative)
+                playerCharacter.magicDamageBonus += actualPercentage / 100f;
                 break;
             case StatType.LifestealPercent:
-                // TODO: Implement lifesteal system
+                // Add lifesteal percentage (multiplicative)
+                playerCharacter.lifestealPercent += actualPercentage / 100f;
                 break;
             case StatType.DodgeChance:
-                // TODO: Implement dodge system
+                // Add dodge chance (multiplicative)
+                playerCharacter.dodgeChance += actualPercentage / 100f;
                 break;
             case StatType.DamageReduction:
-                // TODO: Implement damage reduction system
+                // Add damage reduction (multiplicative)
+                playerCharacter.damageReduction += actualPercentage / 100f;
                 break;
         }
     }

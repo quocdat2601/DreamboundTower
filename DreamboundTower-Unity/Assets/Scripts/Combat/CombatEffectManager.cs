@@ -61,10 +61,17 @@ public class CombatEffectManager : MonoBehaviour
     private void Start()
     {
         // Find damage number canvas if not assigned
-        if (damageNumberCanvas == null)
-        {
-            damageNumberCanvas = FindFirstObjectByType<Canvas>();
-        }
+        RefreshCanvasReference();
+    }
+    
+    /// <summary>
+    /// Refreshes the canvas reference - call this when entering a new scene
+    /// </summary>
+    public void RefreshCanvasReference()
+    {
+        // Always refresh the canvas reference when entering a new scene
+        // because the previous canvas might have been destroyed
+        damageNumberCanvas = FindFirstObjectByType<Canvas>();
     }
     #endregion
     

@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using StatusEffects;
 
 public class GameManager : MonoBehaviour
 {
@@ -72,6 +73,11 @@ public class GameManager : MonoBehaviour
         
         // Setup PassiveSkillManager
         SetupPassiveSkillManager();
+        
+        // Setup StatusEffectManager
+        SetupStatusEffectManager();
+        
+        // Setup SkillDatabase
 
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
@@ -108,6 +114,23 @@ public class GameManager : MonoBehaviour
             Debug.Log("[GAMEMANAGER] Created PassiveSkillManager GameObject");
         }
     }
+    
+    void SetupStatusEffectManager()
+    {
+        // Check if StatusEffectManager already exists
+        if (FindFirstObjectByType<StatusEffectManager>() == null)
+        {
+            // Create a new GameObject with StatusEffectManager
+            GameObject statusEffectManagerGO = new GameObject("StatusEffectManager");
+            statusEffectManagerGO.AddComponent<StatusEffectManager>();
+            
+            // Make it persistent across scenes
+            DontDestroyOnLoad(statusEffectManagerGO);
+            
+            // StatusEffectManager created
+        }
+    }
+    
 
     private void Update()
     {
@@ -421,6 +444,22 @@ public class GameManager : MonoBehaviour
         if (playerSkills != null)
         {
             playerSkills.LearnSkills(raceData, classData);
+        }
+
+        // Ensure ConditionalPassiveManager is attached to player character
+        var conditionalPassiveManager = playerInstance.GetComponent<ConditionalPassiveManager>();
+        if (conditionalPassiveManager == null)
+        {
+            conditionalPassiveManager = playerInstance.AddComponent<ConditionalPassiveManager>();
+        }
+
+        // Apply passive skills after all stat modifications are complete
+        var passiveSkillManager = playerInstance.GetComponent<PassiveSkillManager>();
+        if (passiveSkillManager != null)
+        {
+            passiveSkillManager.playerCharacter = playerCharacter;
+            passiveSkillManager.playerSkills = playerSkills;
+            passiveSkillManager.ApplyAllPassiveSkills();
         }
 
         Debug.Log("Player Character Initialized from RunData!");
