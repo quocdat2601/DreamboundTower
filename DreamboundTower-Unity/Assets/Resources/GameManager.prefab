@@ -223,6 +223,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb0362812c8a9d74880431d3c399b82c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  isDebugRun: 0
   currentRunData:
     playerData:
       selectedRaceId: 
@@ -252,16 +253,16 @@ MonoBehaviour:
       pendingEnemyKind: 0
       pendingEnemyFloor: 0
   playerInstance: {fileID: 0}
-  fallbackRace: {fileID: 11400000, guid: ae09f101437f1534398ba84c3f5ca9c0, type: 2}
+  fallbackRace: {fileID: 11400000, guid: 75d22c60321de4745970bd6c442e1405, type: 2}
   fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
-  overridePlayerStats: 0
+  overridePlayerStats: 1
   customPlayerStats:
-    HP: 0
-    STR: 0
-    DEF: 0
-    MANA: 0
-    INT: 0
-    AGI: 0
+    HP: 100
+    STR: 25
+    DEF: 25
+    MANA: 25
+    INT: 25
+    AGI: 25
   playerStatusUI: {fileID: 8636026782780025911}
   playerPrefab: {fileID: 5219465382312568686, guid: a27e2eb3858100042940cd56a1935089, type: 3}
   allRaces:

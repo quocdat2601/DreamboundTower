@@ -17,6 +17,7 @@ public class MapData
     public string pendingEnemyArchetypeId;
     public int pendingEnemyKind;
     public int pendingEnemyFloor;
+    public string pendingEventID;
 
     public MapData()
     {

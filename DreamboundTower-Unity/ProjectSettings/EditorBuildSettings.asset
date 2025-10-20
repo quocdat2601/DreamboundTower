@@ -15,7 +15,7 @@ EditorBuildSettings:
     path: Assets/Scenes/Character Selection.unity
     guid: d2fc226d6c42b2b4f8166b38ac5fc7ea
   - enabled: 1
-    path: Assets/Scenes/DialogueDemo.unity
+    path: Assets/Scenes/EventScene.unity
     guid: e342402810dd6304f9c628b539fac558
   - enabled: 1
     path: Assets/Scenes/MainGame.unity
@@ -29,6 +29,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MysteryScene.unity
     guid: b8619c4a9837bf648acbebdc426456e1
+  - enabled: 1
+    path: Assets/Scenes/EventScene.unity
+    guid: a1a76a6e32f8cea43a6c823ca6d8afe9
   - enabled: 1
     path: Assets/Scenes/MapScene/Zone1.unity
     guid: 7812bac038f4ef94d933f39dbd22ce14

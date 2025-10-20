@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a284b20ab9ecae43ac0d4c68dfd3bd7, type: 3}
+  m_Name: EVT_012_CursedMirror
+  m_EditorClassIdentifier: Assembly-CSharp::EventDataSO
+  eventID: EVT_012
+  inkStory: {fileID: 4900000, guid: 4e24cf49d4d2b524390699365c98fd11, type: 3}
+  backgroundImage: {fileID: 0}
+  region: 4
+  prerequisiteFlag: 

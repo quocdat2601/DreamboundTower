@@ -1,21 +1,35 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 
-[CreateAssetMenu(fileName = "New Event", menuName = "Dreambound Tower/Event Data")]
+// Enum này giúp chúng ta lọc event theo khu vực (Region)
+public enum EventRegion
+{
+    // Dùng 0 làm giá trị "mặc định" hoặc "bất kỳ"
+    Any = 0,
+
+    // Các vùng cơ bản
+    Early = 1,
+    Mid = 2,
+    Late = 3,
+
+    // Các vùng gối nhau (từ CSV của bạn)
+    EarlyMid = 4, // Dành cho "Early-Mid"
+    MidLate = 5   // Dành cho "Mid-Late"
+}
+
+[CreateAssetMenu(fileName = "Event_New", menuName = "DreamboundTower/EventData")]
 public class EventDataSO : ScriptableObject
 {
-    [Tooltip("ID độc nhất để nhận dạng event, ví dụ: 'event_whispering_cave'")]
-    public string eventID;
+    [Header("Data Linking")]
+    public string eventID; // Ví dụ: "EVT_001", "EVT_002"
 
-    [Tooltip("Kéo file Ink JSON đã được biên dịch vào đây")]
-    public TextAsset inkJSON;
+    [Header("Story Content")]
+    public TextAsset inkStory; // File .json đã được Ink biên dịch
+    public Sprite backgroundImage; // Hình nền sẽ hiển thị trong EventScene
 
-    [Tooltip("Hình ảnh nền sẽ hiển thị trong scene Event")]
-    public Sprite backgroundImage;
+    [Header("Filtering Logic")]
+    public EventRegion region; // Event này xuất hiện ở khu vực nào?
 
-    // (Tùy chọn cho sau này)
-    [Header("Điều kiện xuất hiện")]
-    [Tooltip("Event này chỉ xuất hiện từ tầng này trở lên")]
-    public int minAbsoluteFloor = 1;
-    [Tooltip("Event này chỉ xuất hiện ở các zone được chỉ định (để trống nếu không giới hạn)")]
-    public int[] requiredZones;
+    [Tooltip("Cờ (flag) cần có để event này xuất hiện (Để trống nếu không cần)")]
+    public string prerequisiteFlag;
 }
