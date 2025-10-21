@@ -13,6 +13,19 @@ using UnityEngine.InputSystem;
 public class ScriptReader : MonoBehaviour
 {
     private Story _StoryScript; // Runtime Ink story instance.
+    private Character player
+    {
+        get
+        {
+            // Kiểm tra xem GameManager và playerInstance có tồn tại KHÔNG TRƯỚC KHI lấy component
+            if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+            {
+                return GameManager.Instance.playerInstance.GetComponent<Character>();
+            }
+            return null; // Trả về null nếu playerInstance không tồn tại
+        }
+    }
+    private PlayerData data { get { return GameManager.Instance.currentRunData.playerData; } }
 
     public TMP_Text dialogueBox; // Dialogue UI text.
     //public TMP_Text nameTag;     // Speaker name UI (optional).
@@ -90,7 +103,7 @@ public class ScriptReader : MonoBehaviour
         _StoryScript.BindExternalFunction("HealHP", (int amount, string type) => HealHP(amount, type));
         _StoryScript.BindExternalFunction("LoseHP", (int amount, string type) => LoseHP(amount, type));
         _StoryScript.BindExternalFunction("HealMana", (int amount, string type) => HealMana(amount, type));
-        _StoryScript.BindExternalFunction("LoseMana", (int amount) => LoseMana(amount));
+        _StoryScript.BindExternalFunction("LoseMana", (int amount, string type) => LoseMana(amount, type));
 
         _StoryScript.BindExternalFunction("GainStat", (string name, int amount) => GainStat(name, amount));
         _StoryScript.BindExternalFunction("GainRandomStat", (int amount) => GainRandomStat(amount));
@@ -161,9 +174,11 @@ public class ScriptReader : MonoBehaviour
         }
         else
         {
-            // ĐÂY LÀ KẾT THÚC KỊCH BẢN
             Debug.Log("Kịch bản kết thúc! (Được gọi từ DisplayNextLine)");
-            // Tương lai: Gọi EventSceneManager.Instance.FinishEvent()
+            // Call "Đạo diễn" to finish
+            // Check if we started with a debug event
+            bool isDebugMode = FindFirstObjectByType<EventSceneManager>().debugEventToLoad != null;
+            FindFirstObjectByType<EventSceneManager>().FinishEvent(isDebugMode); // Pass true if in debug
         }
     }
 
@@ -250,6 +265,11 @@ public class ScriptReader : MonoBehaviour
     // THAY THẾ HÀM NÀY:
     void OnClickChoiceButton(int choiceIndex)
     {
+        if (choiceIndex < 0 || _StoryScript == null || choiceIndex >= _StoryScript.currentChoices.Count)
+        {
+            Debug.LogError($"Lỗi Index! choiceIndex ({choiceIndex}) không hợp lệ với currentChoices count ({_StoryScript?.currentChoices?.Count}). Bỏ qua click.");
+            return; // Thoát khỏi hàm nếu index không hợp lệ
+        }
         // XÓA HẾT MỌI THỨ, CHỈ ĐỂ LẠI:
         _StoryScript.ChooseChoiceIndex(choiceIndex);
         RefreshChoiceView();
@@ -291,153 +311,379 @@ public class ScriptReader : MonoBehaviour
     #endregion
 
     #region Execute Inky Function
-    public void HealMana(int amount)
-    {
-        Debug.LogError($"THỰC THI (HÀM MỚI): Hồi {amount} Mana!");
-        // Tương lai: GameManager.Instance.Player.RestoreMana(amount);
-    }
-
-    public void SetFlag(string flagName)
-    {
-        Debug.LogError($"THỰC THI (HÀM MỚI): Gắn cờ {flagName}!");
-        // Tương lai: GameManager.Instance.currentRunData.currentRunEventFlags.Add(flagName);
-    }
     public void GainGold(int amount)
     {
-        Debug.LogError($"THỰC THI: Thay đổi {amount} Vàng!");
-        // Tương lai: GameManager.Instance.PlayerData.AddGold(amount);
+        data.gold += amount;
+        Debug.Log($"THỰC THI: Thay đổi {amount} Vàng! (Mới: {data.gold})");
     }
 
     public void GainItem(string itemName)
     {
-        Debug.LogError($"THỰC THI: Nhận Item '{itemName}'!");
-        // Tương lai: Inventory.Instance.AddItem(itemName);
+        data.inventoryItemIds.Add(itemName); // Giả sử dùng inventoryItemIds
+        Debug.Log($"THỰC THI: Nhận Item '{itemName}'!");
     }
 
     public void GainRelic(string relicName)
     {
-        Debug.LogError($"THỰC THI: Nhận Relic '{relicName}'!");
-        // Tương lai: Inventory.Instance.AddRelic(relicName);
+        data.inventoryItemIds.Add(relicName); // Dùng chung list với item
+        Debug.Log($"THỰC THI: Nhận Relic '{relicName}'!");
     }
 
     public void HealHP(int amount, string type)
     {
-        if (type == "PERCENT")
+        // Ưu tiên 1: Tác động lên Player Instance thực tế (nếu có)
+        if (player != null)
         {
-            Debug.LogError($"THỰC THI: Hồi {amount}% HP!");
-            // Tương lai: GameManager.Instance.Player.HealPercent(amount);
+            if (type == "PERCENT")
+            {
+                player.HealPercent(amount);
+                Debug.Log($"THỰC THI (Player): Hồi {amount}% HP!");
+            }
+            else // FLAT
+            {
+                player.Heal(amount);
+                Debug.Log($"THỰC THI (Player): Hồi {amount} HP!");
+            }
         }
-        else // Mặc định là "FLAT"
+        // Ưu tiên 2: Mô phỏng trên PlayerData (khi test)
+        else if (data != null) // 'data' is GameManager.Instance.currentRunData.playerData
         {
-            Debug.LogError($"THỰC THI: Hồi {amount} HP!");
-            // Tương lai: GameManager.Instance.Player.HealFlat(amount);
+            int maxHPToUse = GetMaxHPForCalculation();
+            int amountToHeal = amount;
+            if (type == "PERCENT")
+            {
+                amountToHeal = Mathf.RoundToInt(maxHPToUse * (amount / 100f));
+                Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Hồi {amount}% ({amountToHeal} flat) HP!");
+            }
+            else // FLAT
+            {
+                Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Hồi {amount} HP!");
+            }
+            data.currentHP = Mathf.Min(data.currentHP + amountToHeal, maxHPToUse);
+            Debug.Log($"---> PlayerData HP mới: {data.currentHP} / {maxHPToUse}");
+            // Optional: Call UI update if testing UI too
+            // GameManager.Instance.UpdatePlayerHealthUI(data.currentHP, maxHPToUse);
         }
+        else { Debug.LogWarning($"Cannot HealHP: Player instance và PlayerData không hợp lệ."); }
     }
 
     public void LoseHP(int amount, string type)
     {
-        if (type == "PERCENT")
+        // Ưu tiên 1: Player Instance
+        if (player != null)
         {
-            Debug.LogError($"THỰC THI: Mất {amount}% HP!");
-            // Tương lai: GameManager.Instance.Player.TakeDamagePercent(amount);
+            int damageAmount = amount;
+            if (type == "PERCENT")
+            {
+                // Use Character's TakeDamagePercent which calculates based on its current maxHP
+                player.TakeDamagePercent(amount);
+                Debug.Log($"THỰC THI (Player): Mất {amount}% HP!");
+            }
+            else // FLAT
+            {
+                player.TakeDamage(amount, null);
+                Debug.Log($"THỰC THI (Player): Mất {amount} HP!");
+            }
         }
-        else // Mặc định là "FLAT"
+        // Ưu tiên 2: Mô phỏng trên PlayerData
+        else if (data != null)
         {
-            Debug.LogError($"THỰC THI: Mất {amount} HP!");
-            // Tương lai: GameManager.Instance.Player.TakeDamageFlat(amount);
+            int maxHPToUse = GetMaxHPForCalculation();
+            int amountToLose = amount;
+            if (type == "PERCENT")
+            {
+                amountToLose = Mathf.RoundToInt(maxHPToUse * (amount / 100f));
+                Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Mất {amount}% ({amountToLose} flat) HP!");
+            }
+            else { Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Mất {amount} HP!"); }
+            data.currentHP = Mathf.Max(data.currentHP - amountToLose, 0);
+            Debug.Log($"---> PlayerData HP mới: {data.currentHP} / {maxHPToUse}");
+            // GameManager.Instance.UpdatePlayerHealthUI(data.currentHP, maxHPToUse);
         }
+        else { Debug.LogWarning($"Cannot LoseHP: Player instance và PlayerData không hợp lệ."); }
     }
 
     public void HealMana(int amount, string type)
     {
-        if (type == "PERCENT")
+        // Ưu tiên 1: Player Instance
+        if (player != null)
         {
-            Debug.LogError($"THỰC THI: Hồi {amount}% Mana!");
-            // Tương lai: GameManager.Instance.Player.RestoreManaPercent(amount);
+            if (type == "PERCENT")
+            {
+                player.RestoreManaPercent(amount);
+                Debug.Log($"THỰC THI (Player): Hồi {amount}% Mana!");
+            }
+            else { player.RestoreMana(amount); Debug.Log($"THỰC THI (Player): Hồi {amount} Mana!"); }
         }
-        else // Mặc định là "FLAT"
+        // Ưu tiên 2: Mô phỏng trên PlayerData
+        else if (data != null)
         {
-            Debug.LogError($"THỰC THI: Hồi {amount} Mana!");
-            // Tương lai: GameManager.Instance.Player.RestoreManaFlat(amount);
+            int maxManaToUse = GetMaxManaForCalculation();
+            int amountToRestore = amount;
+            if (type == "PERCENT")
+            {
+                amountToRestore = Mathf.RoundToInt(maxManaToUse * (amount / 100f));
+                Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Hồi {amount}% ({amountToRestore} flat) Mana!");
+            }
+            else { Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Hồi {amount} Mana!"); }
+            data.currentMana = Mathf.Min(data.currentMana + amountToRestore, maxManaToUse);
+            Debug.Log($"---> PlayerData Mana mới: {data.currentMana} / {maxManaToUse}");
+            // Optional: Call UI update for Mana
         }
+        else { Debug.LogWarning($"Cannot HealMana: Player instance và PlayerData không hợp lệ."); }
     }
 
-    public void LoseMana(int amount)
+    public void LoseMana(int amount, string type)
     {
-        Debug.LogError($"THỰC THI: Mất {amount} Mana!");
-        // Tương lai: GameManager.Instance.Player.LoseMana(amount);
+        // Ưu tiên 1: Player Instance
+        if (player != null)
+        {
+            int manaToLose = amount;
+            if (type == "PERCENT")
+            {
+                // Use Character's UseManaPercent
+                player.UseManaPercent(amount);
+                Debug.Log($"THỰC THI (Player): Mất {amount}% Mana!");
+            }
+            else // FLAT
+            {
+                player.UseMana(amount);
+                Debug.Log($"THỰC THI (Player): Mất {amount} Mana!");
+            }
+        }
+        // Ưu tiên 2: Mô phỏng trên PlayerData
+        else if (data != null)
+        {
+            int maxManaToUse = GetMaxManaForCalculation();
+            int amountToLose = amount;
+            if (type == "PERCENT")
+            {
+                amountToLose = Mathf.RoundToInt(maxManaToUse * (amount / 100f));
+                Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Mất {amount}% ({amountToLose} flat) Mana!");
+            }
+            else { Debug.Log($"THỰC THI (PlayerData - Mô phỏng): Mất {amount} Mana!"); }
+            data.currentMana = Mathf.Max(data.currentMana - amountToLose, 0);
+            Debug.Log($"---> PlayerData Mana mới: {data.currentMana} / {maxManaToUse}");
+            // Optional: Call UI update for Mana
+        }
+        else { Debug.LogWarning($"Cannot LoseMana: Player instance và PlayerData không hợp lệ."); }
     }
-
     public void GainStat(string statName, int amount)
     {
-        Debug.LogError($"THỰC THI: Nhận {amount} {statName}!");
-        // Tương lai: GameManager.Instance.PlayerData.ModifyStat(statName, amount);
+        switch (statName.ToUpper())
+        {
+            case "STR": data.currentStats.STR += amount; break;
+            case "DEF": data.currentStats.DEF += amount; break;
+            case "INT": data.currentStats.INT += amount; break;
+            case "MANA": data.currentStats.MANA += amount; break;
+            case "AGI": data.currentStats.AGI += amount; break;
+            default:
+                Debug.LogWarning($"Không tìm thấy stat tên: {statName}");
+                break;
+        }
+        Debug.Log($"THỰC THI: {statName} thay đổi {amount}!");
     }
 
     public void GainRandomStat(int amount)
     {
-        Debug.LogError($"THỰC THI: Nhận {amount} chỉ số ngẫu nhiên!");
-        // Tương lai: GameManager.Instance.PlayerData.ModifyRandomStat(amount);
+        Debug.LogError($"CHƯA CÀI ĐẶT: GainRandomStat({amount})");
     }
 
+    public void SetFlag(string flagName)
+    {
+        // (Giả sử RunData có 'currentRunEventFlags')
+        GameManager.Instance.currentRunData.currentRunEventFlags.Add(flagName);
+        Debug.Log($"THỰC THI: Gắn cờ '{flagName}'!");
+    }
     public void RemoveFlag(string flagName)
     {
-        Debug.LogError($"THỰC THI: Xóa cờ '{flagName}'!");
-        // Tương lai: GameManager.Instance.currentRunData.currentRunEventFlags.Remove(flagName);
+        GameManager.Instance.currentRunData.currentRunEventFlags.Remove(flagName);
+        Debug.Log($"THỰC THI: Xóa cờ '{flagName}'!");
     }
 
     public void AddBuff(string buffName, int duration)
     {
-        Debug.LogError($"THỰC THI: Thêm Buff '{buffName}' trong {duration} lượt!");
-        // Tương lai: GameManager.Instance.Player.AddBuff(buffName, duration);
+        Debug.LogWarning($"CHƯA KẾT NỐI: AddBuff '{buffName}' trong {duration} lượt!");
+        // (Bạn cần thêm logic này vào Character.cs)
     }
 
     public void AddDebuff(string debuffName, int duration)
     {
-        Debug.LogError($"THỰC THI: Thêm Debuff '{debuffName}' trong {duration} lượt!");
-        // Tương lai: GameManager.Instance.Player.AddDebuff(debuffName, duration);
+        Debug.LogWarning($"CHƯA KẾT NỐI: AddDebuff '{debuffName}' trong {duration} lượt!");
+        // (Bạn cần thêm logic này vào Character.cs)
     }
 
     public void ModifySteadfast(int amount)
     {
-        Debug.LogError($"THỰC THI: Thay đổi Steadfast {amount}!");
-        // Tương lai: GameManager.Instance.PlayerData.ModifySteadfast(amount);
+        data.steadfastDurability += amount;
+        Debug.Log($"THỰC THI: Steadfast thay đổi {amount}! (Mới: {data.steadfastDurability})");
     }
 
     public void StartCombat(string combatType)
     {
-        Debug.LogError($"THỰC THI: BẮT ĐẦU TRẬN CHIẾN LOẠI '{combatType}'!");
-        // Tương lai: EventSceneManager.Instance.StartCombat(combatType);
+        Debug.LogError($"CHƯA KẾT NỐI: BẮT ĐẦU TRẬN CHIẾN '{combatType}'!");
+        // (Logic này nên được xử lý bởi EventSceneManager gọi GameManager)
     }
-    // (Tạm thời chúng ta sẽ return giá trị giả lập (mock))
-    // (Tương lai: Bạn sẽ thay thế 'return 12;' bằng 'return GameManager.Instance.currentRunData.playerData.STR;')
 
     public int GetPlayerSTR()
     {
-        Debug.Log("Hỏi chỉ số: STR (Giả lập trả về 12)");
-        return 12;
-        // TƯƠNG LAI: return GameManager.Instance.currentRunData.playerData.STR;
+        // Ưu tiên 1: Đọc từ Override Stats nếu bật
+        if (GameManager.Instance != null && GameManager.Instance.overridePlayerStats)
+        {
+            // SỬA LỖI: Dùng customPlayerStats
+            int statValue = GameManager.Instance.customPlayerStats.STR;
+            Debug.Log($"Hỏi chỉ số: STR (Đọc từ Override Stats: {statValue})");
+            return statValue;
+        }
+
+        // Ưu tiên 2: Đọc từ Player Instance thực tế (nếu tồn tại)
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            var playerCharacter = GameManager.Instance.playerInstance.GetComponent<Character>();
+            if (playerCharacter != null)
+            {
+                int statValue = playerCharacter.attackPower; // STR corresponds to attackPower
+                Debug.Log($"Hỏi chỉ số: STR (Đọc từ Character Component: {statValue})");
+                return statValue;
+            }
+        }
+
+        // Ưu tiên 3: Đọc từ RunData (dữ liệu lưu - KÉM TIN CẬY)
+        if (GameManager.Instance != null && GameManager.Instance.currentRunData != null && GameManager.Instance.currentRunData.playerData != null)
+        {
+            int statValue = GameManager.Instance.currentRunData.playerData.currentStats.STR;
+            Debug.Log($"Hỏi chỉ số: STR (Đọc từ RunData Fallback: {statValue})");
+            return statValue;
+        }
+
+        Debug.LogWarning("Không thể lấy chỉ số STR. Trả về 0.");
+        return 0;
     }
 
     public int GetPlayerINT()
     {
-        Debug.Log("Hỏi chỉ số: INT (Giả lập trả về 12)");
-        return 12;
-        // TƯƠNG LAI: return GameManager.Instance.currentRunData.playerData.INT;
+        // Ưu tiên 1: Override Stats
+        if (GameManager.Instance != null && GameManager.Instance.overridePlayerStats)
+        {
+            // SỬA LỖI: Dùng customPlayerStats
+            int statValue = GameManager.Instance.customPlayerStats.INT;
+            Debug.Log($"Hỏi chỉ số: INT (Đọc từ Override Stats: {statValue})");
+            return statValue;
+        }
+
+        // Ưu tiên 2: Character Component
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            var playerCharacter = GameManager.Instance.playerInstance.GetComponent<Character>();
+            if (playerCharacter != null)
+            {
+                int statValue = playerCharacter.intelligence; //
+                Debug.Log($"Hỏi chỉ số: INT (Đọc từ Character Component: {statValue})");
+                return statValue;
+            }
+        }
+
+        // Ưu tiên 3: RunData (KÉM TIN CẬY)
+        if(GameManager.Instance != null && GameManager.Instance.currentRunData != null && GameManager.Instance.currentRunData.playerData != null)
+    {
+            // Access currentStats directly, assuming playerData is not null
+            int statValue = GameManager.Instance.currentRunData.playerData.currentStats.STR; // Or .INT
+            Debug.Log($"Hỏi chỉ số: STR/INT (Đọc từ RunData Fallback: {statValue})");
+            return statValue;
+        }
+
+        Debug.LogWarning("Không thể lấy chỉ số INT. Trả về 0.");
+        return 0;
     }
 
     public string GetPlayerRace()
     {
-        Debug.Log("Hỏi chỉ số: Race (Giả lập trả về 'Demon')");
-        return "Demon";
-        // TƯƠNG LAI: return GameManager.Instance.currentRunData.playerData.Race.ToString();
+        string raceId = null;
+
+        // Ưu tiên 1: RunData (Chế độ chơi bình thường)
+        if (GameManager.Instance != null && GameManager.Instance.currentRunData != null && GameManager.Instance.currentRunData.playerData != null && !string.IsNullOrEmpty(GameManager.Instance.currentRunData.playerData.selectedRaceId))
+        {
+            raceId = GameManager.Instance.currentRunData.playerData.selectedRaceId;
+            Debug.Log($"Hỏi chỉ số: Race (Đọc từ RunData: {raceId})");
+        }
+        // Ưu tiên 2: FallbackRace từ GameManager (Dành cho debug)
+        else if (GameManager.Instance != null && GameManager.Instance.fallbackRace != null && !string.IsNullOrEmpty(GameManager.Instance.fallbackRace.id))
+        {
+            raceId = GameManager.Instance.fallbackRace.id;
+            Debug.LogWarning($"Không tìm thấy Race trong RunData. Sử dụng FallbackRace từ GameManager (Debug): {raceId}");
+        }
+
+        // Xử lý raceId nếu tìm thấy (từ 1 trong 2 nguồn trên)
+        if (!string.IsNullOrEmpty(raceId))
+        {
+            // Lấy phần tên sau dấu "_" (ví dụ: "race_human" -> "human")
+            string raceName = raceId.Contains("_") ? raceId.Split('_')[1] : raceId;
+
+            // Viết hoa chữ cái đầu
+            if (raceName.Length > 0)
+            {
+                raceName = char.ToUpper(raceName[0]) + raceName.Substring(1).ToLower();
+            }
+            Debug.Log($" RaceName: {raceName}");
+            return raceName; // Trả về "Human", "Demon", etc.
+        }
+
+        // Fallback cuối cùng (Nếu cả RunData và FallbackRace đều không có)
+        Debug.LogWarning("Không thể lấy Race từ RunData hoặc FallbackRace. Trả về 'Human'.");
+        return "Human"; // Giá trị mặc định cuối cùng
     }
 
     public bool HasFlag(string flagName)
     {
-        Debug.Log($"Kiểm tra cờ: {flagName} (Giả lập trả về 'true')");
-        return true;
-        // TƯƠNG LAI: return GameManager.Instance.currentRunData.currentRunEventFlags.Contains(flagName);
+        // Flag chỉ tồn tại trong RunData
+        if (GameManager.Instance != null && GameManager.Instance.currentRunData != null && GameManager.Instance.currentRunData.currentRunEventFlags != null)
+        {
+            bool flagExists = GameManager.Instance.currentRunData.currentRunEventFlags.Contains(flagName);
+            Debug.Log($"Kiểm tra cờ: {flagName} (RunData trả về: {flagExists})");
+            return flagExists;
+        }
+
+        Debug.LogWarning($"Không thể kiểm tra cờ {flagName} (RunData không hợp lệ). Trả về 'false'.");
+        return false;
+    }
+
+    private int GetMaxHPForCalculation()
+    {
+        // Ưu tiên 1: Override Stats (Nhân với HP_UNIT từ GDD)
+        if (GameManager.Instance != null && GameManager.Instance.overridePlayerStats)
+        {
+            // Assuming HP_UNIT is consistently 10 as per GDD [cite: 40, 240]
+            return GameManager.Instance.customPlayerStats.HP * 10;
+        }
+        // Ưu tiên 2: RunData (Nhân với HP_UNIT)
+        // SỬA LỖI: Đã xóa "&& data.currentStats != null"
+        if (data != null)
+        {
+            // Assuming HP_UNIT is consistently 10
+            return data.currentStats.HP * 10;
+        }
+        Debug.LogWarning("GetMaxHPForCalculation: Không thể lấy MaxHP từ Override hoặc RunData. Trả về 100.");
+        return 100; // Giá trị mặc định nếu không lấy được
+    }
+
+    private int GetMaxManaForCalculation()
+    {
+        // Ưu tiên 1: Override Stats (Nhân với MANA_UNIT)
+        if (GameManager.Instance != null && GameManager.Instance.overridePlayerStats)
+        {
+             // Assuming MANA_UNIT is consistently 5 based on previous context/GDD guess
+             // (You might want a constant like GameManager.MANA_UNIT instead of hardcoding 5)
+            return GameManager.Instance.customPlayerStats.MANA * 5;
+        }
+        // Ưu tiên 2: RunData (Nhân với MANA_UNIT)
+        // SỬA LỖI: Đã xóa "&& data.currentStats != null"
+        if (data != null)
+        {
+             // Assuming MANA_UNIT is consistently 5
+            return data.currentStats.MANA * 5;
+        }
+        Debug.LogWarning("GetMaxManaForCalculation: Không thể lấy MaxMana từ Override hoặc RunData. Trả về 50.");
+        return 50; // Giá trị mặc định
     }
     #endregion
 

@@ -95,6 +95,32 @@ public class GameManager : MonoBehaviour
         if (currentRunData == null)
         {
             currentRunData = new RunData();
+            // THÊM VÀO: Khởi tạo HP/Mana khi tạo RunData mới LẦN ĐẦU
+            if (overridePlayerStats)
+            {
+                currentRunData.playerData.currentHP = customPlayerStats.HP * 10; // Giả sử HP_UNIT = 10
+                currentRunData.playerData.currentMana = customPlayerStats.MANA * 5; // Giả sử MANA_UNIT = 5
+                Debug.LogWarning("[GameManager - Debug] Khởi tạo HP/Mana trong RunData từ Override Stats.");
+            }
+            else if (fallbackRace != null) // Hoặc khởi tạo từ fallback nếu có
+            {
+                currentRunData.playerData.currentHP = fallbackRace.baseStats.HP * 10;
+                currentRunData.playerData.currentMana = fallbackRace.baseStats.MANA * 5;
+                Debug.LogWarning("[GameManager - Debug] Khởi tạo HP/Mana trong RunData từ Fallback Race.");
+            }
+            else // Giá trị mặc định cuối cùng
+            {
+                currentRunData.playerData.currentHP = 100;
+                currentRunData.playerData.currentMana = 50;
+            }
+        }
+        // THÊM VÀO: Hoặc đảm bảo HP/Mana đầy nếu TẢI RunData cũ khi đang bật override
+        else if (overridePlayerStats)
+        {
+            // Nếu tải RunData cũ nhưng muốn test với override, hồi đầy HP/Mana theo override
+            currentRunData.playerData.currentHP = customPlayerStats.HP * 10;
+            currentRunData.playerData.currentMana = customPlayerStats.MANA * 5;
+            Debug.LogWarning("[GameManager - Debug] Hồi đầy HP/Mana trong RunData đã tải theo Override Stats.");
         }
         SceneManager.sceneLoaded += OnSceneLoaded;
     }

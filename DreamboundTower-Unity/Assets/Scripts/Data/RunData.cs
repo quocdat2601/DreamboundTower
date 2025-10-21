@@ -12,5 +12,7 @@ public class RunData
     {
         playerData = new PlayerData();
         mapData = new MapData();
+        availableEventPool = new List<string>();
+        currentRunEventFlags = new HashSet<string>();
     }
 }

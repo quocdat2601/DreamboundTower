@@ -2,6 +2,7 @@ using DG.Tweening;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Burst.CompilerServices;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -82,12 +83,15 @@ namespace Map
             DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
         }
 
-        // Trong file MapPlayerTracker.cs
-
         private static void EnterNode(MapNode mapNode)
         {
             Debug.Log("Entering node: " + mapNode.Node.blueprintName + " of type: " + mapNode.Node.nodeType);
-
+            if (mapNode.Node.nodeType == NodeType.Event || mapNode.Node.nodeType == NodeType.Mystery)
+            {
+                Instance.SelectAndLoadEvent(mapNode); // Gọi hàm xử lý Event
+                return; // Thoát khỏi EnterNode, vì SelectAndLoadEvent đã xử lý xong
+            }
+            //
             // Lấy scene sẽ được tải dựa trên loại node
             string sceneToLoad = Instance.GetSceneNameForNodeType(mapNode.Node.nodeType);
 
@@ -133,10 +137,100 @@ namespace Map
                 case NodeType.Mystery:
                     return "MysteryScene";
                 case NodeType.Event:
-                //return "EventScene"
+                    return "EventScene";
                 default:
                     return "";
             }
+        }
+
+        private void SelectAndLoadEvent(MapNode node)
+        {
+            Debug.Log($"Đang xử lý Node Event: {node.Node.point}");
+
+            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null || GameManager.Instance.allEvents == null)
+            {
+                Debug.LogError("Lỗi GameManager hoặc RunData khi cố gắng xử lý Node Event!");
+                // Quan trọng: Phải mở khóa lại nếu có lỗi
+                Locked = false;
+                return;
+            }
+
+            var runData = GameManager.Instance.currentRunData;
+            var playerFlags = runData.currentRunEventFlags;
+            var eventPool = runData.availableEventPool;
+
+            // 1. Lọc các event hợp lệ
+            List<EventDataSO> validEvents = new List<EventDataSO>();
+            EventRegion currentRegion = GetCurrentRegion(runData.mapData.currentZone);
+
+            // Tái tạo pool nếu cạn
+            if (eventPool.Count == 0 && GameManager.Instance.allEvents.Count > 0)
+            {
+                Debug.LogWarning("Event Pool cạn! Đang tái tạo...");
+                foreach (var evt in GameManager.Instance.allEvents) { eventPool.Add(evt.eventID); }
+            }
+
+            // Bắt đầu lọc
+            foreach (string eventId in eventPool)
+            {
+                EventDataSO eventData = GameManager.Instance.allEvents.Find(e => e.eventID == eventId);
+                if (eventData != null)
+                {
+                    // Kiểm tra Region (cần enum EventRegion đã định nghĩa trước đó)
+                    bool regionMatch = eventData.region == EventRegion.Any || eventData.region == currentRegion ||
+                                       (currentRegion == EventRegion.Early && eventData.region == EventRegion.EarlyMid) ||
+                                       (currentRegion == EventRegion.Mid && (eventData.region == EventRegion.EarlyMid || eventData.region == EventRegion.MidLate)) ||
+                                       (currentRegion == EventRegion.Late && eventData.region == EventRegion.MidLate);
+
+                    // Kiểm tra Prerequisite Flag
+                    bool flagMatch = string.IsNullOrEmpty(eventData.prerequisiteFlag) || playerFlags.Contains(eventData.prerequisiteFlag);
+
+                    if (regionMatch && flagMatch)
+                    {
+                        validEvents.Add(eventData);
+                    }
+                }
+            }
+
+            // 2. Chọn ngẫu nhiên từ danh sách hợp lệ
+            if (validEvents.Count > 0)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, validEvents.Count);
+                EventDataSO selectedEvent = validEvents[randomIndex];
+
+                Debug.Log($"Đã chọn Event: {selectedEvent.eventID}");
+
+                // 3. Gán ID vào RunData
+                runData.mapData.pendingEventID = selectedEvent.eventID;
+
+                // 4. Xóa ID khỏi Pool
+                eventPool.Remove(selectedEvent.eventID);
+
+                // 5. Lưu trạng thái "đang chờ" và lưu game
+                runData.mapData.pendingNodePoint = node.Node.point;
+                // QUAN TRỌNG: Lưu tên scene hiện tại để quay về
+                runData.mapData.pendingNodeSceneName = SceneManager.GetActiveScene().name;
+                RunSaveService.SaveRun(runData);
+                Debug.Log("[SAVE SYSTEM] Entering Event node. Pending status set. Game saved.");
+
+                // 6. Tải EventScene
+                SceneManager.LoadScene("EventScene");
+            }
+            else
+            {
+                Debug.LogWarning("Không tìm thấy Event nào hợp lệ! Node này sẽ không làm gì cả. Mở khóa Player.");
+                // Mở khóa để người chơi đi tiếp
+                Locked = false;
+            }
+        }
+
+        // (Hàm GetCurrentRegion vẫn giữ nguyên hoặc đặt gần hàm SelectAndLoadEvent)
+        private EventRegion GetCurrentRegion(int currentZone)
+        {
+            if (currentZone <= 3) return EventRegion.Early;
+            if (currentZone <= 7) return EventRegion.Mid;
+            return EventRegion.Late;
+            // (Nhớ điều chỉnh logic zone này cho phù hợp)
         }
 
         private void TryWriteCombatPreset(MapNode mapNode)
@@ -174,5 +268,8 @@ namespace Map
         {
             Debug.Log("Selected node cannot be accessed");
         }
+
     }
+
+
 }

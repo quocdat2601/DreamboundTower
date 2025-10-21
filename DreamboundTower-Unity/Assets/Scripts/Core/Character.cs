@@ -343,6 +343,17 @@ public class Character : MonoBehaviour
         // ✅ PHÁT SÓNG TÍN HIỆU
         OnHealthChanged?.Invoke(currentHP, maxHP);
     }
+    public void HealPercent(int percent)
+    {
+        int amountToHeal = Mathf.RoundToInt(maxHP * (percent / 100f));
+        Heal(amountToHeal); // Gọi hàm Heal(flat)
+    }
+
+    public void TakeDamagePercent(int percent)
+    {
+        int amountToDamage = Mathf.RoundToInt(maxHP * (percent / 100f));
+        TakeDamage(amountToDamage, null); // Gọi hàm TakeDamage(flat)
+    }
 
     /// <summary>
     /// Restores mana by the specified amount
@@ -355,7 +366,23 @@ public class Character : MonoBehaviour
         // ✅ PHÁT SÓNG TÍN HIỆU
         OnManaChanged?.Invoke(currentMana, mana);
     }
+    public void UseMana(int amount)
+    {
+        currentMana -= amount;
+        OnManaChanged?.Invoke(currentMana, mana);
+    }
 
+    public void RestoreManaPercent(int percent)
+    {
+        int amountToRestore = Mathf.RoundToInt(mana * (percent / 100f));
+        RestoreMana(amountToRestore); // Gọi hàm RestoreMana(flat)
+    }
+    public void UseManaPercent(int percent)
+    {
+        // Tính toán mana sử dụng dựa trên % mana tối đa (mana)
+        int amountToUse = Mathf.RoundToInt(mana * (percent / 100f));
+        UseMana(amountToUse); // Gọi hàm UseMana(flat) với lượng mana đã tính
+    }
     void Die()
     {
         // Play death animation
