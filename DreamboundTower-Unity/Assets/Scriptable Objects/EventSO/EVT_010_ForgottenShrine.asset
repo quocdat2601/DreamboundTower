@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EventDataSO
   eventID: EVT_010
   inkStory: {fileID: 4900000, guid: 3933b2c0a977ae84bab16dee210482a3, type: 3}
-  backgroundImage: {fileID: 0}
+  backgroundImage: {fileID: -4542490819911408236, guid: 5e690c5736bdfc543975bd147a9f75b3, type: 3}
   region: 4
   prerequisiteFlag: 
