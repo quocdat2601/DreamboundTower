@@ -44,7 +44,8 @@ public class Character : MonoBehaviour
     public float dodgeChance = 0f; // Dodge chance (0.1 = 10%)
     [Tooltip("Percentage damage reduction from all sources")]
     public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
-    
+    [HideInInspector]
+    public bool isInvincible = false; // <-- THÊM BIẾN NÀY
     #endregion
 
     #region Events
@@ -56,6 +57,8 @@ public class Character : MonoBehaviour
     public event Action<int, int> OnManaChanged;
     // Sự kiện này đã có, dùng cho Resurrect
     public System.Action<Character> OnDeath;
+    // (Gửi đi thông tin: Kẻ tấn công, Lượng sát thương thực tế đã nhận)
+    public event System.Action<Character, int> OnDamageTaken;
     #endregion
 
     #region UI Components
@@ -73,6 +76,24 @@ public class Character : MonoBehaviour
     
     [Tooltip("Is this character the player? (affects screen effects)")]
     public bool isPlayer = false;
+    /// <summary>
+    /// Plays revive animation (flashes yellow)
+    /// </summary>
+    public void PlayReviveAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Đảm bảo quái vật hiện hình trở lại (nếu nó đã bị mờ)
+            characterImage.DOFade(1f, 0.1f);
+            transform.DOScale(1f, 0.1f);
+
+            // Nhấp nháy màu vàng (Yellow) 3 lần
+            // .SetLoops(6, LoopType.Yoyo) nghĩa là (đi -> về) * 3 = 6 GIAI ĐOẠN
+            characterImage.DOColor(Color.yellow, 0.15f)
+          .SetLoops(6, LoopType.Yoyo)
+          .OnComplete(() => characterImage.color = Color.white); // Đảm bảo màu trở về trắng
+        }
+    }
     #endregion
 
     #region Unity Lifecycle
@@ -135,23 +156,26 @@ public class Character : MonoBehaviour
     #endregion
 
     #region Combat System
-    public void Attack(Character target)
+    public void Attack(Character target, float damageMultiplier = 1.0f)
     {
         if (target == null) return;
-        
+
         // Play attack animation
         PlayAttackAnimation();
-        
-        // Calculate damage with passive bonuses
-        int totalDamage = CalculatePhysicalDamage(attackPower, target);
-        
-        // Trigger hit effect at target position
+
+        // Tính sát thương gốc (100%)
+        int baseDamage = CalculatePhysicalDamage(attackPower, target);
+
+        // ✅ ÁP DỤNG HỆ SỐ SÁT THƯƠNG
+        int totalDamage = Mathf.RoundToInt(baseDamage * damageMultiplier);
+
+        // (Code PlayHitEffect của bạn... giữ nguyên)
         if (CombatEffectManager.Instance != null)
         {
             CombatEffectManager.Instance.PlayHitEffect(target.transform.position);
         }
-        
-        // Use shield system for player, regular damage for enemies
+
+        // (Code TakeDamage... giữ nguyên)
         if (target.isPlayer)
         {
             target.TakeDamageWithShield(totalDamage, this);
@@ -160,7 +184,7 @@ public class Character : MonoBehaviour
         {
             target.TakeDamage(totalDamage, this);
         }
-        
+
         // Apply regular lifesteal if available
         if (lifestealPercent > 0f)
         {
@@ -262,6 +286,11 @@ public class Character : MonoBehaviour
     // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
     public void TakeDamage(int damage, Character attacker)
     {
+        if (isInvincible)
+        {
+            Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương.");
+            return;
+        }
         // Check for dodge first
         if (CheckDodge())
         {
@@ -282,6 +311,9 @@ public class Character : MonoBehaviour
         int actualDamage = Mathf.Max(1, reducedDamage - defense);
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
+
+        // Gửi đi "attacker" và "actualDamage"
+        OnDamageTaken?.Invoke(attacker, actualDamage);
 
         // Play being hit effects
         PlayHitAnimation();
@@ -386,7 +418,7 @@ public class Character : MonoBehaviour
     void Die()
     {
         // Play death animation
-        PlayDeathAnimation();
+        //PlayDeathAnimation();
 
         // Play death effect
         if (CombatEffectManager.Instance != null)
@@ -491,6 +523,11 @@ public class Character : MonoBehaviour
     /// </summary>
     public int TakeDamageWithShield(int damage, Character attacker)
     {
+        if (isInvincible)
+        {
+            Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương (vào khiên).");
+            return 0; // Không nhận sát thương, không phản đòn
+        }
         int reflectedDamage = 0;
         int actualDamage = damage;
         
@@ -635,13 +672,13 @@ public class Character : MonoBehaviour
             characterImage.DOFade(0f, 1f);
             transform.DOScale(0.5f, 1f).OnComplete(() => {
                 // Hide the character after animation completes
-                gameObject.SetActive(false);
+                //gameObject.SetActive(false);
             });
         }
         else
         {
             // Fallback: just hide the character if no image component
-            gameObject.SetActive(false);
+            //gameObject.SetActive(false);
         }
     }
     #endregion

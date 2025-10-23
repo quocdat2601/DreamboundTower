@@ -27,7 +27,7 @@ public class CounterAttackBehavior : MonoBehaviour
             Debug.Log($"<color=red>{gameObject.name} phản đòn vào {attacker.name}!</color>");
 
             // Thực hiện một đòn tấn công cơ bản ngược lại kẻ đã tấn công nó
-            character.Attack(attacker);
+            character.Attack(attacker, 0.3f);
         }
     }
 

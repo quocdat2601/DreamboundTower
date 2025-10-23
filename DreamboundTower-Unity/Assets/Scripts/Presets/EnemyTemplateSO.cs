@@ -13,7 +13,12 @@ namespace Presets
         Resurrect = 1 << 0, // 1
         SplitOnDamage = 1 << 1, // 2
         CounterAttack = 1 << 2, // 4
-                                // Gimmick tiếp theo sẽ là 1 << 3 = 8
+        Ranged = 1 << 8,
+		Enrage = 1 << 16,
+		Bony = 1 << 17,
+		Thornmail = 1 << 18,
+        Regenerator = 1 << 19
+
     }
 
     [CreateAssetMenu(fileName = "EnemyTemplate", menuName = "Presets/EnemyTemplate", order = 2)]

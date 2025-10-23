@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: EliteWizardEnemy Config
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
   kind: 1
-  gimmick: 1
+  gimmick: 524288
+  manaRegenPerTurnn: 0
+  skills: []
   sprites:
   - {fileID: 735992723534926870, guid: 1961bf6498a502642a95e15f1dad69cd, type: 3}
   baseStatsAtFloor1:

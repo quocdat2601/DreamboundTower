@@ -158,8 +158,8 @@ public class BattleManager : MonoBehaviour
         SpawnEnemies();
         AutoBindEnemySlotButtons();
         RefreshSelectionVisual();
-        
-        // Debug battle state after initialization
+        NotifyCharactersOfNewTurn(currentTurn);
+
     }
     void Update()
     {
@@ -397,7 +397,7 @@ public class BattleManager : MonoBehaviour
             else if (finalTemplate != null)
             {
                 StatBlock finalStats = finalTemplate.GetStatsAtFloor(absoluteFloor);
-                ApplyEnemyData(enemyGO, finalStats, finalTemplate);
+                ApplyEnemyData(enemyGO, finalStats, finalTemplate, false);
             }
             else
             {
@@ -416,7 +416,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template)
+    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template, bool isSplitChild = false)
     {
         if (enemyGO == null) return;
 
@@ -478,6 +478,40 @@ public class BattleManager : MonoBehaviour
         if ((template.gimmick & EnemyGimmick.CounterAttack) != 0)
         {
             enemyGO.AddComponent<CounterAttackBehavior>();
+        }
+        if ((template.gimmick & EnemyGimmick.SplitOnDamage) != 0 && !isSplitChild)
+        {
+            var split = enemyGO.AddComponent<SplitBehavior>();
+            // Gán template gốc cho nó để nó biết spawn con nào
+            split.myOriginalTemplate = template;
+            Debug.Log($"[BATTLE] Đã gán SplitBehavior cho {enemyGO.name}");
+        }
+        // Gimmick: Ranged (Bất tử)
+        if ((template.gimmick & EnemyGimmick.Ranged) != 0)
+        {
+            enemyGO.AddComponent<RangedBehavior>();
+        }
+
+        // Gimmick: Enrage (Nổi giận)
+        if ((template.gimmick & EnemyGimmick.Enrage) != 0)
+        {
+            enemyGO.AddComponent<EnrageBehavior>();
+        }
+        // Gimmick: Bony (Giảm sát thương)
+        if ((template.gimmick & EnemyGimmick.Bony) != 0)
+        {
+            enemyGO.AddComponent<BonyBehavior>();
+        }
+
+        // Gimmick: Thornmail (Giáp gai)
+        if ((template.gimmick & EnemyGimmick.Thornmail) != 0)
+        {
+            enemyGO.AddComponent<ThornmailBehavior>();
+        }
+        // Gimmick: Regenerator (Tự hồi phục)
+        if ((template.gimmick & EnemyGimmick.Regenerator) != 0)
+        {
+            enemyGO.AddComponent<RegeneratorBehavior>();
         }
     }
 
@@ -694,7 +728,7 @@ public class BattleManager : MonoBehaviour
         currentTurn++;
         playerTurn = true;
         UpdateTurnDisplay();
-        
+        NotifyCharactersOfNewTurn(currentTurn);
         // Process start-of-turn status effects
         if (StatusEffectManager.Instance != null)
         {
@@ -1019,14 +1053,130 @@ public class BattleManager : MonoBehaviour
         return aliveEnemies == 0;
     }
 
-    // Checks if a specific enemy has died
-    bool DidEnemyDie(int index)
+    /// <summary>
+    /// (HÀM 1) Bắt đầu quá trình Tách quái vật (được gọi từ SplitBehavior)
+    /// </summary>
+    public void HandleSplit(Character originalSlime, EnemyTemplateSO templateToSpawn)
     {
-        if (index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return true;
-        var enemyChar = enemyInstances[index].GetComponent<Character>();
-        return enemyChar != null && enemyChar.currentHP <= 0;
+        // Dùng Coroutine để có thể chờ animation chết hoàn thành
+        StartCoroutine(SplitRoutine(originalSlime, templateToSpawn));
     }
 
+    /// <summary>
+    /// (HÀM 2) Coroutine xử lý logic tách
+    /// </summary>
+    private IEnumerator SplitRoutine(Character originalSlime, EnemyTemplateSO templateToSpawn)
+    {
+        // 1. Tìm slot và HP TỐI ĐA của con quái gốc
+        int originalSlotIndex = -1;
+        int originalMaxHP = originalSlime.maxHP; // Lấy HP GỐC
+
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] != null && enemyInstances[i] == originalSlime.gameObject)
+            {
+                originalSlotIndex = i;
+                break;
+            }
+        }
+
+        if (originalSlotIndex == -1)
+        {
+            Debug.LogError("[BATTLE] Không tìm thấy quái gốc để tách!");
+            yield break;
+        }
+
+        // 2. Giết con quái gốc (mà không kích hoạt VictoryRoutine)
+        originalSlime.OnDeath -= HandleCharacterDeath; // (Rất quan trọng)
+        originalSlime.PlayDeathAnimation();
+
+        yield return new WaitForSeconds(1.1f); // Đợi animation chết
+
+        // 3. Dọn dẹp con quái gốc và giải phóng slot
+        Destroy(originalSlime.gameObject);
+        enemyInstances[originalSlotIndex] = null; // Slot 1 (đã trống)
+
+        // 4. Tìm SLOT 2 (slot trống bất kỳ khác slot gốc)
+        int secondSlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            // Nếu slot này trống VÀ không phải là slot gốc
+            if (i != originalSlotIndex && enemyInstances[i] == null)
+            {
+                secondSlotIndex = i;
+                break; // Chỉ cần 1 slot
+            }
+        }
+
+        // 5. Tính HP cho quái mới (50% HP GỐC)
+        int newHP = Mathf.Max(1, Mathf.RoundToInt(originalMaxHP * 0.5f));
+
+        // 6. Spawn Quái 1 (vào slot gốc)
+        Debug.Log($"[BATTLE] Spawning quái tách ra ở slot {originalSlotIndex} với {newHP} HP");
+        SpawnIndividualSplitEnemy(originalSlotIndex, templateToSpawn, newHP);
+
+        // 7. Spawn Quái 2 (vào slot thứ 2, NẾU tìm thấy)
+        if (secondSlotIndex != -1)
+        {
+            Debug.Log($"[BATTLE] Spawning quái tách ra ở slot {secondSlotIndex} với {newHP} HP");
+            SpawnIndividualSplitEnemy(secondSlotIndex, templateToSpawn, newHP);
+        }
+        else
+        {
+            Debug.LogWarning("[BATTLE] Không tìm thấy slot trống thứ 2, chỉ tách ra 1 quái mới.");
+        }
+    }
+
+    /// <summary>
+    /// (HÀM 3) Hàm hỗ trợ để spawn 1 con quái (con)
+    /// </summary>
+    private void SpawnIndividualSplitEnemy(int slotIndex, EnemyTemplateSO template, int hpToSet)
+    {
+        if (slotIndex < 0 || slotIndex >= enemySlots.Length || template == null) return;
+
+        Transform slot = enemySlots[slotIndex];
+
+        // Đảm bảo slot được kích hoạt (vì nó có thể đã bị tắt nếu trống)
+        slot.gameObject.SetActive(true);
+
+        int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+
+        var enemyGO = Instantiate(enemyPrefab, slot, false);
+        enemyGO.transform.localPosition = Vector2.zero;
+        enemyGO.transform.localScale = Vector3.one;
+        enemyGO.name = $"Enemy_{slotIndex}_{template.name}_Split";
+
+        StatBlock finalStats = template.GetStatsAtFloor(absoluteFloor);
+
+        // ✅ GỌI HÀM APPLY MỚI
+        // Ghi rõ "isSplitChild: true" để nó không thêm SplitBehavior
+        ApplyEnemyData(enemyGO, finalStats, template, true);
+
+        // GHI ĐÈ HP VỀ 50%
+        var ch = enemyGO.GetComponent<Character>();
+        if (ch != null)
+        {
+            // Quan trọng: Gán HP con = 50% HP GỐC
+            ch.currentHP = hpToSet;
+
+            // (Tùy chọn: Nếu bạn muốn HP tối đa của nó cũng là 50%)
+            // ch.maxHP = hpToSet; 
+            // (Hiện tại, nó sẽ có 50/100 HP, điều này có vẻ hợp lý)
+
+            ch.UpdateHPUI(); // Cập nhật thanh máu
+        }
+
+        enemyInstances[slotIndex] = enemyGO;
+
+        // Gán lại sự kiện click cho slot này (RẤT QUAN TRỌNG)
+        var btn = slot.GetComponent<Button>();
+        if (btn != null)
+        {
+            btn.onClick.RemoveAllListeners();
+            int idx = slotIndex;
+            btn.onClick.AddListener(() => SelectEnemy(idx));
+        }
+    }
     #endregion
 
     #region Button Actions
@@ -1100,7 +1250,6 @@ public class BattleManager : MonoBehaviour
         }
     }
     
-
     private IEnumerator ProcessDeathRoutine(Character deadCharacter)
     {
         // Đợi một khoảng thời gian rất ngắn (ví dụ: cuối frame)
@@ -1118,24 +1267,27 @@ public class BattleManager : MonoBehaviour
             yield break; // Dừng coroutine ở đây
         }
 
-        // Nếu là kẻ địch
         for (int i = 0; i < enemyInstances.Length; i++)
         {
             if (enemyInstances[i] != null && enemyInstances[i] == deadCharacter.gameObject)
             {
-                // SAU KHI ĐỢI, KIỂM TRA LẠI MÁU CỦA KẺ ĐỊCH
-                // Nếu HP của nó lớn hơn 0 (do được hồi sinh), thì không làm gì cả!
                 if (deadCharacter.currentHP > 0)
                 {
                     Debug.Log($"[BATTLE] {deadCharacter.name} đã được hồi sinh, không hủy đối tượng.");
+                    // và gọi nó ở đây để quái vật nhấp nháy/phát sáng khi sống lại)
+                     deadCharacter.PlayReviveAnimation();
+
                     yield break;
                 }
 
-                // Unsubscribe from death event to prevent errors
+                // NẾU KHÔNG HỒI SINH (CHẾT THẬT)
                 deadCharacter.OnDeath -= HandleCharacterDeath;
 
+                // ✅ CHƠI ANIMATION CHẾT Ở ĐÂY
+                deadCharacter.PlayDeathAnimation();
+
                 // Wait for death animation to complete (1 second) before destroying
-                yield return new WaitForSeconds(1.1f); // Slightly longer than animation duration
+                yield return new WaitForSeconds(1.1f); // Đợi animation chạy xong
 
                 // Destroy the enemy GameObject
                 Destroy(enemyInstances[i]);
@@ -1164,7 +1316,29 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
+    /// <summary>
+    /// Gửi thông báo đến tất cả các nhân vật (Player + Enemies) về lượt mới
+    /// </summary>
+    void NotifyCharactersOfNewTurn(int turn)
+    {
+        string message = "OnNewTurnStarted";
 
+        // Thông báo cho Player
+        if (playerCharacter != null)
+        {
+            playerCharacter.BroadcastMessage(message, turn, SendMessageOptions.DontRequireReceiver);
+        }
+
+        // Thông báo cho tất cả Enemies
+        if (enemyInstances == null) return;
+        foreach (var enemyGO in enemyInstances)
+        {
+            if (enemyGO != null)
+            {
+                enemyGO.SendMessage(message, turn, SendMessageOptions.DontRequireReceiver);
+            }
+        }
+    }
     #endregion
 
 }

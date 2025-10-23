@@ -1,12 +1,13 @@
-﻿using UnityEngine;
+﻿// File: SplitBehavior.cs
+using UnityEngine;
 using Presets;
 
 [RequireComponent(typeof(Character))]
 public class SplitBehavior : MonoBehaviour
 {
-    [Header("Split Config")]
-    [Tooltip("Template của loại quái nhỏ hơn sẽ được tạo ra")]
-    public EnemyTemplateSO smallerEnemyTemplate;
+    // (Biến này sẽ được BattleManager gán khi spawn quái)
+    [HideInInspector]
+    public EnemyTemplateSO myOriginalTemplate;
 
     [Tooltip("Ngưỡng máu để tách ra, 0.5 = 50%")]
     [Range(0.1f, 0.9f)]
@@ -14,6 +15,7 @@ public class SplitBehavior : MonoBehaviour
 
     private Character character;
     private bool hasSplit = false;
+    private BattleManager battleManager;
 
     void Awake()
     {
@@ -24,23 +26,28 @@ public class SplitBehavior : MonoBehaviour
         }
     }
 
+    void Start()
+    {
+        // Dùng Start() để đảm bảo BattleManager đã Awake
+        battleManager = FindFirstObjectByType<BattleManager>();
+    }
+
     private void HandleDamage(Character attacker)
     {
-        // Chỉ tách một lần duy nhất
-        if (hasSplit) return;
+        // Nếu đã tách, hoặc không tìm thấy manager, hoặc không có template gốc thì dừng
+        if (hasSplit || battleManager == null || myOriginalTemplate == null) return;
 
-        // Kiểm tra xem máu có dưới ngưỡng không
-        if ((float)character.currentHP / character.maxHP <= splitHealthThreshold)
+        // Kiểm tra xem máu có dưới ngưỡng không
+        if ((float)character.currentHP / character.maxHP <= splitHealthThreshold)
         {
             hasSplit = true;
-            Debug.Log($"<color=blue>{gameObject.name} đã tách ra!</color>");
+            Debug.Log($"<color=cyan>{gameObject.name} đã kích hoạt Split!</color>");
 
-            // Ở đây bạn sẽ cần gọi một hàm trong BattleManager để tạo ra 2 con quái mới.
-            // Chúng ta sẽ thêm hàm này vào BattleManager ở bước sau.
-            // BattleManager.Instance.SpawnAdditionalEnemies(smallerEnemyTemplate, 2);
+            // Yêu cầu BattleManager xử lý việc tách
+            battleManager.HandleSplit(character, myOriginalTemplate);
 
-            // Sau khi tách, con quái gốc sẽ tự chết (gây 1 lượng sát thương cực lớn)
-            character.TakeDamage(99999, null);
+            // Hủy đăng ký ngay lập tức
+            character.OnDamaged -= HandleDamage;
         }
     }
 

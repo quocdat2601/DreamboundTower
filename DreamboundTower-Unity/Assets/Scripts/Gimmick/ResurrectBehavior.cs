@@ -5,7 +5,8 @@
 public class ResurrectBehavior : MonoBehaviour
 {
     private Character character;
-    private bool hasResurrected = false;
+    public bool hasResurrected = false;
+    private MonoBehaviour lootableScript;
 
     void Awake()
     {
