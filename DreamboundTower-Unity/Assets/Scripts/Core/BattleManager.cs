@@ -51,7 +51,10 @@ public class BattleManager : MonoBehaviour
     public BattleUIManager uiManager;   // Assign your UIManager here
     public GameObject defeatPanel;
     public Image battleBackground;
-    
+    public EnemyInfoPanel enemyInfoPanel; // Tham chiếu đến script panel (Từ Bước 3)
+    public Button inspectTagButton; // Nút "Tag" duy nhất (Từ Bước 2)
+    public TextMeshProUGUI inspectTagButtonText; // Text bên trong nút Tag
+
     [Header("Turn Display")]
     public TextMeshProUGUI turnText;    // UI text to display turn number
     
@@ -63,6 +66,7 @@ public class BattleManager : MonoBehaviour
     private GameObject playerInstance;
     private GameObject[] enemyInstances;
     private Character playerCharacter; // Reference to the player's Character component for quick access
+    private EnemyTemplateSO[] enemyTemplates; 
 
     // state & selection
     private int selectedEnemyIndex = -1;
@@ -278,7 +282,10 @@ public class BattleManager : MonoBehaviour
         if (enemySlots == null || enemySlots.Length == 0) return;
 
         enemyInstances = new GameObject[enemySlots.Length];
+        enemyTemplates = new EnemyTemplateSO[enemySlots.Length];
 
+        if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false);
+        if (enemyInfoPanel != null) enemyInfoPanel.HidePanel();
         // --- 1. LẤY DỮ LIỆU ---
         string archetypeId = null;
         int absoluteFloor = 1;
@@ -352,7 +359,6 @@ public class BattleManager : MonoBehaviour
         {
             if (enemyPrefab == null) continue;
 
-            // ✅ SỬA LẠI LOGIC CHỌN SLOT
             int slotIndex = i; // Vị trí bình thường
             if (isMimicEncounter)
             {
@@ -379,7 +385,8 @@ public class BattleManager : MonoBehaviour
                 finalTemplate = availableEnemies[UnityEngine.Random.Range(0, availableEnemies.Count)];
             }
 
-            // ✅ SỬA LẠI LOGIC TẠO QUÁI
+            enemyTemplates[slotIndex] = finalTemplate;
+
             // Tạo GameObject tại đúng slotIndex
             var enemyGO = Instantiate(enemyPrefab, enemySlots[slotIndex], false);
             enemyGO.transform.localPosition = Vector2.zero;
@@ -649,6 +656,49 @@ public class BattleManager : MonoBehaviour
             selectedEnemyIndex = index;
             RefreshSelectionVisual();
         }
+
+        // Kiểm tra xem index có hợp lệ và quái vật còn sống không
+        bool isValidTarget = index >= 0 && index < enemyInstances.Length && enemyInstances[index] != null;
+
+        if (isValidTarget)
+        {
+            // Lấy dữ liệu của quái vật được chọn
+            Character enemyChar = enemyInstances[index].GetComponent<Character>();
+            EnemyTemplateSO enemyTemplate = enemyTemplates[index]; // Lấy từ mảng đã lưu
+
+            if (enemyChar != null && enemyTemplate != null && inspectTagButton != null)
+            {
+                // 1. Hiện nút Tag
+                inspectTagButton.gameObject.SetActive(true);
+
+                // 2. Cập nhật Text trên nút Tag (ví dụ: "Slime")
+                if (inspectTagButtonText != null)
+                {
+                    inspectTagButtonText.text = enemyTemplate.name; // Lấy tên từ template
+                }
+
+                // 3. Xóa listener cũ và gán listener mới
+                inspectTagButton.onClick.RemoveAllListeners();
+                if (enemyInfoPanel != null)
+                {
+                    // Khi bấm nút, gọi hàm DisplayEnemyInfo của panel
+                    inspectTagButton.onClick.AddListener(() => {
+                        enemyInfoPanel.DisplayEnemyInfo(enemyChar, enemyTemplate);
+                    });
+                }
+            }
+        }
+        else // Nếu click ra ngoài, hoặc quái đã chết
+        {
+            // Ẩn nút Tag và Panel
+            if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false);
+            if (enemyInfoPanel != null) enemyInfoPanel.HidePanel();
+
+            // Bỏ chọn luôn (nếu bạn muốn)
+            // selectedEnemyIndex = -1;
+            // RefreshSelectionVisual();
+        }
+
     }
 
     /// <summary>
@@ -1296,12 +1346,15 @@ public class BattleManager : MonoBehaviour
                 // Mark slot as empty
                 enemyInstances[i] = null;
                 Debug.Log($"[BATTLE] Marked enemy slot {i} as null");
-
+                enemyTemplates[i] = null;
                 // If this enemy was selected as target, deselect it
                 if (selectedEnemyIndex == i)
                 {
                     selectedEnemyIndex = -1;
                     RefreshSelectionVisual();
+
+                    if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false);
+                    if (enemyInfoPanel != null) enemyInfoPanel.HidePanel();
                 }
                 
                 // Check if all enemies are now dead after destroying this one
