@@ -62,21 +62,21 @@ public class SkillManager : MonoBehaviour
         // Check mana cost
         if (playerCharacter.currentMana < skill.cost) 
         {
-            Debug.LogWarning($"[SKILL] Insufficient mana! Need {skill.cost}, have {playerCharacter.currentMana}");
+            // Silent check - UI handles feedback
             return false;
         }
         
         // Check cooldown
         if (IsSkillOnCooldown(skill)) 
         {
-            Debug.LogWarning($"[SKILL] Skill is on cooldown! Turns remaining: {GetSkillCooldown(skill)}");
+            // Silent check - UI handles feedback
             return false;
         }
         
         // Check if it's player turn
         if (!battleManager.PlayerTurn) 
         {
-            Debug.LogWarning($"[SKILL] Not player turn! PlayerTurn: {battleManager.PlayerTurn}");
+            // Silent check - UI handles feedback
             return false;
         }
         

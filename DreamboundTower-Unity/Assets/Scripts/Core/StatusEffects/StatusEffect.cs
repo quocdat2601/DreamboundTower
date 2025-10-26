@@ -79,7 +79,7 @@ namespace StatusEffects
 /// </summary>
 public class ShieldEffect : StatusEffect
 {
-    public ShieldEffect(int shieldAmount, int duration) : base("Shield", duration, shieldAmount, EffectTiming.OnDamage, false, false)
+    public ShieldEffect(int shieldAmount, int duration) : base("Shield", duration, shieldAmount, EffectTiming.EndOfTurn, false, false)
     {
     }
     
@@ -93,7 +93,7 @@ public class ShieldEffect : StatusEffect
 /// </summary>
 public class ReflectEffect : StatusEffect
 {
-    public ReflectEffect(int reflectPercent, int duration) : base("Reflect", duration, reflectPercent, EffectTiming.OnDamage, false, false)
+    public ReflectEffect(int reflectPercent, int duration) : base("Reflect", duration, reflectPercent, EffectTiming.EndOfTurn, false, false)
     {
     }
     
@@ -128,6 +128,12 @@ public class BurnEffect : StatusEffect
     {
         if (target != null)
         {
+            Debug.Log($"[BURN] Dealing {intensity} burn damage to {target.name}");
+            // Show visual damage number for burn effect
+            if (CombatEffectManager.Instance != null)
+            {
+                CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, Color.red);
+            }
             target.TakeDamage(intensity, null); // No attacker for DoT
         }
     }
@@ -146,6 +152,11 @@ public class PoisonEffect : StatusEffect
     {
         if (target != null)
         {
+            // Show visual damage number for poison effect
+            if (CombatEffectManager.Instance != null)
+            {
+                CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, Color.magenta);
+            }
             target.TakeDamage(intensity, null); // No attacker for DoT
         }
     }
@@ -156,7 +167,7 @@ public class PoisonEffect : StatusEffect
 /// </summary>
 public class HealBonusEffect : StatusEffect
 {
-    public HealBonusEffect(int bonusPercent, int duration) : base("Heal Bonus", duration, bonusPercent, EffectTiming.OnDamage, false, false)
+    public HealBonusEffect(int bonusPercent, int duration) : base("Heal Bonus", duration, bonusPercent, EffectTiming.EndOfTurn, false, false)
     {
     }
     
@@ -170,7 +181,7 @@ public class HealBonusEffect : StatusEffect
 /// </summary>
 public class PounceEffect : StatusEffect
 {
-    public PounceEffect(int damageBonus, int duration) : base("Pounce", duration, damageBonus, EffectTiming.OnDamage, false, false)
+    public PounceEffect(int damageBonus, int duration) : base("Pounce", duration, damageBonus, EffectTiming.EndOfTurn, false, false)
     {
     }
     

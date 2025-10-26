@@ -45,7 +45,12 @@ public class Character : MonoBehaviour
     [Tooltip("Percentage damage reduction from all sources")]
     public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
     [HideInInspector]
-    public bool isInvincible = false; // <-- THÊM BIẾN NÀY
+    public bool isInvincible = false;
+    
+    /// <summary>
+    /// Tracks if the last damage received was magical (for color differentiation)
+    /// </summary>
+    private bool isLastDamageMagical = false;
     #endregion
 
     #region Events
@@ -319,7 +324,17 @@ public class Character : MonoBehaviour
         PlayHitAnimation();
         if (CombatEffectManager.Instance != null)
         {
-            CombatEffectManager.Instance.PlayBeingHitEffect(this, actualDamage);
+            // Show damage with appropriate color based on damage type
+            if (isLastDamageMagical)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                CombatEffectManager.Instance.ShowDamageNumberWithColor(uiPosition, actualDamage, Color.cyan);
+            }
+            else
+            {
+                CombatEffectManager.Instance.PlayBeingHitEffect(this, actualDamage);
+            }
+            isLastDamageMagical = false; // Reset flag
         }
 
         UpdateHPUI(); // Phát tín hiệu cho UI
@@ -521,13 +536,13 @@ public class Character : MonoBehaviour
     /// <summary>
     /// Takes damage with shield protection and reflection
     /// </summary>
-    public int TakeDamageWithShield(int damage, Character attacker)
+    public int TakeDamageWithShield(int damage, Character attacker, bool isMagicalDamage = false)
     {
         if (isInvincible)
         {
             Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương (vào khiên).");
             return 0; // Không nhận sát thương, không phản đòn
-        }
+       }
         int reflectedDamage = 0;
         int actualDamage = damage;
         
@@ -555,6 +570,7 @@ public class Character : MonoBehaviour
         // Apply remaining damage to HP
         if (actualDamage > 0)
         {
+            isLastDamageMagical = isMagicalDamage; // Set flag before taking damage
             TakeDamage(actualDamage, attacker);
         }
         

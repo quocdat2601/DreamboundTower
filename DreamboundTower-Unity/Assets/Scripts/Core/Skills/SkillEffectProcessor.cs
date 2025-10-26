@@ -78,7 +78,7 @@ public static class SkillEffectProcessor
             {
                 // Calculate magic damage with passive bonuses
                 int magicDamage = caster.CalculateMagicDamage(totalDamage);
-                damageDealt = target.TakeDamageWithShield(magicDamage, caster);
+                damageDealt = target.TakeDamageWithShield(magicDamage, caster, isMagicalDamage: true);
             }
             else
             {

@@ -54,6 +54,10 @@ public class BattleManager : MonoBehaviour
     public EnemyInfoPanel enemyInfoPanel; // Tham chiếu đến script panel (Từ Bước 3)
     public Button inspectTagButton; // Nút "Tag" duy nhất (Từ Bước 2)
     public TextMeshProUGUI inspectTagButtonText; // Text bên trong nút Tag
+    
+    [Header("Status Effect Display")]
+    public GameObject statusEffectIconPrefab; // Prefab for status effect icons
+    public StatusEffectIconDatabase statusEffectIconDatabase; // Database of status effect icons
 
     [Header("Turn Display")]
     public TextMeshProUGUI turnText;    // UI text to display turn number
@@ -520,6 +524,78 @@ public class BattleManager : MonoBehaviour
         {
             enemyGO.AddComponent<RegeneratorBehavior>();
         }
+        
+        // Set up status effect display for enemy
+        SetupEnemyStatusEffectDisplay(enemyGO);
+    }
+    
+    /// <summary>
+    /// Sets up status effect display UI for an enemy
+    /// Creates a container for status effect icons above the enemy's HP bar and links it to the enemy's character
+    /// Status effects will appear as scaled icons (2x size) for better visibility
+    /// </summary>
+    private void SetupEnemyStatusEffectDisplay(GameObject enemyGO)
+    {
+        if (enemyGO == null || statusEffectIconPrefab == null || statusEffectIconDatabase == null)
+        {
+            return;
+        }
+        
+        Character enemyChar = enemyGO.GetComponent<Character>();
+        if (enemyChar == null) return;
+        
+        // Find the HP bar (it should be a child of the enemy)
+        Transform hpBarTransform = null;
+        foreach (Transform child in enemyGO.transform)
+        {
+            if (child.name == "HpBar")
+            {
+                hpBarTransform = child;
+                break;
+            }
+        }
+        
+        if (hpBarTransform == null)
+        {
+            Debug.LogWarning($"[BATTLE] Could not find HpBar for {enemyGO.name}");
+            return;
+        }
+        
+        // Create container for status effect icons above HP bar
+        GameObject statusEffectContainer = new GameObject("StatusEffectContainer");
+        statusEffectContainer.transform.SetParent(enemyGO.transform, false);
+        RectTransform containerRect = statusEffectContainer.AddComponent<RectTransform>();
+        
+        // Position above HP bar (100 units above center)
+        containerRect.anchorMin = new Vector2(0.5f, 0.5f);
+        containerRect.anchorMax = new Vector2(0.5f, 0.5f);
+        containerRect.pivot = new Vector2(0.5f, 0.5f);
+        containerRect.anchoredPosition = new Vector2(0, 100);
+        containerRect.sizeDelta = new Vector2(400, 80);
+        
+        // Configure horizontal layout for icons
+        var layoutGroup = statusEffectContainer.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        layoutGroup.spacing = 8;
+        layoutGroup.childControlWidth = true;
+        layoutGroup.childControlHeight = true;
+        layoutGroup.childForceExpandWidth = false;
+        layoutGroup.childForceExpandHeight = false;
+        layoutGroup.padding = new RectOffset(4, 4, 4, 4);
+        
+        // Auto-size container to fit content
+        var sizeFitter = statusEffectContainer.AddComponent<UnityEngine.UI.ContentSizeFitter>();
+        sizeFitter.horizontalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+        sizeFitter.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+        
+        // Setup StatusEffectDisplayManager to track this enemy's effects
+        StatusEffectDisplayManager displayManager = statusEffectContainer.AddComponent<StatusEffectDisplayManager>();
+        displayManager.statusEffectIconPrefab = statusEffectIconPrefab;
+        displayManager.iconContainer = statusEffectContainer.transform;
+        displayManager.iconDatabase = statusEffectIconDatabase;
+        displayManager.SetTargetCharacter(enemyChar);
+        
+        // Scale up icons (2x) for better visibility on enemies
+        statusEffectContainer.transform.localScale = new Vector3(2.0f, 2.0f, 1.0f);
     }
 
     #endregion
@@ -1200,6 +1276,7 @@ public class BattleManager : MonoBehaviour
 
         // ✅ GỌI HÀM APPLY MỚI
         // Ghi rõ "isSplitChild: true" để nó không thêm SplitBehavior
+        // Note: SetupEnemyStatusEffectDisplay is already called inside ApplyEnemyData
         ApplyEnemyData(enemyGO, finalStats, template, true);
 
         // GHI ĐÈ HP VỀ 50%

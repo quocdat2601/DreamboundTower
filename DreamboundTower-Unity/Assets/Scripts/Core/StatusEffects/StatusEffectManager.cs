@@ -147,6 +147,15 @@ public class StatusEffectManager : MonoBehaviour
         return activeEffects[target].Find(e => e.GetType() == effectType);
     }
     
+    /// <summary>
+    /// Gets all active effects on a character (for UI display)
+    /// </summary>
+    public List<StatusEffect> GetActiveEffects(Character target)
+    {
+        if (target == null || !activeEffects.ContainsKey(target)) return new List<StatusEffect>();
+        return new List<StatusEffect>(activeEffects[target]);
+    }
+    
     #endregion
     
     #region Private Methods

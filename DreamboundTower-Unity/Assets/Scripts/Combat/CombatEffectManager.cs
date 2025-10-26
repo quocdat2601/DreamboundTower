@@ -147,7 +147,7 @@ public class CombatEffectManager : MonoBehaviour
     /// </summary>
     /// <param name="character">Character to get position for</param>
     /// <returns>UI position for damage number</returns>
-    private Vector3 GetCharacterUIPosition(Character character)
+    public Vector3 GetCharacterUIPosition(Character character)
     {
         Vector3 position;
         
@@ -201,6 +201,61 @@ public class CombatEffectManager : MonoBehaviour
         if (damageNumberScript != null)
         {
             damageNumberScript.ShowDamage(damage, isCritical);
+        }
+    }
+    
+    /// <summary>
+    /// Shows damage number with custom color
+    /// </summary>
+    /// <param name="position">UI position to show damage number</param>
+    /// <param name="damage">Damage amount to display</param>
+    /// <param name="color">Custom color for the damage number</param>
+    public void ShowDamageNumberWithColor(Vector3 position, int damage, Color color)
+    {
+        ShowDamageNumberAtPosition(position, damage.ToString(), color);
+    }
+    
+    /// <summary>
+    /// Shows damage number for status effects (burn, poison, etc.) with custom color
+    /// </summary>
+    /// <param name="target">Character taking damage</param>
+    /// <param name="damage">Damage amount to display</param>
+    /// <param name="color">Color for the damage number</param>
+    public void ShowStatusEffectDamage(Character target, int damage, Color color)
+    {
+        if (target == null) return;
+        
+        // Get the UI position of the character
+        Vector3 position = GetCharacterUIPosition(target);
+        ShowDamageNumberAtPosition(position, damage.ToString(), color);
+    }
+    
+    /// <summary>
+    /// Helper method to show damage number at position with custom color
+    /// </summary>
+    private void ShowDamageNumberAtPosition(Vector3 position, string text, Color color)
+    {
+        if (damageNumberPrefab == null || damageNumberCanvas == null) return;
+        
+        // Spawn damage number
+        GameObject damageNumber = Instantiate(damageNumberPrefab, damageNumberCanvas.transform);
+        
+        // Set position relative to the canvas
+        damageNumber.transform.position = position;
+        
+        // Add some random offset to prevent overlapping
+        Vector3 randomOffset = new Vector3(
+            Random.Range(-80f, 80f),
+            Random.Range(-30f, 30f),
+            0f
+        );
+        damageNumber.transform.position += randomOffset;
+        
+        // Configure damage number with custom color
+        DamageNumber damageNumberScript = damageNumber.GetComponent<DamageNumber>();
+        if (damageNumberScript != null)
+        {
+            damageNumberScript.ShowMessage(text, color);
         }
     }
     #endregion

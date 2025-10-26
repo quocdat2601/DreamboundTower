@@ -19,12 +19,14 @@ MonoBehaviour:
     immunity to stun for 1 turn.
   resource: 0
   cost: 0
+  cooldown: 6
+  target: 2
+  vfxPrefab: {fileID: 0}
   baseDamage: 0
   scalingStat: 6
   scalingPercent: 0
-  cooldown: 6
-  target: 2
   isMagicDamage: 0
+  hitCount: 1
   healAmount: 0
   healPercent: 0.25
   lifesteal: 0
@@ -43,3 +45,6 @@ MonoBehaviour:
   removeOneDebuff: 0
   healingEffectivenessBonus: 0
   healingEffectivenessDuration: 0
+  recoilDamagePercent: 0
+  stunChance: 0
+  bonusDamageToStunned: 0

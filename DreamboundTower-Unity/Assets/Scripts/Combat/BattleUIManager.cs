@@ -10,11 +10,38 @@ public class BattleUIManager : MonoBehaviour
     private BattleManager battleManager;
     private List<SkillIconUI> spawnedSkillIcons = new List<SkillIconUI>();
     private SkillIconUI selectedIcon = null;
+    
+    private float lastCooldownUpdate = 0f;
+    private const float COOLDOWN_UPDATE_INTERVAL = 0.1f; // Update every 0.1 seconds
 
     public void Initialize(BattleManager manager)
     {
         this.battleManager = manager;
         ConnectSkillIconEvents();
+    }
+    
+    void Update()
+    {
+        // Periodically update cooldown displays
+        if (Time.time - lastCooldownUpdate > COOLDOWN_UPDATE_INTERVAL)
+        {
+            RefreshAllSkillCooldowns();
+            lastCooldownUpdate = Time.time;
+        }
+    }
+    
+    /// <summary>
+    /// Refreshes cooldown display for all skill icons
+    /// </summary>
+    private void RefreshAllSkillCooldowns()
+    {
+        foreach (var icon in spawnedSkillIcons)
+        {
+            if (icon != null)
+            {
+                icon.RefreshCooldownDisplay();
+            }
+        }
     }
 
     private void ConnectSkillIconEvents()
