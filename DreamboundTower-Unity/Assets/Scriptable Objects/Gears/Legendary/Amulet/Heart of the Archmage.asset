@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Leather Boots
+  m_Name: Heart of the Archmage
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Leather Boots
-  gearType: 4
-  icon: {fileID: 21300000, guid: c2d586befec316b4ab79fa0a93b06dbc, type: 3}
+  itemName: Heart of the Archmage
+  gearType: 5
+  icon: {fileID: -5572269279992391383, guid: bbe04959bb2648f46932d980fefb1260, type: 3}
   description: 
-  rarity: 0
-  basePrice: 20
+  rarity: 4
+  basePrice: 375
   attackBonus: 0
-  defenseBonus: 0
-  hpBonus: 10
-  intBonus: 0
-  manaBonus: 0
+  defenseBonus: 5
+  hpBonus: 150
+  intBonus: 25
+  manaBonus: 100
   agiBonus: 0
   modifiers: []

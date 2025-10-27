@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Leather Boots
+  m_Name: Mindbender Visor
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Leather Boots
-  gearType: 4
-  icon: {fileID: 21300000, guid: c2d586befec316b4ab79fa0a93b06dbc, type: 3}
+  itemName: Mindbender Visor
+  gearType: 1
+  icon: {fileID: -7184714300349580303, guid: 43c6e0deae166be45a12511bd62bba26, type: 3}
   description: 
-  rarity: 0
-  basePrice: 20
+  rarity: 3
+  basePrice: 175
   attackBonus: 0
-  defenseBonus: 0
-  hpBonus: 10
-  intBonus: 0
-  manaBonus: 0
+  defenseBonus: 25
+  hpBonus: 0
+  intBonus: 30
+  manaBonus: 40
   agiBonus: 0
   modifiers: []

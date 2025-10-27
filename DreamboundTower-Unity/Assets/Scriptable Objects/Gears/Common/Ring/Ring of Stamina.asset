@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Leather Boots
+  m_Name: Ring of Stamina
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Leather Boots
-  gearType: 4
-  icon: {fileID: 21300000, guid: c2d586befec316b4ab79fa0a93b06dbc, type: 3}
+  itemName: Ring of Stamina
+  gearType: 6
+  icon: {fileID: 7194217885659327680, guid: 81546f1d291afb041b35c052d9156d98, type: 3}
   description: 
   rarity: 0
-  basePrice: 20
+  basePrice: 9
   attackBonus: 0
-  defenseBonus: 0
-  hpBonus: 10
+  defenseBonus: 5
+  hpBonus: 80
   intBonus: 0
   manaBonus: 0
   agiBonus: 0

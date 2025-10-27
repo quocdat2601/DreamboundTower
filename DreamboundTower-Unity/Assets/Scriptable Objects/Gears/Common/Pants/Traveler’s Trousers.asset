@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: "Traveler\u2019s Trousers"
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Leather Pants
-  gearType: 2
-  icon: {fileID: 1388161964112376393, guid: 17bba20f2f41b174cbb4117076c4110f, type: 3}
+  gearType: 3
+  icon: {fileID: -385953268642049127, guid: b23f6b7a9d9f6084991bd5070d9108aa, type: 3}
   description: 
   rarity: 0
-  basePrice: 30
+  basePrice: 15
   attackBonus: 0
   defenseBonus: 0
-  hpBonus: 10
+  hpBonus: 50
   intBonus: 0
   manaBonus: 0
-  agiBonus: 0
+  agiBonus: 5
   modifiers: []

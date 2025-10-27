@@ -15,11 +15,13 @@ MonoBehaviour:
   itemName: Iron Helm
   gearType: 1
   icon: {fileID: 3573036208370857778, guid: e1c15e330e3fe594292669e08c51bb79, type: 3}
+  description: 
   rarity: 2
-  basePrice: 0
+  basePrice: 120
   attackBonus: 0
   defenseBonus: 20
   hpBonus: 150
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  modifiers: []

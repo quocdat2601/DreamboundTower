@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Leather Boots
+  m_Name: Sapphire Pendant
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Leather Boots
-  gearType: 4
-  icon: {fileID: 21300000, guid: c2d586befec316b4ab79fa0a93b06dbc, type: 3}
+  itemName: Sapphire Pendant
+  gearType: 5
+  icon: {fileID: -7295162521306494483, guid: fe62f7178ad9fba4c967c321cbc984da, type: 3}
   description: 
-  rarity: 0
-  basePrice: 20
+  rarity: 2
+  basePrice: 35
   attackBonus: 0
-  defenseBonus: 0
-  hpBonus: 10
-  intBonus: 0
-  manaBonus: 0
+  defenseBonus: 5
+  hpBonus: 0
+  intBonus: 10
+  manaBonus: 70
   agiBonus: 0
   modifiers: []

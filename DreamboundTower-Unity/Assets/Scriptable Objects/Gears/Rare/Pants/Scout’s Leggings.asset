@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Leather Boots
+  m_Name: "Scout\u2019s Leggings"
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Leather Boots
-  gearType: 4
-  icon: {fileID: 21300000, guid: c2d586befec316b4ab79fa0a93b06dbc, type: 3}
+  itemName: "Scout\u2019s Leggings"
+  gearType: 3
+  icon: {fileID: -116122077602426741, guid: ba06b85a83b08474c873d3053cd5c7f1, type: 3}
   description: 
-  rarity: 0
-  basePrice: 20
+  rarity: 2
+  basePrice: 100
   attackBonus: 0
   defenseBonus: 0
-  hpBonus: 10
+  hpBonus: 150
   intBonus: 0
   manaBonus: 0
-  agiBonus: 0
+  agiBonus: 15
   modifiers: []
