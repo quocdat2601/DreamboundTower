@@ -15,11 +15,13 @@ MonoBehaviour:
   itemName: Blade of the Forgotten King
   gearType: 0
   icon: {fileID: -3150166415474162274, guid: be0a6d4797d539549930a92ec06cba5c, type: 3}
+  description: 
   rarity: 4
-  basePrice: 0
+  basePrice: 375
   attackBonus: 40
   defenseBonus: 0
   hpBonus: 0
   intBonus: 0
   manaBonus: 60
   agiBonus: 25
+  modifiers: []
