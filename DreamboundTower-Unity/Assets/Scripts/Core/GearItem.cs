@@ -18,7 +18,8 @@ public class GearItem : ScriptableObject
     public string itemName;
     public GearType gearType;
     public Sprite icon;
-    
+    public WeaponScalingType scalingType;
+
     [Header("Description")]
     [TextArea(3, 5)]
     public string description;

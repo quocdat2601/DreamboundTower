@@ -10,19 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Rusted Sword
+  m_Name: "Rogue\u2019s Trousers"
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Rusted Sword
-  gearType: 0
-  icon: {fileID: 21300000, guid: 0c3d5165b566bc043b0fc103302d889a, type: 3}
-  scalingType: 1
+  itemName: "Rogue\u2019s Trousers"
+  gearType: 3
+  icon: {fileID: -1247965995443253342, guid: 4d0852baee8f8494ea3f1efec7b0d76b, type: 3}
   description: 
-  rarity: 0
-  basePrice: 12
-  attackBonus: 5
+  rarity: 1
+  basePrice: 80
+  attackBonus: 0
   defenseBonus: 0
-  hpBonus: 0
+  hpBonus: 178
   intBonus: 0
   manaBonus: 0
-  agiBonus: 2
+  agiBonus: 7
   modifiers: []

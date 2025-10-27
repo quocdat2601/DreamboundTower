@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using StatusEffects;
 using Assets.Scripts.Data;
 
@@ -69,33 +69,50 @@ public static class SkillEffectProcessor
         // Process multiple hits
         int hitCount = Mathf.Max(1, skillData.hitCount);
         int totalDamageDealt = 0;
-        
+
         for (int i = 0; i < hitCount; i++)
         {
-            // Apply damage
-            int damageDealt = 0;
-            if (skillData.isMagicDamage)
+            // --- SỬA CÁCH GÂY SÁT THƯƠNG ---
+            int damageDealtThisHit = 0; // Lưu lại sát thương thực tế của hit này (sau khi qua khiên/def)
+
+            if (skillData.isMagicDamage) // Nếu skill là phép
             {
-                // Calculate magic damage with passive bonuses
-                int magicDamage = caster.CalculateMagicDamage(totalDamage);
-                damageDealt = target.TakeDamageWithShield(magicDamage, caster, isMagicalDamage: true);
+                int magicDamage = caster.CalculateMagicDamage(totalDamage); // Tính bonus phép
+
+                // Gọi hàm mới với DamageType.Magic
+                // (Lưu ý: TakeDamageWithShield giờ trả về int là sát thương phản lại, không phải sát thương gây ra)
+                target.TakeDamageWithShield(magicDamage, caster, DamageType.Magic);
+
+                // Ước tính sát thương gây ra (Cần cách chính xác hơn nếu muốn dùng cho lifesteal chính xác)
+                // Tạm thời lấy giá trị trước khi qua khiên/def
+                damageDealtThisHit = magicDamage;
             }
-            else
+            else // Nếu skill là vật lý
             {
-                // Calculate physical damage with passive bonuses
-                int physicalDamage = caster.CalculatePhysicalDamage(totalDamage);
-                damageDealt = target.TakeDamageWithShield(physicalDamage, caster);
+                int physicalDamage = caster.CalculatePhysicalDamage(totalDamage, target); // Tính bonus vật lý
+
+                // Gọi hàm mới với DamageType.Physical
+                target.TakeDamageWithShield(physicalDamage, caster, DamageType.Physical);
+
+                // Ước tính sát thương gây ra
+                damageDealtThisHit = physicalDamage;
             }
-            
-            totalDamageDealt += damageDealt;
-            
-            // Apply lifesteal for each hit if specified
+            // --- KẾT THÚC SỬA ---
+
+            totalDamageDealt += damageDealtThisHit; // Cộng dồn sát thương (ước tính)
+
+            // --- Xử lý Lifesteal (Dùng damageDealtThisHit) ---
             if (skillData.lifesteal && skillData.lifestealPercent > 0)
             {
-                int healAmount = Mathf.RoundToInt(damageDealt * skillData.lifestealPercent);
-                caster.RestoreHealth(healAmount);
+                // Tính lifesteal dựa trên sát thương ƯỚC TÍNH gây ra TRƯỚC KHI qua DEF/Shield của mục tiêu
+                // Để chính xác hơn, hàm TakeDamage/TakeDamageWithShield cần trả về lượng sát thương thực tế đã trừ
+                int healAmount = Mathf.RoundToInt(damageDealtThisHit * skillData.lifestealPercent);
+                if (healAmount > 0) // Chỉ hồi máu nếu có giá trị
+                {
+                    caster.RestoreHealth(healAmount);
+                }
             }
-            
+
             // Apply chance-based stun after each hit
             if (skillData.stunChance > 0f)
             {

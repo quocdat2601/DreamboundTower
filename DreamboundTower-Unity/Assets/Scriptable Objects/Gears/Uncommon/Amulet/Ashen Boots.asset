@@ -10,19 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Rusted Sword
+  m_Name: Ashen Boots
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Rusted Sword
-  gearType: 0
-  icon: {fileID: 21300000, guid: 0c3d5165b566bc043b0fc103302d889a, type: 3}
-  scalingType: 1
+  itemName: Moonstone Charm
+  gearType: 5
+  icon: {fileID: 8118147015489885807, guid: 5f3b73629beafd64faed8ca58b94e825, type: 3}
   description: 
-  rarity: 0
-  basePrice: 12
-  attackBonus: 5
+  rarity: 1
+  basePrice: 55
+  attackBonus: 0
   defenseBonus: 0
   hpBonus: 0
-  intBonus: 0
-  manaBonus: 0
-  agiBonus: 2
+  intBonus: 7
+  manaBonus: 40
+  agiBonus: 0
   modifiers: []

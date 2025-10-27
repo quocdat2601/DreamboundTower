@@ -34,8 +34,9 @@ public class BattleManager : MonoBehaviour
     [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP, Mana for 5.")]
     public int hpUnit = 10;
     public int manaUnit = 5;
+    private bool playerHasExtraAction = false;
 
-    [Header("Debug / Enemy Overrides")]
+    [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
     public bool overrideUseTemplate = false;
     [Tooltip("Template to sample stats from.")]
@@ -674,6 +675,37 @@ public class BattleManager : MonoBehaviour
         string currentSceneName = SceneManager.GetActiveScene().name;
         SceneManager.LoadScene(currentSceneName);
     }
+    /// <summary>
+    /// Kiểm tra xem Player có được hành động thêm dựa trên AGI không.
+    /// Nên gọi hàm này vào ĐẦU lượt của Player.
+    /// </summary>
+    private void CheckForDoubleAction()
+    {
+        if (playerCharacter == null)
+        {
+            playerHasExtraAction = false;
+            return;
+        }
+
+        // --- CÔNG THỨC TÍNH TỶ LỆ ---
+        const float CHANCE_PER_AGI = 0.0015f; // 0.15% dưới dạng thập phân
+        const float MAX_CHANCE = 0.25f;       // Tối đa 25%
+                                              // --- KẾT THÚC CÔNG THỨC ---
+
+        float doubleActionChance = Mathf.Clamp(playerCharacter.agility * CHANCE_PER_AGI, 0f, MAX_CHANCE);
+
+        // Tung xúc xắc
+        if (Random.value <= doubleActionChance)
+        {
+            playerHasExtraAction = true;
+            Debug.Log($"<color=yellow>[BATTLE] Player nhận được Lượt Hành Động Thêm! (AGI: {playerCharacter.agility}, Chance: {doubleActionChance * 100f}%)</color>");
+            // (Tùy chọn: Hiển thị hiệu ứng UI/Sound báo hiệu)
+        }
+        else
+        {
+            playerHasExtraAction = false;
+        }
+    }
     #endregion
 
     #region Enemy Selection UI
@@ -830,6 +862,15 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(attackDelay);
 
+        if (playerHasExtraAction)
+        {
+            playerHasExtraAction = false; // Dùng mất lượt thêm
+            playerTurn = true;            // Player LẬP TỨC lấy lại lượt
+            Debug.Log("<color=yellow>[BATTLE] Player dùng Lượt Hành Động Thêm!</color>");
+            // (Hiệu ứng UI/Sound nếu muốn)
+            yield break; // Kết thúc Coroutine này ngay lập tức, KHÔNG chạy EnemyTurn
+        }
+
         if (AllEnemiesDead())
         {
             yield return StartCoroutine(VictoryRoutine());
@@ -855,6 +896,7 @@ public class BattleManager : MonoBehaviour
         playerTurn = true;
         UpdateTurnDisplay();
         NotifyCharactersOfNewTurn(currentTurn);
+        CheckForDoubleAction();
         // Process start-of-turn status effects
         if (StatusEffectManager.Instance != null)
         {
@@ -966,6 +1008,15 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(attackDelay);
 
         selectedSkill = null; // Reset selected skill after use
+
+        if (playerHasExtraAction)
+        {
+            playerHasExtraAction = false; // Dùng mất lượt thêm
+            playerTurn = true;            // Player LẬP TỨC lấy lại lượt
+            Debug.Log("<color=yellow>[BATTLE] Player dùng Lượt Hành Động Thêm!</color>");
+            // (Hiệu ứng UI/Sound nếu muốn)
+            yield break; // Kết thúc Coroutine này ngay lập tức, KHÔNG kết thúc lượt
+        }
 
         // Check if all enemies are dead after skill use
         if (AllEnemiesDead())

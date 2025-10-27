@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Rusted Sword
+  m_Name: Silverclaw Dagger
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
-  itemName: Rusted Sword
+  itemName: Silverclaw Dagger
   gearType: 0
-  icon: {fileID: 21300000, guid: 0c3d5165b566bc043b0fc103302d889a, type: 3}
+  icon: {fileID: 2182994084055932133, guid: d341c15c8d0a1fe47a22a695462d7010, type: 3}
   scalingType: 1
   description: 
-  rarity: 0
-  basePrice: 12
-  attackBonus: 5
+  rarity: 1
+  basePrice: 20
+  attackBonus: 7
   defenseBonus: 0
   hpBonus: 0
   intBonus: 0
   manaBonus: 0
-  agiBonus: 2
+  agiBonus: 10
   modifiers: []

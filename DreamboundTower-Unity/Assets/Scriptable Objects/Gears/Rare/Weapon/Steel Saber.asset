@@ -15,6 +15,7 @@ MonoBehaviour:
   itemName: Steel Saber
   gearType: 0
   icon: {fileID: 21300000, guid: da1fd6304fc51be4396604c6948ff264, type: 3}
+  scalingType: 1
   description: 
   rarity: 2
   basePrice: 43

@@ -4,7 +4,12 @@ using UnityEngine.UI;
 using System;
 using DG.Tweening;
 using StatusEffects;
-
+public enum DamageType
+{
+    Physical, // Vật lý (màu trắng)
+    Magic,    // Phép (màu xanh)
+    True      // Sát thương chuẩn (ví dụ: màu vàng - nếu cần sau này)
+}
 /// <summary>
 /// Core character class handling stats, combat, and visual effects
 /// </summary>
@@ -30,7 +35,10 @@ public class Character : MonoBehaviour
     public int currentMana;                 // <-- THÊM MỚI
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
-    
+
+    public const float DODGE_PER_AGI = 0.003f; // 0.3% dưới dạng thập phân
+    public const float DODGE_CAP = 0.40f; // 40%
+
     [Header("Passive Bonuses")]
     [Tooltip("Percentage bonus to mana regeneration from passive skills")]
     public float manaRegenBonus = 0f; // <-- THÊM MỚI
@@ -50,7 +58,8 @@ public class Character : MonoBehaviour
     public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
     [HideInInspector]
     public bool isInvincible = false;
-    
+    private Equipment equipment;
+
     /// <summary>
     /// Tracks if the last damage received was magical (for color differentiation)
     /// </summary>
@@ -111,6 +120,7 @@ public class Character : MonoBehaviour
         //ResetToBaseStats();
         //currentHP = maxHP;
         //UpdateHPUI();
+        equipment = GetComponent<Equipment>();
     }
     #endregion
 
@@ -123,6 +133,21 @@ public class Character : MonoBehaviour
         mana = baseMana;                 // <-- THÊM MỚI
         intelligence = baseIntelligence; // <-- THÊM MỚI
         agility = baseAgility;           // <-- THÊM MỚI
+        UpdateDerivedStats();
+    }
+    /// <summary>
+    /// Tính toán lại các chỉ số phụ thuộc (derived stats) như Dodge Chance.
+    /// Gọi hàm này sau khi base stats, gear bonus, hoặc buff/debuff thay đổi.
+    /// </summary>
+    public void UpdateDerivedStats()
+    {
+        // Tính Dodge Chance từ Agility hiện tại
+        // agility là chỉ số thực tế đã bao gồm bonus từ trang bị/buff
+        dodgeChance = Mathf.Clamp(agility * DODGE_PER_AGI, 0f, DODGE_CAP);
+
+        // (Sau này có thể thêm tính Crit Chance, Block Chance... vào đây nếu cần)
+
+         Debug.Log($"[{name}] Updated Derived Stats: Agility={agility}, DodgeChance={dodgeChance * 100f}%");
     }
     #endregion
 
@@ -134,13 +159,21 @@ public class Character : MonoBehaviour
         maxHP += gear.hpBonus;
         attackPower += gear.attackBonus;
         defense += gear.defenseBonus;
+        intelligence += gear.intBonus;
+        mana += gear.manaBonus;
+        agility += gear.agiBonus;
 
         if (currentHP > maxHP)
         {
             currentHP = maxHP;
         }
-
+        if (currentMana > mana)
+        {
+            currentMana = mana;
+        }
+        UpdateDerivedStats();
         UpdateHPUI();
+        UpdateManaUI();
     }
 
     public void RemoveGearBonus(GearItem gear)
@@ -165,15 +198,18 @@ public class Character : MonoBehaviour
     #endregion
 
     #region Combat System
+    // Trong Character.cs
+
     public void Attack(Character target, float damageMultiplier = 1.0f)
     {
         if (target == null) return;
+        PlayAttackAnimation(); // Chơi animation tấn công 1 lần
 
-        // Play attack animation
-        PlayAttackAnimation();
+        // 1. Lấy sát thương gốc vật lý và phép từ vũ khí
+        (int physicalBase, int magicBase) = CalculateAttackDamage();
 
-        // Tính sát thương gốc (100%)
-        int baseDamage = CalculatePhysicalDamage(attackPower, target);
+        // Log giá trị gốc (Giữ lại để debug nếu cần)
+        // Debug.Log($"[{name}] Base Damage Calculated - Physical: {physicalBase}, Magic: {magicBase}");
 
         // Check for critical hit
         bool isCriticalHit = CheckCritical();
@@ -192,8 +228,8 @@ public class Character : MonoBehaviour
 
         // Note: Hit/Miss effect will be shown inside TakeDamage based on dodge result
 
-        // (Code TakeDamage... giữ nguyên)
-        if (target.isPlayer)
+        // --- Áp dụng sát thương PHÉP (Nếu > 0) ---
+        if (finalMagicDamage > 0)
         {
             target.TakeDamageWithShield(totalDamage, this, false, isCriticalHit);
         }
@@ -202,22 +238,34 @@ public class Character : MonoBehaviour
             target.TakeDamage(totalDamage, this, isCriticalHit);
         }
 
-        // Apply regular lifesteal if available
-        if (lifestealPercent > 0f)
+        // Tính toán sát thương gốc dựa trên scaling
+        switch (scaling)
         {
-            int healAmount = Mathf.RoundToInt(totalDamage * lifestealPercent);
-            RestoreHealth(healAmount);
-            Debug.Log($"[PASSIVE] Lifesteal: {healAmount} HP restored from {totalDamage} damage");
+            case WeaponScalingType.STR:
+                physicalBase = attackPower; // 100% STR -> Vật lý
+                magicBase = 0;
+                break;
+            case WeaponScalingType.INT:
+                physicalBase = 0;
+                magicBase = intelligence; // 100% INT -> Phép
+                break;
+            case WeaponScalingType.Hybrid:
+                physicalBase = Mathf.RoundToInt(attackPower * 0.7f); // 70% STR -> Vật lý
+                magicBase = Mathf.RoundToInt(intelligence * 0.3f); // 30% INT -> Phép
+                break;
+            case WeaponScalingType.None:
+            default:
+                physicalBase = attackPower; // Mặc định về STR
+                magicBase = 0;
+                break;
         }
-        
-        // Apply conditional lifesteal if ConditionalPassiveManager exists
-        var conditionalManager = GetComponent<ConditionalPassiveManager>();
-        if (conditionalManager != null)
-        {
-            conditionalManager.ApplyConditionalLifesteal(totalDamage);
-        }
+
+        physicalBase = Mathf.Max(0, physicalBase);
+        magicBase = Mathf.Max(0, magicBase);
+
+        // Trả về cả hai giá trị
+        return (physicalBase, magicBase);
     }
-    
     /// <summary>
     /// Calculates physical damage with passive bonuses
     /// </summary>
@@ -226,24 +274,25 @@ public class Character : MonoBehaviour
         float bonusMultiplier = 1f + physicalDamageBonus;
         return Mathf.RoundToInt(baseDamage * bonusMultiplier);
     }
-    
-    /// <summary>
-    /// Calculates physical damage with conditional bonuses against a specific target
-    /// </summary>
-    public int CalculatePhysicalDamage(int baseDamage, Character target)
+
+    // Hàm CalculatePhysicalDamage giờ chỉ làm nhiệm vụ cộng bonus bị động/có điều kiện
+    // Nó nhận sát thương đã tính theo vũ khí làm đầu vào
+    public int CalculatePhysicalDamage(int baseDamageFromWeapon, Character target) // Đổi tên tham số cho rõ
     {
-        float bonusMultiplier = 1f + physicalDamageBonus;
-        
-        // Apply conditional bonuses if ConditionalPassiveManager exists
+        float bonusMultiplier = 1f + physicalDamageBonus; // Bonus bị động % vật lý
+
+        // Áp dụng bonus có điều kiện (nếu có)
         var conditionalManager = GetComponent<ConditionalPassiveManager>();
         if (conditionalManager != null)
         {
-            return conditionalManager.CalculatePhysicalDamage(Mathf.RoundToInt(baseDamage * bonusMultiplier), target);
+            // Truyền sát thương đã nhân bonus bị động vào hàm điều kiện
+            return conditionalManager.CalculatePhysicalDamage(Mathf.RoundToInt(baseDamageFromWeapon * bonusMultiplier), target);
         }
-        
-        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
+
+        // Trả về sát thương cuối cùng trước khi trừ DEF
+        return Mathf.RoundToInt(baseDamageFromWeapon * bonusMultiplier);
     }
-    
+
     /// <summary>
     /// Calculates magic damage with passive bonuses
     /// </summary>
@@ -372,7 +421,14 @@ public class Character : MonoBehaviour
         int actualDamage = Mathf.Max(1, reducedDamage - defense);
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
+        Color damageColor = Color.white; // Mặc định trắng (Physical)
+        if (damageType == DamageType.Magic) damageColor = Color.cyan; // Xanh (Magic)
+        else if (damageType == DamageType.True) damageColor = Color.yellow; // Vàng (True)
 
+        if (CombatEffectManager.Instance != null)
+        {
+            CombatEffectManager.Instance.ShowDamageNumber(this, actualDamage, damageColor);
+        }
         // Gửi đi "attacker" và "actualDamage"
        OnDamageTaken?.Invoke(attacker, actualDamage);
 
@@ -585,36 +641,33 @@ public class Character : MonoBehaviour
             return 0; // Không nhận sát thương, không phản đòn
        }
         int reflectedDamage = 0;
-        int actualDamage = damage;
-        
+        int actualDamagePassedToHP = damage;
+
         // Get current shield and reflect values from status effects
         int currentShield = CurrentShield;
         float reflectPercent = DamageReflectionPercent;
-        
+
         // Shield absorbs damage first
         if (currentShield > 0)
         {
             int shieldAbsorbed = Mathf.Min(damage, currentShield);
-            actualDamage = damage - shieldAbsorbed;
-            
-            // Reduce shield amount using ShieldEffectHandler
+            actualDamagePassedToHP = damage - shieldAbsorbed;
             ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
-            
-            // Reflect damage back to attacker
+
             if (reflectPercent > 0 && attacker != null)
             {
                 reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
-                attacker.TakeDamage(reflectedDamage, this);
+                // Phản đòn thường là sát thương vật lý? Hoặc cần type riêng? Tạm để Physical
+                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical);
             }
         }
-        
-        // Apply remaining damage to HP
-        if (actualDamage > 0)
+
+        // Gọi TakeDamage với sát thương còn lại và DamageType
+        if (actualDamagePassedToHP > 0)
         {
             isLastDamageMagical = isMagicalDamage; // Set flag before taking damage
             TakeDamage(actualDamage, attacker, isCritical);
         }
-        
         return reflectedDamage;
     }
 

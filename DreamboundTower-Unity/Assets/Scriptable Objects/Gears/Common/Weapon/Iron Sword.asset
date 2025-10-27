@@ -15,6 +15,8 @@ MonoBehaviour:
   itemName: Iron Sword
   gearType: 0
   icon: {fileID: 7916634273140305847, guid: 458502a88deb67b4b829913cea0ee281, type: 3}
+  scalingType: 1
+  description: 
   rarity: 0
   basePrice: 15
   attackBonus: 15
@@ -23,3 +25,4 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  modifiers: []
