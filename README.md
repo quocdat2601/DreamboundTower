@@ -25,11 +25,11 @@ Progress through **100 floors** using a **node map** (Combat / Elite / Event / S
 ---
 
 ## ⚔️ Combat — quick math
-DamageRaw = SkillBase * (1 + ATK/100) // ATK = STR (phys) or INT (magic)
-DamageFinal = DamageRaw * (100 / (100 + DEF)) // smooth mitigation
-Crit = 1.5x // base; subject to item buffs
-Dodge = min(0.40, 0.003 * AGI) // 0.3%/AGI, cap 40%
-ExtraTurn% ≈ min(25%, 0.15% * AGI) // optional, per design
+- DamageRaw = SkillBase * (1 + ATK/100) // ATK = STR (phys) or INT (magic)
+- DamageFinal = DamageRaw * (100 / (100 + DEF)) // smooth mitigation
+- Crit = 1.5x // base; subject to item buffs
+- Dodge = min(0.40, 0.003 * AGI) // 0.3%/AGI, cap 40%
+- ExtraTurn% ≈ min(25%, 0.15% * AGI) // optional, per design
 
 ---
 
@@ -82,9 +82,8 @@ ExtraTurn% ≈ min(25%, 0.15% * AGI) // optional, per design
 ---
 
 ## 🔗 References
-- **GDD (latest):** *link here*  
-- **Data Sheets:** *link to Google Sheets / .xlsx here*  
-- **Design Notes:** *damage/dodge constants & spawn tables here*
+- **GDD (latest):** *[link here](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0)*  
+- **Data Sheets:** *[link to Google Sheets / .xlsx here](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868)*  
 
 ---
 
