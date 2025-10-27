@@ -34,7 +34,7 @@ Progress through **100 floors** using a **node map** (Combat / Elite / Event / S
 ---
 
 ## 🧬 Races (base & identity)
-- **Human:** balanced stats; **+2 free stat points** at start. *Active:* **Resolve Surge** – heal 10% MaxHP & +10% dmg (CD 5).
+- **Human:** balanced stats; **+5% all stats**. *Active:* **Resolve Surge** – heal 10% MaxHP & +10% dmg (CD 5).
 - **Demon:** high STR; **+5% phys dmg** under 50% HP. *Active:* **Rage Break** – heavy hit, 6 Mana, CD 4, **5% MaxHP recoil**.
 - **Celestial:** tanky/mage; **+5% magic dmg & mana regen**. *Active:* **Radiant Shield** – shield 15% MaxHP + reflect (CD 5).
 - **Undead:** sturdy; **5% lifesteal**. *Active:* **Bone Resurge** – restore 25% HP & 1-turn stun immunity (CD 6).
@@ -64,10 +64,8 @@ Progress through **100 floors** using a **node map** (Combat / Elite / Event / S
 ## 🧱 Tech & Data
 - **Engine:** Unity 6000.2.x, C#.
 - **Architecture:** State Machine (Menu/Map/Combat/Event), TurnManager, Data-driven using **ScriptableObjects**.
-- **Data sheets:** `Constants`, `SpawnTable`, `ItemData`, `EnemyData`, `SkillData`, `EventData` (CSV/Excel → SO import).
 - **Save:** JSON (checkpoint snapshots + meta progression).
-- **Assets:** placeholder packs (Kenney / OpenGameArt / Itch).
-
+- **Assets:** placeholder packs (Kenney / OpenGameArt / Itch/ AI).
 
 ---
 
@@ -82,8 +80,8 @@ Progress through **100 floors** using a **node map** (Combat / Elite / Event / S
 ---
 
 ## 🔗 References
-- **GDD (latest):** *[link here](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0)*  
-- **Data Sheets:** *[link to Google Sheets / .xlsx here](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868)*  
+- **GDD (latest):** *[DreamboundTower GDD](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0)*  
+- **Data Sheets:** *[Data](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868)*  
 
 ---
 
