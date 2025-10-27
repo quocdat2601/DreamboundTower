@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using System.Collections.Generic;
 
 public class SimpleInventoryUI : MonoBehaviour
@@ -143,6 +144,32 @@ public class SimpleInventoryUI : MonoBehaviour
             icon.color = Color.clear;
         }
         
+        // Update tooltip trigger for this slot
+        if (slotIndex < inventorySlotButtons.Count)
+        {
+            GameObject slotObject = inventorySlotButtons[slotIndex].gameObject;
+            TooltipTrigger trigger = slotObject.GetComponent<TooltipTrigger>();
+            
+            if (trigger == null)
+            {
+                trigger = slotObject.AddComponent<TooltipTrigger>();
+            }
+            
+            // Always ensure listeners are connected (in case trigger existed before)
+            if (trigger != null)
+            {
+                // Remove old listeners to prevent duplicates
+                trigger.OnItemHoverEnter.RemoveAllListeners();
+                trigger.OnHoverExit.RemoveAllListeners();
+                
+                // Connect tooltip events like skill tooltips
+                trigger.OnItemHoverEnter.AddListener(TooltipManager.Instance.ShowItemTooltip);
+                trigger.OnHoverExit.AddListener(TooltipManager.Instance.HideAllTooltips);
+                
+                trigger.dataToShow = item; // Set the GearItem for tooltip
+            }
+        }
+        
         // Force Canvas refresh to ensure UI updates immediately
         Canvas.ForceUpdateCanvases();
     }
@@ -164,6 +191,31 @@ public class SimpleInventoryUI : MonoBehaviour
             icon.color = Color.clear;
         }
         
+        // Update tooltip trigger for this equipment slot
+        if (slotIndex < equipmentSlotButtons.Count)
+        {
+            GameObject slotObject = equipmentSlotButtons[slotIndex].gameObject;
+            TooltipTrigger trigger = slotObject.GetComponent<TooltipTrigger>();
+            
+            if (trigger == null)
+            {
+                trigger = slotObject.AddComponent<TooltipTrigger>();
+            }
+            
+            // Always ensure listeners are connected (in case trigger existed before)
+            if (trigger != null)
+            {
+                // Remove old listeners to prevent duplicates
+                trigger.OnItemHoverEnter.RemoveAllListeners();
+                trigger.OnHoverExit.RemoveAllListeners();
+                
+                // Connect tooltip events like skill tooltips
+                trigger.OnItemHoverEnter.AddListener(TooltipManager.Instance.ShowItemTooltip);
+                trigger.OnHoverExit.AddListener(TooltipManager.Instance.HideAllTooltips);
+                
+                trigger.dataToShow = item; // Set the GearItem for tooltip
+            }
+        }
     }
     
     void UpdateAllUI()

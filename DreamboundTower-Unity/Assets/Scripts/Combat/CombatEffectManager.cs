@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -7,7 +7,7 @@ using System.Collections;
 /// <summary>
 /// Manages visual effects for combat including hit effects, damage numbers, and screen effects
 /// </summary>
-public class CombatEffectManager : MonoBehaviour
+public class CombatEffectManager : MonoBehaviour // Updated for sprite animation effects
 {
     #region Singleton
     public static CombatEffectManager Instance;
@@ -70,6 +70,26 @@ public class CombatEffectManager : MonoBehaviour
     {
         // Legacy method - effects are now handled by Character sprite animations
         // Kept for backwards compatibility
+    }
+
+    /// <summary>
+    /// Shows a double action visual effect on the player
+    /// </summary>
+    public void ShowDoubleActionEffect(Character player)
+    {
+        if (player == null || player.characterImage == null) return;
+
+        // Flash yellow/gold color to indicate double action
+        player.characterImage.DOColor(Color.yellow, 0.2f)
+            .OnComplete(() => player.characterImage.DOColor(Color.white, 0.2f));
+
+        // Show "DOUBLE ACTION!" text above player
+        Vector3 uiPosition = GetCharacterUIPosition(player);
+        ShowDamageNumberAtPosition(uiPosition, "DOUBLE ACTION!", Color.yellow);
+
+        // Brief scale up effect
+        player.transform.DOScale(1.15f, 0.15f)
+            .OnComplete(() => player.transform.DOScale(1.0f, 0.15f));
     }
     #endregion
 
@@ -202,26 +222,11 @@ public class CombatEffectManager : MonoBehaviour
         Vector3 position = GetCharacterUIPosition(target);
         ShowDamageNumberAtPosition(position, damage.ToString(), color);
     }
+    
     /// <summary>
-    /// Hiển thị số sát thương nổi lên tại vị trí của mục tiêu với màu sắc tùy chỉnh.
+    /// Helper method to show damage number at position with custom color and text
     /// </summary>
-    /// <param name="target">Nhân vật nhận sát thương</param>
-    /// <param name="amount">Lượng sát thương</param>
-    /// <param name="color">Màu sắc cho số</param>
-    public void ShowDamageNumber(Character target, int amount, Color color)
-    {
-        // Lấy vị trí từ target để gọi hàm helper
-        if (target != null)
-        {
-            // Có thể thêm offset Y nhỏ để số hiện trên đầu nhân vật
-            Vector3 spawnPosition = target.transform.position + Vector3.up * 30f; // Ví dụ offset 30 unit Y
-            ShowDamageNumberAtPosition(spawnPosition, amount.ToString(), color);
-        }
-    }
-    /// <summary>
-    /// Helper method to show damage number at position with custom color
-    /// </summary>
-    private void ShowDamageNumberAtPosition(Vector3 position, string text, Color color)
+    public void ShowDamageNumberAtPosition(Vector3 position, string text, Color color)
     {
         if (damageNumberPrefab == null || damageNumberCanvas == null) return;
         

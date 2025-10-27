@@ -944,6 +944,67 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &2853324525824242703
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4259296497648446075}
+  - component: {fileID: 6974999803724604615}
+  m_Layer: 5
+  m_Name: TooltipManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &4259296497648446075
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2853324525824242703}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1800319781762863977}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &6974999803724604615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2853324525824242703}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83dba747a6e8ca540a3309cc67b198f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TooltipManager
+  itemTooltipPanel: {fileID: 9007765396920299966}
+  itemHeaderNameText: {fileID: 2865783249775088620}
+  itemHeaderCostText: {fileID: 1822220052338055227}
+  statContainer: {fileID: 3624088972909898250}
+  statTextPrefab: {fileID: 0}
+  itemDescriptionText: {fileID: 5992984706584569311}
+  skillTooltipPanel: {fileID: 0}
+  tooltipSkillName: {fileID: 0}
+  tooltipDescription: {fileID: 0}
+  tooltipManaCostBar: {fileID: 0}
+  tooltipCooldownBar: {fileID: 0}
+  tooltipManaCostValue: {fileID: 0}
+  tooltipCooldownValue: {fileID: 0}
 --- !u!1 &3291594837756437735
 GameObject:
   m_ObjectHideFlags: 0
@@ -1926,6 +1987,7 @@ RectTransform:
   - {fileID: 8538704402724181118}
   - {fileID: 301200681632676196}
   - {fileID: 5811531896300269729}
+  - {fileID: 4259296497648446075}
   m_Father: {fileID: 2858320736190460383}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

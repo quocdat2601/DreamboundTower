@@ -34,7 +34,7 @@ public class BattleManager : MonoBehaviour
     [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP, Mana for 5.")]
     public int hpUnit = 10;
     public int manaUnit = 5;
-    private bool playerHasExtraAction = false;
+    private bool playerHasExtraTurn = false; // True if player gets an extra turn from AGI
 
     [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
@@ -683,7 +683,7 @@ public class BattleManager : MonoBehaviour
     {
         if (playerCharacter == null)
         {
-            playerHasExtraAction = false;
+            playerHasExtraTurn = false;
             return;
         }
 
@@ -697,13 +697,19 @@ public class BattleManager : MonoBehaviour
         // Tung xúc xắc
         if (Random.value <= doubleActionChance)
         {
-            playerHasExtraAction = true;
-            Debug.Log($"<color=yellow>[BATTLE] Player nhận được Lượt Hành Động Thêm! (AGI: {playerCharacter.agility}, Chance: {doubleActionChance * 100f}%)</color>");
-            // (Tùy chọn: Hiển thị hiệu ứng UI/Sound báo hiệu)
+            playerHasExtraTurn = true;
+            
+            // Show visual effect for double action
+            if (CombatEffectManager.Instance != null)
+            {
+                CombatEffectManager.Instance.ShowDoubleActionEffect(playerCharacter);
+            }
+            
+            Debug.Log($"<color=yellow>[BATTLE] DOUBLE ACTION PROC! Player gets an extra turn! (AGI: {playerCharacter.agility}, Chance: {doubleActionChance * 100f}%)</color>");
         }
         else
         {
-            playerHasExtraAction = false;
+            playerHasExtraTurn = false;
         }
     }
     #endregion
@@ -852,8 +858,6 @@ public class BattleManager : MonoBehaviour
     // Coroutine for the player's basic attack
     IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
-        playerTurn = false;
-
         var target = enemyInstances[enemyIndex].GetComponent<Character>();
         if (target != null)
         {
@@ -862,21 +866,24 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(attackDelay);
 
-        if (playerHasExtraAction)
-        {
-            playerHasExtraAction = false; // Dùng mất lượt thêm
-            playerTurn = true;            // Player LẬP TỨC lấy lại lượt
-            Debug.Log("<color=yellow>[BATTLE] Player dùng Lượt Hành Động Thêm!</color>");
-            // (Hiệu ứng UI/Sound nếu muốn)
-            yield break; // Kết thúc Coroutine này ngay lập tức, KHÔNG chạy EnemyTurn
-        }
-
         if (AllEnemiesDead())
         {
             yield return StartCoroutine(VictoryRoutine());
             yield break;
         }
 
+        // Check for double action AFTER this attack but BEFORE enemy turn
+        CheckForDoubleAction();
+
+        if (playerHasExtraTurn)
+        {
+            playerHasExtraTurn = false; // Used up the extra turn
+            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! Taking another action!</color>");
+            yield break; // End this coroutine, don't run EnemyTurn - playerTurn stays true
+        }
+
+        // No extra turn - proceed to enemy turn
+        playerTurn = false;
         yield return StartCoroutine(EnemyTurnRoutine());
         
         // Process end-of-turn status effects
@@ -891,12 +898,14 @@ public class BattleManager : MonoBehaviour
             skillManager.ReduceSkillCooldowns();
         }
         
+        // Note: Double action is now checked AFTER each player action, not at end of turn
+        
         // End of complete turn - increment turn counter
         currentTurn++;
         playerTurn = true;
         UpdateTurnDisplay();
         NotifyCharactersOfNewTurn(currentTurn);
-        CheckForDoubleAction();
+        
         // Process start-of-turn status effects
         if (StatusEffectManager.Instance != null)
         {
@@ -1009,13 +1018,15 @@ public class BattleManager : MonoBehaviour
 
         selectedSkill = null; // Reset selected skill after use
 
-        if (playerHasExtraAction)
+        // Check for double action AFTER skill use
+        CheckForDoubleAction();
+
+        if (playerHasExtraTurn)
         {
-            playerHasExtraAction = false; // Dùng mất lượt thêm
-            playerTurn = true;            // Player LẬP TỨC lấy lại lượt
-            Debug.Log("<color=yellow>[BATTLE] Player dùng Lượt Hành Động Thêm!</color>");
-            // (Hiệu ứng UI/Sound nếu muốn)
-            yield break; // Kết thúc Coroutine này ngay lập tức, KHÔNG kết thúc lượt
+            playerHasExtraTurn = false; // Used up the extra turn
+            playerTurn = true;          // Player immediately gets another turn
+            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! Taking another action!</color>");
+            yield break; // End this coroutine, don't end the turn
         }
 
         // Check if all enemies are dead after skill use

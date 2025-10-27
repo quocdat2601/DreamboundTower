@@ -201,12 +201,23 @@ namespace Map
                 Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
                 Node currentNode = mapManager.CurrentMap.GetNode(currentPoint);
 
-                // set all the nodes that we can travel to as attainable:
-                foreach (Vector2Int point in currentNode.outgoing)
+                // Check if currentNode is valid before using it
+                if (currentNode != null)
                 {
-                    MapNode mapNode = GetNode(point);
-                    if (mapNode != null)
-                        mapNode.SetState(NodeStates.Attainable);
+                    // set all the nodes that we can travel to as attainable:
+                    foreach (Vector2Int point in currentNode.outgoing)
+                    {
+                        MapNode mapNode = GetNode(point);
+                        if (mapNode != null)
+                            mapNode.SetState(NodeStates.Attainable);
+                    }
+                }
+                else
+                {
+                    // If currentNode is null, log a warning and try to set first layer as attainable
+                    Debug.LogWarning($"[MapView] Current node not found at point {currentPoint}. Setting first layer as attainable.");
+                    foreach (MapNode node in MapNodes.Where(n => n.Node.point.y == 0))
+                        node.SetState(NodeStates.Attainable);
                 }
             }
         }
