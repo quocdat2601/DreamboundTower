@@ -15,6 +15,8 @@ MonoBehaviour:
   itemName: Blade of Nightmares
   gearType: 0
   icon: {fileID: -1992353352110844402, guid: e8b1321d817acb7489e0971136886a85, type: 3}
+  scalingType: 1
+  description: 
   rarity: 4
   basePrice: 300
   attackBonus: 100
@@ -23,3 +25,4 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  modifiers: []

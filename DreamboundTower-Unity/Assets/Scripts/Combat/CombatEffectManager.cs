@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -229,7 +229,22 @@ public class CombatEffectManager : MonoBehaviour
         Vector3 position = GetCharacterUIPosition(target);
         ShowDamageNumberAtPosition(position, damage.ToString(), color);
     }
-    
+    /// <summary>
+    /// Hiển thị số sát thương nổi lên tại vị trí của mục tiêu với màu sắc tùy chỉnh.
+    /// </summary>
+    /// <param name="target">Nhân vật nhận sát thương</param>
+    /// <param name="amount">Lượng sát thương</param>
+    /// <param name="color">Màu sắc cho số</param>
+    public void ShowDamageNumber(Character target, int amount, Color color)
+    {
+        // Lấy vị trí từ target để gọi hàm helper
+        if (target != null)
+        {
+            // Có thể thêm offset Y nhỏ để số hiện trên đầu nhân vật
+            Vector3 spawnPosition = target.transform.position + Vector3.up * 30f; // Ví dụ offset 30 unit Y
+            ShowDamageNumberAtPosition(spawnPosition, amount.ToString(), color);
+        }
+    }
     /// <summary>
     /// Helper method to show damage number at position with custom color
     /// </summary>
