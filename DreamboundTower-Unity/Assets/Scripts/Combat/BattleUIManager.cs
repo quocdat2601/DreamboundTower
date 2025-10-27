@@ -7,118 +7,111 @@ using Presets;
 
 public class BattleUIManager : MonoBehaviour
 {
-    [Header("Skill UI")]
-    public GameObject skillIconPrefab;
-    public Transform skillIconContainer;
-
-    [Header("Skill Tooltip")]
-    public GameObject skillTooltipPanel;
-    public TextMeshProUGUI tooltipSkillName;
-    public TextMeshProUGUI tooltipDescription;
-    [Tooltip("Kéo GameObject cha 'ManaCostBar' vào đây")]
-    public GameObject tooltipManaCostBar;
-    [Tooltip("Kéo GameObject cha 'CooldownBar' vào đây")]
-    public GameObject tooltipCooldownBar;
-    [Tooltip("Kéo TextMeshPro 'ManaCostValue' vào đây")]
-    public TextMeshProUGUI tooltipManaCostValue;
-    [Tooltip("Kéo TextMeshPro 'CD_Value' vào đây")]
-    public TextMeshProUGUI tooltipCooldownValue;
-
     private BattleManager battleManager;
     private List<SkillIconUI> spawnedSkillIcons = new List<SkillIconUI>();
     private SkillIconUI selectedIcon = null;
+    
+    private float lastCooldownUpdate = 0f;
+    private const float COOLDOWN_UPDATE_INTERVAL = 0.1f; // Update every 0.1 seconds
 
     public void Initialize(BattleManager manager)
     {
         this.battleManager = manager;
-        if (skillTooltipPanel != null)
+        ConnectSkillIconEvents();
+    }
+    
+    void Update()
+    {
+        // Periodically update cooldown displays
+        if (Time.time - lastCooldownUpdate > COOLDOWN_UPDATE_INTERVAL)
         {
-            skillTooltipPanel.SetActive(false);
+            RefreshAllSkillCooldowns();
+            lastCooldownUpdate = Time.time;
         }
     }
-
-    public void CreatePlayerSkillIcons(PlayerSkills playerSkills)
+    
+    /// <summary>
+    /// Refreshes cooldown display for all skill icons
+    /// </summary>
+    private void RefreshAllSkillCooldowns()
     {
-        foreach (Transform child in skillIconContainer)
+        foreach (var icon in spawnedSkillIcons)
         {
-            Destroy(child.gameObject);
-        }
-        spawnedSkillIcons.Clear();
-        selectedIcon = null;
-
-        if (playerSkills == null) return;
-
-        // --- PHẦN SỬA ĐỔI ---
-
-        // 1. Thu thập tất cả skill vào một danh sách
-        List<BaseSkillSO> allSkills = new List<BaseSkillSO>();
-        allSkills.AddRange(playerSkills.passiveSkills);
-        allSkills.AddRange(playerSkills.activeSkills);
-
-        // 2. Sắp xếp (tùy chọn, nếu bạn muốn passive luôn ở bên trái)
-        var sortedSkills = allSkills.OrderByDescending(skill => skill is PassiveSkillData);
-
-        // 3. Tạo icon từ danh sách đã thu thập/sắp xếp
-        foreach (var skillSO in sortedSkills)
-        {
-            if (skillSO == null) continue;
-
-            GameObject iconGO = Instantiate(skillIconPrefab, skillIconContainer);
-            SkillIconUI iconUI = iconGO.GetComponent<SkillIconUI>();
-            if (iconUI != null)
+            if (icon != null)
             {
-                // Dùng hàm Setup phù hợp (giả định SkillIconUI có thể xử lý cả hai)
-                iconUI.Setup(skillSO, this);
-                iconUI.OnSkillClicked.AddListener(OnSkillIconClicked);
-                spawnedSkillIcons.Add(iconUI);
+                icon.RefreshCooldownDisplay();
             }
         }
     }
 
+    private void ConnectSkillIconEvents()
+    {
+        // Dọn dẹp listener và danh sách cũ
+        if (spawnedSkillIcons != null)
+        {
+            foreach (var icon in spawnedSkillIcons)
+            {
+                if (icon != null) icon.OnSkillClicked.RemoveAllListeners();
+            }
+        }
+        spawnedSkillIcons.Clear();
+        selectedIcon = null;
+
+        if (PlayerHUDController.Instance == null)
+        {
+            Debug.LogError("[BattleUI] Không tìm thấy PlayerHUDController để kết nối sự kiện!");
+            return;
+        }
+
+        // Lấy tất cả các icon skill đã được tạo bởi PlayerHUDController
+        SkillIconUI[] skillIcons = PlayerHUDController.Instance.skillIconContainer.GetComponentsInChildren<SkillIconUI>();
+
+        foreach (var iconUI in skillIcons)
+        {
+            // Thêm vào danh sách để quản lý
+            spawnedSkillIcons.Add(iconUI);
+
+            // Kết nối sự kiện click
+            iconUI.OnSkillClicked.AddListener(OnSkillIconClicked);
+
+            // Kết nối tooltip trigger
+            TooltipTrigger trigger = iconUI.GetComponent<TooltipTrigger>();
+            if (trigger != null)
+            {
+                // ✅ GHI ĐÈ KẾT NỐI
+                // 1. Xóa listener mặc định đã được thêm bởi PlayerHUDController
+                trigger.OnSkillHoverEnter.RemoveAllListeners();
+                trigger.OnHoverExit.RemoveAllListeners();
+
+                // 2. Thêm listener nâng cao của BattleUIManager
+                trigger.OnSkillHoverEnter.AddListener(ShowTooltip);
+                trigger.OnHoverExit.AddListener(HideTooltip);
+            }
+        }
+        Debug.Log($"[BattleUI] Đã kết nối sự kiện cho {spawnedSkillIcons.Count} skill icons.");
+    }
+
     public void ShowTooltip(BaseSkillSO skill, RectTransform iconTransform)
     {
-        if (skillTooltipPanel == null || skill == null) return;
-
         Character playerCharacter = battleManager.GetPlayerCharacter();
         if (playerCharacter == null) return;
 
-        skillTooltipPanel.SetActive(true);
-        skillTooltipPanel.transform.position = iconTransform.position + new Vector3(0, iconTransform.sizeDelta.y + 10f, 0);
-
-        if (tooltipSkillName) tooltipSkillName.text = skill.displayName;
-
-        if (skill is SkillData activeSkill)
+        StatBlock currentStats = new StatBlock
         {
-            // 1. Tạo StatBlock tạm thời từ chỉ số hiện tại của nhân vật
-            StatBlock currentStats = new StatBlock
-            {
-                HP = playerCharacter.maxHP,
-                STR = playerCharacter.attackPower,
-                DEF = playerCharacter.defense,
-                MANA = playerCharacter.mana,
-                INT = playerCharacter.intelligence,
-                AGI = playerCharacter.agility
-            };
+            HP = playerCharacter.maxHP,
+            STR = playerCharacter.attackPower,
+            DEF = playerCharacter.defense,
+            MANA = playerCharacter.mana,
+            INT = playerCharacter.intelligence,
+            AGI = playerCharacter.agility
+        };
 
-            // 2. Truyền StatBlock đó vào TooltipFormatter
-            if (tooltipDescription) tooltipDescription.text = $"<b>ACTIVE:</b> {TooltipFormatter.GenerateDescription(activeSkill, currentStats)}";
-
-            if (tooltipManaCostBar) tooltipManaCostBar.SetActive(true);
-            if (tooltipCooldownBar) tooltipCooldownBar.SetActive(true);
-            if (tooltipManaCostValue) tooltipManaCostValue.text = activeSkill.cost.ToString();
-            if (tooltipCooldownValue) tooltipCooldownValue.text = activeSkill.cooldown.ToString();
-        }
-        else if (skill is PassiveSkillData passiveSkill)
-        {
-            if (tooltipDescription) tooltipDescription.text = $"<b>PASSIVE:</b> {passiveSkill.descriptionTemplate}";
-            if (tooltipManaCostBar) tooltipManaCostBar.SetActive(false);
-            if (tooltipCooldownBar) tooltipCooldownBar.SetActive(false);
-        }
+        // Ra lệnh cho TooltipManager hiển thị
+        TooltipManager.Instance.ShowSkillTooltip(skill, currentStats);
     }
-
     public void HideTooltip()
     {
-        if (skillTooltipPanel != null) skillTooltipPanel.SetActive(false);
+        TooltipManager.Instance.HideAllTooltips();
     }
 
     private void OnSkillIconClicked(BaseSkillSO skillSO)

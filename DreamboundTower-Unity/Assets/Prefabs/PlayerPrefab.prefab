@@ -118,10 +118,15 @@ MonoBehaviour:
   attackPower: 0
   defense: 0
   mana: 0
+  currentMana: 0
   intelligence: 0
   agility: 0
   hpSlider: {fileID: 0}
   hpFillImage: {fileID: 0}
+  manaSlider: {fileID: 0}
+  manaFillImage: {fileID: 0}
+  characterImage: {fileID: 6343136848707517554}
+  isPlayer: 1
 --- !u!114 &7019581509134334698
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -171,3 +176,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23349700180c3ba489aa48df0cf54053, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSkills
+  passiveSkills: []
+  activeSkills: []

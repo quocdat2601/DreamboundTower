@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Leather Boots
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Leather Boots
-  gearType: 2
+  gearType: 4
   icon: {fileID: 21300000, guid: c2d586befec316b4ab79fa0a93b06dbc, type: 3}
+  description: 
   rarity: 0
   basePrice: 20
   attackBonus: 0
@@ -23,3 +24,4 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  modifiers: []

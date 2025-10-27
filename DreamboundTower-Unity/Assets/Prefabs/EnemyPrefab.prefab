@@ -407,14 +407,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character
   baseMaxHP: 100
-  baseAttackPower: 20
+  baseAttackPower: 10
   baseDefense: 0
+  baseMana: 50
+  baseIntelligence: 10
+  baseAgility: 10
   maxHP: 0
   currentHP: 0
   attackPower: 0
   defense: 0
+  mana: 0
+  currentMana: 0
+  intelligence: 0
+  agility: 0
   hpSlider: {fileID: 2361556847021512335}
   hpFillImage: {fileID: 2687435523401996054}
+  manaSlider: {fileID: 0}
+  manaFillImage: {fileID: 0}
+  characterImage: {fileID: 2976699259218200044}
+  isPlayer: 0
 --- !u!114 &2882223199700524981
 MonoBehaviour:
   m_ObjectHideFlags: 0

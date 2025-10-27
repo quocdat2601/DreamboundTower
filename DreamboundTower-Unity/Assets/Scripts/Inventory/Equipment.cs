@@ -51,8 +51,14 @@ public class Equipment : MonoBehaviour
         int slotIndex = FindAvailableSlot(item.gearType);
         if (slotIndex == -1)
         {
-            inventory.AddItem(item); // Put it back in inventory
-            return false;
+            // No empty slots available, find first occupied slot of this gear type to swap with
+            slotIndex = FindFirstOccupiedSlot(item.gearType);
+            if (slotIndex == -1)
+            {
+                // No slots of this gear type exist at all
+                inventory.AddItem(item); // Put it back in inventory
+                return false;
+            }
         }
         
         // Unequip current item in that slot
@@ -71,7 +77,7 @@ public class Equipment : MonoBehaviour
         OnItemEquipped?.Invoke(item, item.gearType);
         OnEquipmentChanged?.Invoke();
         
-        Debug.Log($"[EQUIP] Equipped {item.itemName} in slot {slotIndex}");
+        Debug.Log($"[EQUIP] Equipped {item.itemName} in slot {slotIndex}" + (oldItem != null ? $" (swapped with {oldItem.itemName})" : ""));
         return true;
     }
     
@@ -143,6 +149,22 @@ public class Equipment : MonoBehaviour
             }
         }
         return -1; // No available slot
+    }
+    
+    /// <summary>
+    /// Find the first occupied slot for a specific gear type (for swapping)
+    /// </summary>
+    int FindFirstOccupiedSlot(GearType gearType)
+    {
+        for (int i = 0; i < equipmentSlots.Length; i++)
+        {
+            GearType slotType = GetGearTypeFromSlot(i);
+            if (slotType == gearType && equipmentSlots[i] != null)
+            {
+                return i;
+            }
+        }
+        return -1; // No occupied slot found
     }
     
     /// <summary>

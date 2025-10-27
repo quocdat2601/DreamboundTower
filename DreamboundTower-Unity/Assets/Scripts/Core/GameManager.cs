@@ -4,14 +4,27 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using StatusEffects;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    [HideInInspector] // Ẩn khỏi Inspector để tránh nhầm lẫn
+    public bool isDebugRun = false; // Cờ này sẽ được bật bởi các script fallback
+
     [Header("Player Data")]
     public RunData currentRunData;
     public GameObject playerInstance;
+
+    [Header("Debug / Player Overrides")]
+    [Tooltip("Race mặc định nếu RunData trống")]
+    public RacePresetSO fallbackRace;
+    [Tooltip("Class mặc định nếu RunData trống")]
+    public ClassPresetSO fallbackClass;
+    [Tooltip("Nếu được chọn, sẽ dùng chỉ số tùy chỉnh bên dưới thay vì chỉ số của Race/Class")]
+    public bool overridePlayerStats = false;
+    public StatBlock customPlayerStats;
 
     [Header("Persistent UI")]
     // ✅ CHỈ GIỮ LẠI THAM CHIẾU TRỰC TIẾP NÀY
@@ -24,6 +37,8 @@ public class GameManager : MonoBehaviour
     public List<RacePresetSO> allRaces;
     public List<ClassPresetSO> allClasses;
     public List<GearItem> allItems;
+    public List<EnemyTemplateSO> allEnemyTemplates;
+    public List<EventDataSO> allEvents;
 
     [Header("Pause & Settings Panels")]
     public Button pauseButton;
@@ -55,6 +70,14 @@ public class GameManager : MonoBehaviour
         {
             DontDestroyOnLoad(playerStatusUI.gameObject.transform.root.gameObject);
         }
+        
+        // Setup PassiveSkillManager
+        SetupPassiveSkillManager();
+        
+        // Setup StatusEffectManager
+        SetupStatusEffectManager();
+        
+        // Setup SkillDatabase
 
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
@@ -72,9 +95,68 @@ public class GameManager : MonoBehaviour
         if (currentRunData == null)
         {
             currentRunData = new RunData();
+            // THÊM VÀO: Khởi tạo HP/Mana khi tạo RunData mới LẦN ĐẦU
+            if (overridePlayerStats)
+            {
+                currentRunData.playerData.currentHP = customPlayerStats.HP * 10; // Giả sử HP_UNIT = 10
+                currentRunData.playerData.currentMana = customPlayerStats.MANA * 5; // Giả sử MANA_UNIT = 5
+                Debug.LogWarning("[GameManager - Debug] Khởi tạo HP/Mana trong RunData từ Override Stats.");
+            }
+            else if (fallbackRace != null) // Hoặc khởi tạo từ fallback nếu có
+            {
+                currentRunData.playerData.currentHP = fallbackRace.baseStats.HP * 10;
+                currentRunData.playerData.currentMana = fallbackRace.baseStats.MANA * 5;
+                Debug.LogWarning("[GameManager - Debug] Khởi tạo HP/Mana trong RunData từ Fallback Race.");
+            }
+            else // Giá trị mặc định cuối cùng
+            {
+                currentRunData.playerData.currentHP = 100;
+                currentRunData.playerData.currentMana = 50;
+            }
+        }
+        // THÊM VÀO: Hoặc đảm bảo HP/Mana đầy nếu TẢI RunData cũ khi đang bật override
+        else if (overridePlayerStats)
+        {
+            // Nếu tải RunData cũ nhưng muốn test với override, hồi đầy HP/Mana theo override
+            currentRunData.playerData.currentHP = customPlayerStats.HP * 10;
+            currentRunData.playerData.currentMana = customPlayerStats.MANA * 5;
+            Debug.LogWarning("[GameManager - Debug] Hồi đầy HP/Mana trong RunData đã tải theo Override Stats.");
         }
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
+    
+    void SetupPassiveSkillManager()
+    {
+        // Check if PassiveSkillManager already exists
+        if (FindFirstObjectByType<PassiveSkillManager>() == null)
+        {
+            // Create a new GameObject with PassiveSkillManager
+            GameObject passiveSkillManagerGO = new GameObject("PassiveSkillManager");
+            passiveSkillManagerGO.AddComponent<PassiveSkillManager>();
+            
+            // Make it persistent across scenes
+            DontDestroyOnLoad(passiveSkillManagerGO);
+            
+            Debug.Log("[GAMEMANAGER] Created PassiveSkillManager GameObject");
+        }
+    }
+    
+    void SetupStatusEffectManager()
+    {
+        // Check if StatusEffectManager already exists
+        if (FindFirstObjectByType<StatusEffectManager>() == null)
+        {
+            // Create a new GameObject with StatusEffectManager
+            GameObject statusEffectManagerGO = new GameObject("StatusEffectManager");
+            statusEffectManagerGO.AddComponent<StatusEffectManager>();
+            
+            // Make it persistent across scenes
+            DontDestroyOnLoad(statusEffectManagerGO);
+            
+            // StatusEffectManager created
+        }
+    }
+    
 
     private void Update()
     {
@@ -213,7 +295,7 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    public void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         // Thêm dòng log này để biết chắc chắn hàm có được gọi không
         Debug.Log($"<color=yellow>OnSceneLoaded: Đã tải scene '{scene.name}'</color>");
@@ -227,7 +309,7 @@ public class GameManager : MonoBehaviour
         {
             bool isGameplayScene = scene.name.StartsWith("Zone") || scene.name == "MainGame"
                                    || scene.name == "EventScene" || scene.name == "RestScene"
-                                   || scene.name == "ShopScene";
+                                   || scene.name == "ShopScene" || scene.name == "MysteryScene";
 
             // Thêm dòng log này để xem kết quả của việc kiểm tra scene
             Debug.Log($"<color=cyan>Is Gameplay Scene? {isGameplayScene}</color>");
@@ -235,6 +317,11 @@ public class GameManager : MonoBehaviour
             playerStatusUI.gameObject.SetActive(isGameplayScene);
 
             isPausable = isGameplayScene;
+            // Nếu đây là scene gameplay, ra lệnh cho PlayerHUDController tìm và cập nhật
+            if (isGameplayScene && PlayerHUDController.Instance != null)
+            {
+                PlayerHUDController.Instance.FindAndRefresh();
+            }
             if (pauseButton != null)
             {
                 pauseButton.gameObject.SetActive(isGameplayScene);
@@ -277,14 +364,38 @@ public class GameManager : MonoBehaviour
     }
     public void InitializePlayerCharacter()
     {
-        // Bước 1: Đọc "bản thiết kế" từ currentRunData
-        if (playerPrefab == null || currentRunData == null) return;
-        string raceId = currentRunData.playerData.selectedRaceId;
-        string classId = currentRunData.playerData.selectedClassId;
-        if (string.IsNullOrEmpty(raceId) || string.IsNullOrEmpty(classId)) return;
-        RacePresetSO raceData = GetRaceByID(raceId);
-        ClassPresetSO classData = GetClassByID(classId);
-        if (raceData == null || classData == null) return;
+        if (playerPrefab == null) return;
+
+        RacePresetSO raceData = null;
+        ClassPresetSO classData = null;
+
+        // Ưu tiên 1: Đọc từ RunData
+        if (currentRunData != null && !string.IsNullOrEmpty(currentRunData.playerData.selectedRaceId) && !string.IsNullOrEmpty(currentRunData.playerData.selectedClassId))
+        {
+            raceData = GetRaceByID(currentRunData.playerData.selectedRaceId);
+            classData = GetClassByID(currentRunData.playerData.selectedClassId);
+            Debug.Log("Initializing player from RunData.");
+        }
+
+        // Ưu tiên 2: Dùng Fallback (nếu RunData trống hoặc không tìm thấy SO)
+        if (raceData == null || classData == null)
+        {
+            if (fallbackRace == null || fallbackClass == null)
+            {
+                Debug.LogError("InitializePlayerCharacter: RunData is empty AND Fallback Race/Class in GameManager is not set! Cannot create player.");
+                return;
+            }
+            raceData = fallbackRace;
+            classData = fallbackClass;
+            Debug.LogWarning("InitializePlayerCharacter: Using FALLBACK Race/Class.");
+
+            // Cũng nên khởi tạo RunData nếu chưa có
+            if (currentRunData == null) currentRunData = new RunData();
+            currentRunData.playerData.selectedRaceId = raceData.id;
+            currentRunData.playerData.selectedClassId = classData.id;
+            currentRunData.playerData.steadfastDurability = 3; // Khởi tạo giá trị fallback
+            currentRunData.playerData.gold = 50; // Ví dụ
+        }
 
         // Bước 2: Bắt đầu "xây nhà" (Instantiate và cấu hình playerInstance)
         if (playerInstance != null) Destroy(playerInstance);
@@ -300,15 +411,28 @@ public class GameManager : MonoBehaviour
         // Bước 3: THIẾT LẬP CHỈ SỐ THEO QUY TRÌNH CHUẨN
         if (playerCharacter != null && playerStatusUI != null)
         {
-            // 3.1. GÁN "GIẤY KHAI SINH" (BASE STATS) TỪ RACE SO
-            StatBlock baseStats = raceData.baseStats;
-            playerCharacter.baseMaxHP = baseStats.HP * HP_UNIT;
-            playerCharacter.baseAttackPower = baseStats.STR;
-            playerCharacter.baseDefense = baseStats.DEF;
-            playerCharacter.baseMana = baseStats.MANA * MANA_UNIT;
-            playerCharacter.baseIntelligence = baseStats.INT;
-            playerCharacter.baseAgility = baseStats.AGI;
-
+            if (overridePlayerStats)
+            {
+                // Dùng chỉ số override
+                playerCharacter.baseMaxHP = customPlayerStats.HP * HP_UNIT;
+                playerCharacter.baseAttackPower = customPlayerStats.STR;
+                playerCharacter.baseDefense = customPlayerStats.DEF;
+                playerCharacter.baseMana = customPlayerStats.MANA * MANA_UNIT;
+                playerCharacter.baseIntelligence = customPlayerStats.INT;
+                playerCharacter.baseAgility = customPlayerStats.AGI;
+                Debug.LogWarning("[GameManager] ĐÃ SỬ DỤNG CHỈ SỐ OVERRIDE ĐỂ TẠO NHÂN VẬT!");
+            }
+            else
+            {
+                // 3.1. GÁN "GIẤY KHAI SINH" (BASE STATS) TỪ RACE SO
+                StatBlock baseStats = raceData.baseStats;
+                playerCharacter.baseMaxHP = baseStats.HP * HP_UNIT;
+                playerCharacter.baseAttackPower = baseStats.STR;
+                playerCharacter.baseDefense = baseStats.DEF;
+                playerCharacter.baseMana = baseStats.MANA * MANA_UNIT;
+                playerCharacter.baseIntelligence = baseStats.INT;
+                playerCharacter.baseAgility = baseStats.AGI;
+            }
             // 3.2. RESET CHỈ SỐ THỰC CHIẾN VỀ TRẠNG THÁI GỐC
             playerCharacter.ResetToBaseStats();
 
@@ -348,20 +472,32 @@ public class GameManager : MonoBehaviour
             playerSkills.LearnSkills(raceData, classData);
         }
 
+        // Ensure ConditionalPassiveManager is attached to player character
+        var conditionalPassiveManager = playerInstance.GetComponent<ConditionalPassiveManager>();
+        if (conditionalPassiveManager == null)
+        {
+            conditionalPassiveManager = playerInstance.AddComponent<ConditionalPassiveManager>();
+        }
+
+        // Apply passive skills after all stat modifications are complete
+        var passiveSkillManager = playerInstance.GetComponent<PassiveSkillManager>();
+        if (passiveSkillManager != null)
+        {
+            passiveSkillManager.playerCharacter = playerCharacter;
+            passiveSkillManager.playerSkills = playerSkills;
+            passiveSkillManager.ApplyAllPassiveSkills();
+        }
+
         Debug.Log("Player Character Initialized from RunData!");
 
         // Bước 5: Lưu trạng thái ban đầu và cập nhật giao diện
         SavePlayerStateToRunData();
-        if (playerCharacter != null)
+        if (playerCharacter != null && playerStatusUI != null)
         {
-            // THAY ĐỔI NHỎ Ở ĐÂY
-            // Thay vì gọi playerCharacter.UpdateHPUI(),
-            // ta trực tiếp ra lệnh cho UI cập nhật lần đầu tiên.
-            // Điều này rõ ràng và đáng tin cậy hơn.
             playerStatusUI.UpdateHealth(playerCharacter.currentHP, playerCharacter.maxHP);
-
-            Debug.Log($"Player initialized. MaxHP: {playerCharacter.maxHP}. CurrentHP set to full.");
-        }   
+            // Update Mana UI
+            playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
+        }
     }
 
     public void LoadNextScene(string sceneName)
@@ -529,5 +665,12 @@ public class GameManager : MonoBehaviour
         character.currentHP = currentRunData.playerData.currentHP;
         character.currentMana = currentRunData.playerData.currentMana;
         character.UpdateHPUI();
+    }
+    public void UpdatePlayerGoldUI(int amount)
+    {
+        if (playerStatusUI != null)
+        {
+            playerStatusUI.UpdateGold(amount);
+        }
     }
 }

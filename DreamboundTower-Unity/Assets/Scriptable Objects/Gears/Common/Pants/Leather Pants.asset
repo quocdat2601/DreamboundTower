@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Leather Pants
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Leather Pants
-  gearType: 2
+  gearType: 3
   icon: {fileID: 1388161964112376393, guid: 17bba20f2f41b174cbb4117076c4110f, type: 3}
+  description: 
   rarity: 0
   basePrice: 20
   attackBonus: 0
@@ -23,3 +24,4 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  modifiers: []

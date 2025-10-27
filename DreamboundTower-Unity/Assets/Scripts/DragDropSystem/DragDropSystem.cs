@@ -90,25 +90,41 @@ public class DragDropSystem : MonoBehaviour
     /// </summary>
     void RetryFindEquipment()
     {
-        // Find the correct Equipment reference (the instantiated one, not the prefab)
+        // Priority 1: Find equipment from BattleManager's active player
+        BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+        if (battleManager != null)
+        {
+            Character playerCharacter = battleManager.GetPlayerCharacter();
+            if (playerCharacter != null)
+            {
+                Equipment playerEquipment = playerCharacter.GetComponent<Equipment>();
+                if (playerEquipment != null && playerEquipment.gameObject.activeInHierarchy)
+                {
+                    equipment = playerEquipment;
+                    return;
+                }
+            }
+        }
+        
+        // Priority 2: Find equipment from GameManager's persistent player
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            Equipment persistentEquipment = GameManager.Instance.playerInstance.GetComponent<Equipment>();
+            if (persistentEquipment != null && persistentEquipment.gameObject.activeInHierarchy)
+            {
+                equipment = persistentEquipment;
+                return;
+            }
+        }
+        
+        // Priority 3: Find any active equipment in the scene
         Equipment[] allEquipment = FindObjectsByType<Equipment>(FindObjectsSortMode.None);
-        
-        if (allEquipment.Length == 0) return;
-        
-        // Look for Equipment components that are on instantiated players (not prefabs)
         foreach (var equip in allEquipment)
         {
-            // Check if this Equipment is on an instantiated player (has "Clone" in the name)
-            bool isInstantiated = equip.gameObject.name.Contains("(Clone)");
-            
-            if (isInstantiated)
+            if (equip.gameObject.activeInHierarchy)
             {
-                // Only switch if we don't already have the correct reference
-                if (equipment != equip)
-                {
-                    equipment = equip;
-                }
-                break;
+                equipment = equip;
+                return;
             }
         }
     }
@@ -118,24 +134,41 @@ public class DragDropSystem : MonoBehaviour
     /// </summary>
     void RetryFindInventory()
     {
-        // Find the correct Inventory reference (the instantiated one, not the prefab)
+        // Priority 1: Find inventory from BattleManager's active player
+        BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+        if (battleManager != null)
+        {
+            Character playerCharacter = battleManager.GetPlayerCharacter();
+            if (playerCharacter != null)
+            {
+                Inventory playerInventory = playerCharacter.GetComponent<Inventory>();
+                if (playerInventory != null && playerInventory.gameObject.activeInHierarchy)
+                {
+                    inventory = playerInventory;
+                    return;
+                }
+            }
+        }
+        
+        // Priority 2: Find inventory from GameManager's persistent player
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            Inventory persistentInventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
+            if (persistentInventory != null && persistentInventory.gameObject.activeInHierarchy)
+            {
+                inventory = persistentInventory;
+                return;
+            }
+        }
+        
+        // Priority 3: Find any active inventory in the scene
         Inventory[] allInventories = FindObjectsByType<Inventory>(FindObjectsSortMode.None);
-        
-        if (allInventories.Length == 0) return;
-        
-        // Look for Inventory components that have items (the instantiated ones)
         foreach (var inv in allInventories)
         {
-            // Check if this Inventory has any items
-            bool hasItems = inv.items.Count > 0;
-            if (hasItems)
+            if (inv.gameObject.activeInHierarchy)
             {
-                // Only switch if we don't already have the correct reference
-                if (inventory != inv)
-                {
-                    inventory = inv;
-                }
-                break;
+                inventory = inv;
+                return;
             }
         }
     }
@@ -165,11 +198,11 @@ public class DragDropSystem : MonoBehaviour
         // Create drag preview
         CreateDragPreview(draggableItem.item);
         
-        // Calculate offset from mouse to item center
-        Vector3 itemWorldPos = draggableItem.transform.position;
-        Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(mousePosition);
-        mouseWorldPos.z = 0;
-        dragOffset = itemWorldPos - mouseWorldPos;
+        // For Screen Space - Overlay, position directly at mouse cursor
+        // No need for complex offset calculation
+        dragOffset = Vector3.zero;
+        
+        Debug.Log($"[DRAG] StartDrag - Mouse: {mousePosition}, Offset set to zero for ScreenSpaceOverlay");
         
         // Hide original item during drag
         draggableItem.SetDragging(true);
@@ -259,10 +292,40 @@ public class DragDropSystem : MonoBehaviour
         if (dragPreview == null) return;
         
         Vector3 mousePos = Mouse.current.position.ReadValue();
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(mousePos);
-        worldPos.z = dragPreviewZOffset;
         
-        dragPreview.transform.position = worldPos + dragOffset;
+        
+        // For UI elements, use RectTransform.anchoredPosition instead of transform.position
+        RectTransform rectTransform = dragPreview.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            // Check canvas render mode
+            if (dragCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            {
+                // For Screen Space - Overlay, use mouse position directly
+                rectTransform.position = mousePos;
+            }
+            else
+            {
+                // For Screen Space - Camera or World Space, convert to local position
+                Vector3 screenPos = mousePos + dragOffset;
+                Vector2 localPos;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    dragCanvas.transform as RectTransform, 
+                    screenPos, 
+                    dragCanvas.worldCamera, 
+                    out localPos
+                );
+                rectTransform.anchoredPosition = localPos;
+            }
+        }
+        else
+        {
+            // Fallback for non-UI elements
+            Vector3 screenPos = mousePos + dragOffset;
+            Vector3 worldPos = Camera.main.ScreenToWorldPoint(screenPos);
+            worldPos.z = dragPreviewZOffset;
+            dragPreview.transform.position = worldPos;
+        }
     }
     
     /// <summary>
@@ -415,18 +478,42 @@ public class DragDropSystem : MonoBehaviour
     {
         if (equipment == null || inventory == null) return;
         
+        // Get the existing item in the target inventory slot
+        GearItem existingItem = inventory.GetItemAt(inventorySlot);
+        
         // Remove from equipment
         equipment.UnequipItemFromSlot(equipmentSlot);
         
-        // Add to inventory at specific slot
-        GearItem existingItem = inventory.GetItemAt(inventorySlot);
+        // Put the equipped item in the inventory slot
         inventory.items[inventorySlot] = item;
         
-        // If there was an item in the target slot, put it in the equipment slot
+        // If there was an item in the target slot, try to equip it to the SAME equipment slot
         if (existingItem != null)
         {
-            // Use the existing EquipItem method instead of the removed EquipItemToSlot
-            equipment.EquipItem(existingItem);
+            // Check if the existing item can be equipped to this slot type
+            GearType slotType = equipment.GetGearTypeFromSlot(equipmentSlot);
+            if (existingItem.gearType == slotType)
+            {
+                // Directly equip to the specific slot without removing from inventory first
+                // (since we're doing a direct swap)
+                GearItem oldItem = equipment.equipmentSlots[equipmentSlot];
+                equipment.equipmentSlots[equipmentSlot] = existingItem;
+                
+                // Apply stat bonuses
+                equipment.ApplyGearStats();
+                
+                // Trigger events
+                equipment.OnItemEquipped?.Invoke(existingItem, existingItem.gearType);
+                equipment.OnEquipmentChanged?.Invoke();
+                
+                Debug.Log($"[DRAG DROP] Swapped {item.itemName} with {existingItem.itemName} in equipment slot {equipmentSlot}");
+            }
+            else
+            {
+                // If gear type doesn't match, add it back to inventory
+                inventory.AddItem(existingItem);
+                Debug.Log($"[DRAG DROP] Could not equip {existingItem.itemName} (type: {existingItem.gearType}) to equipment slot {equipmentSlot} (type: {slotType}), added back to inventory");
+            }
         }
         
         // Trigger events

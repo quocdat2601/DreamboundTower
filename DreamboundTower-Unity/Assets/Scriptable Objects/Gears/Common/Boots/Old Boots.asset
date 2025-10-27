@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Old Boots
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Old Boots
+  gearType: 4
+  icon: {fileID: -5102879339431433853, guid: 3942d2125c0a1154482c41e14ce40269, type: 3}
+  description: 
+  rarity: 0
+  basePrice: 12
+  attackBonus: 0
+  defenseBonus: 3
+  hpBonus: 0
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 4
+  modifiers: []

@@ -1,8 +1,10 @@
-using System;
-using System.Linq;
 using DG.Tweening;
-using UnityEngine.SceneManagement;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Unity.Burst.CompilerServices;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Map
 {
@@ -81,12 +83,15 @@ namespace Map
             DOTween.Sequence().AppendInterval(enterNodeDelay).OnComplete(() => EnterNode(mapNode));
         }
 
-        // Trong file MapPlayerTracker.cs
-
         private static void EnterNode(MapNode mapNode)
         {
             Debug.Log("Entering node: " + mapNode.Node.blueprintName + " of type: " + mapNode.Node.nodeType);
-
+            if (mapNode.Node.nodeType == NodeType.Event || mapNode.Node.nodeType == NodeType.Mystery)
+            {
+                Instance.SelectAndLoadEvent(mapNode); // Gọi hàm xử lý Event
+                return; // Thoát khỏi EnterNode, vì SelectAndLoadEvent đã xử lý xong
+            }
+            //
             // Lấy scene sẽ được tải dựa trên loại node
             string sceneToLoad = Instance.GetSceneNameForNodeType(mapNode.Node.nodeType);
 
@@ -125,57 +130,146 @@ namespace Map
                 case NodeType.EliteEnemy:
                 case NodeType.Boss:
                     return "MainGame";
-                // case NodeType.Mystery:
-                //     return "EventScene";
-
-                // Các node không cần chuyển scene sẽ trả về chuỗi rỗng
                 case NodeType.RestSite:
                     return "RestScene";
-                case NodeType.Treasure:
                 case NodeType.Store:
-                case NodeType.Mystery: // Tạm thời để auto complete
+                    return "ShopScene"; 
+                case NodeType.Mystery:
+                    return "MysteryScene";
+                case NodeType.Event:
+                    return "EventScene";
                 default:
                     return "";
             }
         }
 
-        private void TryWriteCombatPreset(MapNode mapNode)
+        private void SelectAndLoadEvent(MapNode node)
         {
-            if (mapNode == null || mapManager == null) return;
-            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null) return;
+            Debug.Log($"Đang xử lý Node Event: {node.Node.point}");
 
-            Presets.EnemyTemplateSO template = null;
-            switch (mapNode.Node.nodeType)
+            if (GameManager.Instance == null || GameManager.Instance.currentRunData == null || GameManager.Instance.allEvents == null)
             {
-                case NodeType.MinorEnemy: template = mapManager.normalTemplate; break;
-                case NodeType.EliteEnemy: template = mapManager.eliteTemplate; break;
-                case NodeType.Boss: template = mapManager.bossTemplate; break;
-                default: return;
-            }
-
-            if (template == null)
-            {
-                Debug.LogWarning($"[MAP] Enemy template not assigned for node type {mapNode.Node.nodeType}");
+                Debug.LogError("Lỗi GameManager hoặc RunData khi cố gắng xử lý Node Event!");
+                // Quan trọng: Phải mở khóa lại nếu có lỗi
+                Locked = false;
                 return;
             }
 
-            int floorInZone = mapNode.Node.point.y + 1;
-            int absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + floorInZone;
-
-            // Lấy RunData ra
             var runData = GameManager.Instance.currentRunData;
+            var playerFlags = runData.currentRunEventFlags;
+            var eventPool = runData.availableEventPool;
 
-            // Ghi trực tiếp thông tin combat vào RunData
-            runData.mapData.pendingEnemyArchetypeId = template.name;
-            runData.mapData.pendingEnemyKind = (int)template.kind;
+            // 1. Lọc các event hợp lệ
+            List<EventDataSO> validEvents = new List<EventDataSO>();
+            EventRegion currentRegion = GetCurrentRegion(runData.mapData.currentZone);
+
+            // Tái tạo pool nếu cạn
+            if (eventPool.Count == 0 && GameManager.Instance.allEvents.Count > 0)
+            {
+                Debug.LogWarning("Event Pool cạn! Đang tái tạo...");
+                foreach (var evt in GameManager.Instance.allEvents) { eventPool.Add(evt.eventID); }
+            }
+
+            // Bắt đầu lọc
+            foreach (string eventId in eventPool)
+            {
+                EventDataSO eventData = GameManager.Instance.allEvents.Find(e => e.eventID == eventId);
+                if (eventData != null)
+                {
+                    // Kiểm tra Region (cần enum EventRegion đã định nghĩa trước đó)
+                    bool regionMatch = eventData.region == EventRegion.Any || eventData.region == currentRegion ||
+                                       (currentRegion == EventRegion.Early && eventData.region == EventRegion.EarlyMid) ||
+                                       (currentRegion == EventRegion.Mid && (eventData.region == EventRegion.EarlyMid || eventData.region == EventRegion.MidLate)) ||
+                                       (currentRegion == EventRegion.Late && eventData.region == EventRegion.MidLate);
+
+                    // Kiểm tra Prerequisite Flag
+                    bool flagMatch = string.IsNullOrEmpty(eventData.prerequisiteFlag) || playerFlags.Contains(eventData.prerequisiteFlag);
+
+                    if (regionMatch && flagMatch)
+                    {
+                        validEvents.Add(eventData);
+                    }
+                }
+            }
+
+            // 2. Chọn ngẫu nhiên từ danh sách hợp lệ
+            if (validEvents.Count > 0)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, validEvents.Count);
+                EventDataSO selectedEvent = validEvents[randomIndex];
+
+                Debug.Log($"Đã chọn Event: {selectedEvent.eventID}");
+
+                // 3. Gán ID vào RunData
+                runData.mapData.pendingEventID = selectedEvent.eventID;
+
+                // 4. Xóa ID khỏi Pool
+                eventPool.Remove(selectedEvent.eventID);
+
+                // 5. Lưu trạng thái "đang chờ" và lưu game
+                runData.mapData.pendingNodePoint = node.Node.point;
+                // QUAN TRỌNG: Lưu tên scene hiện tại để quay về
+                runData.mapData.pendingNodeSceneName = SceneManager.GetActiveScene().name;
+                RunSaveService.SaveRun(runData);
+                Debug.Log("[SAVE SYSTEM] Entering Event node. Pending status set. Game saved.");
+
+                // 6. Tải EventScene
+                SceneManager.LoadScene("EventScene");
+            }
+            else
+            {
+                Debug.LogWarning("Không tìm thấy Event nào hợp lệ! Node này sẽ không làm gì cả. Mở khóa Player.");
+                // Mở khóa để người chơi đi tiếp
+                Locked = false;
+            }
+        }
+
+        // (Hàm GetCurrentRegion vẫn giữ nguyên hoặc đặt gần hàm SelectAndLoadEvent)
+        private EventRegion GetCurrentRegion(int currentZone)
+        {
+            if (currentZone <= 3) return EventRegion.Early;
+            if (currentZone <= 7) return EventRegion.Mid;
+            return EventRegion.Late;
+            // (Nhớ điều chỉnh logic zone này cho phù hợp)
+        }
+
+        private void TryWriteCombatPreset(MapNode mapNode)
+        {
+            if (mapNode == null || mapManager == null || GameManager.Instance == null) return;
+
+            // 1. Xác định "Cấp bậc" (Kind) cần tìm dựa trên loại node
+            Presets.EnemyKind requiredKind;
+            switch (mapNode.Node.nodeType)
+            {
+                case NodeType.MinorEnemy:
+                    requiredKind = Presets.EnemyKind.Normal;
+                    break;
+                case NodeType.EliteEnemy:
+                    requiredKind = Presets.EnemyKind.Elite;
+                    break;
+                case NodeType.Boss:
+                    requiredKind = Presets.EnemyKind.Boss;
+                    break;
+                default:
+                    return; // Không phải node combat, không làm gì cả
+            }
+
+            // 2. Lọc "Kho" quái vật trong GameManager để tìm các "Binh chủng" phù hợp
+            int absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(mapNode.Node.point);
+            var runData = GameManager.Instance.currentRunData;
+            runData.mapData.pendingEnemyArchetypeId = "";
+            runData.mapData.pendingEnemyKind = (int)requiredKind;
             runData.mapData.pendingEnemyFloor = absoluteFloor;
 
-            Debug.Log($"[MAP] Wrote pending combat data to RunData: kind={template.kind}, archetype={template.name}, floor={absoluteFloor}");
+            Debug.Log($"[MAP] Wrote pending combat encounter: kind={requiredKind}, floor={absoluteFloor}");
         }
 
         private void PlayWarningThatNodeCannotBeAccessed()
         {
             Debug.Log("Selected node cannot be accessed");
         }
+
     }
+
+
 }

@@ -15,11 +15,14 @@ MonoBehaviour:
   itemName: Rusted Sword
   gearType: 0
   icon: {fileID: 21300000, guid: 0c3d5165b566bc043b0fc103302d889a, type: 3}
+  scalingType: 1
+  description: 
   rarity: 0
-  basePrice: 0
+  basePrice: 12
   attackBonus: 5
   defenseBonus: 0
   hpBonus: 0
   intBonus: 0
   manaBonus: 0
   agiBonus: 2
+  modifiers: []

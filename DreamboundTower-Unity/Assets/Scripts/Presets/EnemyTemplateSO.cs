@@ -1,14 +1,39 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace Presets
 {
 	public enum EnemyKind { Normal, Elite, Boss }
 
-	[CreateAssetMenu(fileName = "EnemyTemplate", menuName = "Presets/EnemyTemplate", order = 2)]
+    [System.Flags]
+    public enum EnemyGimmick
+    {
+        // Giá trị phải là lũy thừa của 2 (0, 1, 2, 4, 8, ...)
+        None = 0,      // 0
+        Resurrect = 1 << 0, // 1
+        SplitOnDamage = 1 << 1, // 2
+        CounterAttack = 1 << 2, // 4
+        Ranged = 1 << 8,
+		Enrage = 1 << 16,
+		Bony = 1 << 17,
+		Thornmail = 1 << 18,
+        Regenerator = 1 << 19
+
+    }
+
+    [CreateAssetMenu(fileName = "EnemyTemplate", menuName = "Presets/EnemyTemplate", order = 2)]
 	public class EnemyTemplateSO : ScriptableObject
 	{
-		public EnemyKind kind;
+        [Header("Classification")]
+        public EnemyKind kind;
+        public EnemyGimmick gimmick;
+
+		[Header("Combat Details")]
+		[Tooltip("Lượng mana quái vật hồi lại vào đầu mỗi lượt của nó.")]
+		public int manaRegenPerTurnn;
+
+        [Tooltip("Danh sách các kỹ năng mà loài quái vật này có thể sử dụng.")]
+        public List<SkillData> skills;
 
         [Header("Visuals")]
         public List<Sprite> sprites;
@@ -18,7 +43,7 @@ namespace Presets
 
 		[Header("Multipliers (Elite/Boss)")]
 		public float hpMultiplier = 1f;
-		public float strMultiplier = 1f;
+		public float strMultiplier = 1f;	
 		public float defMultiplier = 1f;
 
 		[Header("Growth")]
@@ -41,6 +66,4 @@ namespace Presets
 		}
 	}
 }
-
-
 

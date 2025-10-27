@@ -12,6 +12,12 @@ public static class RunSaveService
 
     public static void SaveRun(RunData data)
     {
+        // ✅ THÊM KHỐI KIỂM TRA NÀY
+        if (GameManager.Instance != null && GameManager.Instance.isDebugRun)
+        {
+            Debug.LogWarning("[RunSaveService] Đang ở chế độ Debug, đã BỎ QUA LƯU GAME.");
+            return; // Không lưu gì cả
+        }
         if (data == null) return;
 
         string json = JsonUtility.ToJson(data); // Chuyển cả "hộp" thành JSON
@@ -33,6 +39,12 @@ public static class RunSaveService
 
     public static void ClearRun()
     {
+        // ✅ THÊM KHỐI KIỂM TRA NÀY
+        if (GameManager.Instance != null && GameManager.Instance.isDebugRun)
+        {
+            Debug.LogWarning("[RunSaveService] Đang ở chế độ Debug, đã BỎ QUA XÓA LƯU.");
+            return; // Không xóa gì cả
+        }
         PlayerPrefs.DeleteKey(RunDataKey); // Chỉ cần xóa 1 key duy nhất
         PlayerPrefs.SetInt(RunActiveKey, 0);
         PlayerPrefs.Save();

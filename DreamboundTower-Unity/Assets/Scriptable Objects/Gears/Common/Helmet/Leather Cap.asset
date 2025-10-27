@@ -15,11 +15,13 @@ MonoBehaviour:
   itemName: Leather Cap
   gearType: 1
   icon: {fileID: 7875357959668951558, guid: f76f80fb472f4e041959445fdd8bf1dd, type: 3}
+  description: 
   rarity: 0
-  basePrice: 0
+  basePrice: 10
   attackBonus: 0
   defenseBonus: 5
   hpBonus: 50
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  modifiers: []

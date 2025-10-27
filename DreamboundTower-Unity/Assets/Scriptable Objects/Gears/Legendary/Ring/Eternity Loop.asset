@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Eternity Loop
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Eternity Loop
+  gearType: 6
+  icon: {fileID: -3027154427226560534, guid: 6c7d213ac8479794980d9dda3ddb7d0d, type: 3}
+  description: 
+  rarity: 4
+  basePrice: 775
+  attackBonus: 10
+  defenseBonus: 25
+  hpBonus: 400
+  intBonus: 10
+  manaBonus: 150
+  agiBonus: 0
+  modifiers: []

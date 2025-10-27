@@ -2,8 +2,20 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using DG.Tweening;
+using StatusEffects;
+public enum DamageType
+{
+    Physical, // Vật lý (màu trắng)
+    Magic,    // Phép (màu xanh)
+    True      // Sát thương chuẩn (ví dụ: màu vàng - nếu cần sau này)
+}
+/// <summary>
+/// Core character class handling stats, combat, and visual effects
+/// </summary>
 public class Character : MonoBehaviour
 {
+    #region Base Stats
     [Header("Base Stats")]
     public int baseMaxHP = 100;
     public int baseAttackPower = 20; // Tương ứng với STR
@@ -11,7 +23,9 @@ public class Character : MonoBehaviour
     public int baseMana = 50;        // <-- THÊM MỚI
     public int baseIntelligence = 10;// <-- THÊM MỚI (INT)
     public int baseAgility = 10;     // <-- THÊM MỚI (AGI)
+    #endregion
 
+    #region Current Stats
     [Header("Current Stats")]
     public int maxHP;
     public int currentHP;
@@ -22,23 +36,91 @@ public class Character : MonoBehaviour
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
 
+    public const float DODGE_PER_AGI = 0.003f; // 0.3% dưới dạng thập phân
+    public const float DODGE_CAP = 0.40f; // 40%
+
+    [Header("Passive Bonuses")]
+    [Tooltip("Percentage bonus to mana regeneration from passive skills")]
+    public float manaRegenBonus = 0f; // <-- THÊM MỚI
+    [Tooltip("Percentage bonus to physical damage from passive skills")]
+    public float physicalDamageBonus = 0f; // Physical damage bonus (0.05 = 5%)
+    [Tooltip("Percentage bonus to magic damage from passive skills")]
+    public float magicDamageBonus = 0f; // Magic damage bonus (0.05 = 5%)
+    [Tooltip("Percentage of damage dealt returned as healing")]
+    public float lifestealPercent = 0f; // Lifesteal percentage (0.05 = 5%)
+    [Tooltip("Chance to dodge incoming attacks")]
+    public float dodgeChance = 0f; // Dodge chance (0.1 = 10%)
+    [Tooltip("Percentage damage reduction from all sources")]
+    public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
+    [HideInInspector]
+    public bool isInvincible = false;
+    private Equipment equipment;
+
+    /// <summary>
+    /// Tracks if the last damage received was magical (for color differentiation)
+    /// </summary>
+    private bool isLastDamageMagical = false;
+    #endregion
+
+    #region Events
+    // Nó sẽ gửi đi thông tin về kẻ tấn công.
+    public event Action<Character> OnDamaged;
     // Sự kiện này sẽ gửi đi 2 giá trị: currentHP và maxHP
     public event Action<int, int> OnHealthChanged;
+    // Sự kiện này sẽ gửi đi 2 giá trị: currentMana và maxMana
+    public event Action<int, int> OnManaChanged;
+    // Sự kiện này đã có, dùng cho Resurrect
+    public System.Action<Character> OnDeath;
+    // (Gửi đi thông tin: Kẻ tấn công, Lượng sát thương thực tế đã nhận)
+    public event System.Action<Character, int> OnDamageTaken;
+    #endregion
 
-    // ... (các biến UI giữ nguyên) ...
+    #region UI Components
     [Header("UI")]
     public Slider hpSlider;
     public Image hpFillImage;
     public Slider manaSlider;
     public Image manaFillImage;
+    #endregion
+    
+    #region Visual Effects
+    [Header("Visual Effects")]
+    [Tooltip("UI Image component for the character (for hit effects)")]
+    public Image characterImage;
+    
+    [Tooltip("Is this character the player? (affects screen effects)")]
+    public bool isPlayer = false;
+    /// <summary>
+    /// Plays revive animation (flashes yellow)
+    /// </summary>
+    public void PlayReviveAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Đảm bảo quái vật hiện hình trở lại (nếu nó đã bị mờ)
+            characterImage.DOFade(1f, 0.1f);
+            transform.DOScale(1f, 0.1f);
 
+            // Nhấp nháy màu vàng (Yellow) 3 lần
+            // .SetLoops(6, LoopType.Yoyo) nghĩa là (đi -> về) * 3 = 6 GIAI ĐOẠN
+            characterImage.DOColor(Color.yellow, 0.15f)
+          .SetLoops(6, LoopType.Yoyo)
+          .OnComplete(() => characterImage.color = Color.white); // Đảm bảo màu trở về trắng
+        }
+    }
+    #endregion
+
+    #region Unity Lifecycle
     private void Awake()
     {
         //ResetToBaseStats();
         //currentHP = maxHP;
         //UpdateHPUI();
+        equipment = GetComponent<Equipment>();
     }
+    #endregion
 
+    #region Stats Management
     public void ResetToBaseStats()
     {
         maxHP = baseMaxHP;
@@ -47,9 +129,25 @@ public class Character : MonoBehaviour
         mana = baseMana;                 // <-- THÊM MỚI
         intelligence = baseIntelligence; // <-- THÊM MỚI
         agility = baseAgility;           // <-- THÊM MỚI
+        UpdateDerivedStats();
     }
+    /// <summary>
+    /// Tính toán lại các chỉ số phụ thuộc (derived stats) như Dodge Chance.
+    /// Gọi hàm này sau khi base stats, gear bonus, hoặc buff/debuff thay đổi.
+    /// </summary>
+    public void UpdateDerivedStats()
+    {
+        // Tính Dodge Chance từ Agility hiện tại
+        // agility là chỉ số thực tế đã bao gồm bonus từ trang bị/buff
+        dodgeChance = Mathf.Clamp(agility * DODGE_PER_AGI, 0f, DODGE_CAP);
 
-    // ... (Các hàm còn lại của bạn giữ nguyên) ...
+        // (Sau này có thể thêm tính Crit Chance, Block Chance... vào đây nếu cần)
+
+         Debug.Log($"[{name}] Updated Derived Stats: Agility={agility}, DodgeChance={dodgeChance * 100f}%");
+    }
+    #endregion
+
+    #region Equipment System
     public void AddGearBonus(GearItem gear)
     {
         if (gear == null) return;
@@ -57,14 +155,21 @@ public class Character : MonoBehaviour
         maxHP += gear.hpBonus;
         attackPower += gear.attackBonus;
         defense += gear.defenseBonus;
+        intelligence += gear.intBonus;
+        mana += gear.manaBonus;
+        agility += gear.agiBonus;
 
         if (currentHP > maxHP)
         {
             currentHP = maxHP;
         }
-
+        if (currentMana > mana)
+        {
+            currentMana = mana;
+        }
+        UpdateDerivedStats();
         UpdateHPUI();
-        Debug.Log($"[EQUIP] Applied gear bonus from {gear.itemName}: +{gear.hpBonus} HP, +{gear.attackBonus} ATK, +{gear.defenseBonus} DEF");
+        UpdateManaUI();
     }
 
     public void RemoveGearBonus(GearItem gear)
@@ -85,31 +190,312 @@ public class Character : MonoBehaviour
         }
 
         UpdateHPUI();
-        Debug.Log($"[EQUIP] Removed gear bonus from {gear.itemName}: -{gear.hpBonus} HP, -{gear.attackBonus} ATK, -{gear.defenseBonus} DEF");
     }
+    #endregion
 
-    public void Attack(Character target)
+    #region Combat System
+    // Trong Character.cs
+
+    public void Attack(Character target, float damageMultiplier = 1.0f)
     {
         if (target == null) return;
-        target.TakeDamage(attackPower);
+        PlayAttackAnimation(); // Chơi animation tấn công 1 lần
+
+        // 1. Lấy sát thương gốc vật lý và phép từ vũ khí
+        (int physicalBase, int magicBase) = CalculateAttackDamage();
+
+        // Log giá trị gốc (Giữ lại để debug nếu cần)
+        // Debug.Log($"[{name}] Base Damage Calculated - Physical: {physicalBase}, Magic: {magicBase}");
+
+        // 2. Áp dụng Multiplier (ví dụ: CounterAttack) cho CẢ HAI
+        int modifiedPhysical = Mathf.RoundToInt(physicalBase * damageMultiplier);
+        int modifiedMagic = Mathf.RoundToInt(magicBase * damageMultiplier);
+
+        // 3. Áp dụng Bonus % bị động/có điều kiện RIÊNG cho từng loại
+        // (Giả sử CalculatePhysicalDamage chỉ áp dụng bonus vật lý, CalculateMagicDamage chỉ áp dụng bonus phép)
+        int finalPhysicalDamage = CalculatePhysicalDamage(modifiedPhysical, target); // Dùng hàm cũ để cộng bonus vật lý
+        int finalMagicDamage = CalculateMagicDamage(modifiedMagic); // Dùng hàm cũ để cộng bonus phép
+
+        // Log giá trị cuối cùng trước khi trừ DEF (Giữ lại để debug nếu cần)
+        // Debug.Log($"[{name}] Final Damage Before Defense - Physical: {finalPhysicalDamage}, Magic: {finalMagicDamage}");
+
+
+        // 4. Áp dụng sát thương và hiệu ứng LẦN LƯỢT
+        bool hitConnected = false; // Biến kiểm tra xem có đánh trúng ít nhất 1 lần không
+
+        // --- Áp dụng sát thương VẬT LÝ (Nếu > 0) ---
+        if (finalPhysicalDamage > 0)
+        {
+            // Hiệu ứng Hit Vật lý (Giả sử PlayHitEffect là hiệu ứng vật lý)
+            if (CombatEffectManager.Instance != null)
+            {
+                CombatEffectManager.Instance.PlayHitEffect(target.transform.position);
+            }
+
+            // Gây sát thương Vật lý (Gọi hàm đã nâng cấp)
+            if (target.isPlayer)
+            {
+                target.TakeDamageWithShield(finalPhysicalDamage, this, DamageType.Physical); // Truyền Type
+            }
+            else
+            {
+                target.TakeDamage(finalPhysicalDamage, this, DamageType.Physical); // Truyền Type
+            }
+            hitConnected = true; // Đánh dấu đã đánh trúng
+        }
+
+        // --- Áp dụng sát thương PHÉP (Nếu > 0) ---
+        if (finalMagicDamage > 0)
+        {
+            // Hiệu ứng Hit Phép (Tạm thời dùng hiệu ứng vật lý, bạn có thể tạo hàm riêng sau)
+            if (CombatEffectManager.Instance != null)
+            {
+                // CombatEffectManager.Instance.PlayMagicHitEffect(target.transform.position); // Hàm riêng nếu có
+                CombatEffectManager.Instance.PlayHitEffect(target.transform.position); // Tạm dùng hiệu ứng cũ
+            }
+
+            // Gây sát thương Phép (Gọi hàm đã nâng cấp)
+            if (target.isPlayer)
+            {
+                target.TakeDamageWithShield(finalMagicDamage, this, DamageType.Magic); // Truyền Type
+            }
+            else
+            {
+                target.TakeDamage(finalMagicDamage, this, DamageType.Magic); // Truyền Type
+            }
+            hitConnected = true; // Đánh dấu đã đánh trúng
+        }
+
+
+        // 5. Xử lý Lifesteal (Ví dụ: Chỉ tính trên phần sát thương vật lý)
+        if (hitConnected && lifestealPercent > 0f)
+        {
+            int totalDamageDealtForLifesteal = finalPhysicalDamage; // Chỉ tính phần vật lý
+                                                                    // Hoặc: int totalDamageDealtForLifesteal = finalPhysicalDamage + finalMagicDamage; // Nếu muốn tính cả hai
+
+            int healAmount = Mathf.RoundToInt(totalDamageDealtForLifesteal * lifestealPercent);
+            if (healAmount > 0) // Chỉ hồi máu nếu lifesteal > 0
+            {
+                RestoreHealth(healAmount);
+                // Debug.Log($"[PASSIVE] Lifesteal: {healAmount} HP restored from {totalDamageDealtForLifesteal} physical damage");
+            }
+        }
+        // (Code Conditional Lifesteal giữ nguyên nếu có)
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null && hitConnected) // Chỉ apply nếu đánh trúng
+        {
+            // Truyền tổng sát thương gây ra (trước khi trừ DEF) vào hàm conditional lifesteal
+            conditionalManager.ApplyConditionalLifesteal(finalPhysicalDamage + finalMagicDamage);
+        }
+    }
+    /// <summary>
+    /// Tính toán sát thương cơ bản cho đòn Attack dựa trên vũ khí trang bị.
+    /// </summary>
+    private (int physicalDamage, int magicDamage) CalculateAttackDamage()
+    {
+        WeaponScalingType scaling = WeaponScalingType.STR;
+        GearItem equippedWeapon = null;
+        int physicalBase = 0;
+        int magicBase = 0;
+
+        // Lấy vũ khí (Slot 3)
+        if (equipment != null && equipment.equipmentSlots != null && equipment.equipmentSlots.Length > 3)
+        {
+            equippedWeapon = equipment.equipmentSlots[3]; // Đã sửa thành slot 3
+        }
+        // Debug.Log($"[CalculateAttackDamage] Weapon in slot 3: {(equippedWeapon != null ? equippedWeapon.itemName : "None")}"); // Giữ log này
+
+        if (equippedWeapon != null && equippedWeapon.gearType == GearType.Weapon)
+        {
+            // Debug.Log($"[CalculateAttackDamage] Reading scalingType from {equippedWeapon.itemName}: {equippedWeapon.scalingType}"); // Giữ log này
+            scaling = equippedWeapon.scalingType;
+        }
+        else
+        {
+            // Debug.Log($"[CalculateAttackDamage] No weapon or not a weapon. Defaulting to STR."); // Giữ log này
+            scaling = WeaponScalingType.STR;
+        }
+
+        // Tính toán sát thương gốc dựa trên scaling
+        switch (scaling)
+        {
+            case WeaponScalingType.STR:
+                physicalBase = attackPower; // 100% STR -> Vật lý
+                magicBase = 0;
+                break;
+            case WeaponScalingType.INT:
+                physicalBase = 0;
+                magicBase = intelligence; // 100% INT -> Phép
+                break;
+            case WeaponScalingType.Hybrid:
+                physicalBase = Mathf.RoundToInt(attackPower * 0.7f); // 70% STR -> Vật lý
+                magicBase = Mathf.RoundToInt(intelligence * 0.3f); // 30% INT -> Phép
+                break;
+            case WeaponScalingType.None:
+            default:
+                physicalBase = attackPower; // Mặc định về STR
+                magicBase = 0;
+                break;
+        }
+
+        physicalBase = Mathf.Max(0, physicalBase);
+        magicBase = Mathf.Max(0, magicBase);
+
+        // Trả về cả hai giá trị
+        return (physicalBase, magicBase);
+    }
+    /// <summary>
+    /// Calculates physical damage with passive bonuses
+    /// </summary>
+    public int CalculatePhysicalDamage(int baseDamage)
+    {
+        float bonusMultiplier = 1f + physicalDamageBonus;
+        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
     }
 
-    public void TakeDamage(int damage)
+    // Hàm CalculatePhysicalDamage giờ chỉ làm nhiệm vụ cộng bonus bị động/có điều kiện
+    // Nó nhận sát thương đã tính theo vũ khí làm đầu vào
+    public int CalculatePhysicalDamage(int baseDamageFromWeapon, Character target) // Đổi tên tham số cho rõ
     {
-        int actualDamage = Mathf.Max(1, damage - defense);
+        float bonusMultiplier = 1f + physicalDamageBonus; // Bonus bị động % vật lý
+
+        // Áp dụng bonus có điều kiện (nếu có)
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            // Truyền sát thương đã nhân bonus bị động vào hàm điều kiện
+            return conditionalManager.CalculatePhysicalDamage(Mathf.RoundToInt(baseDamageFromWeapon * bonusMultiplier), target);
+        }
+
+        // Trả về sát thương cuối cùng trước khi trừ DEF
+        return Mathf.RoundToInt(baseDamageFromWeapon * bonusMultiplier);
+    }
+
+    /// <summary>
+    /// Calculates magic damage with passive bonuses
+    /// </summary>
+    public int CalculateMagicDamage(int baseDamage)
+    {
+        float bonusMultiplier = 1f + magicDamageBonus;
+        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
+    }
+    
+    /// <summary>
+    /// Checks if character dodges an attack
+    /// </summary>
+    public bool CheckDodge()
+    {
+        if (dodgeChance <= 0f) return false;
+        
+        float roll = UnityEngine.Random.Range(0f, 1f);
+        bool dodged = roll < dodgeChance;
+        
+        if (dodged)
+        {
+            Debug.Log($"[PASSIVE] {name} dodged! Roll: {roll:F2} < {dodgeChance:F2}");
+        }
+        
+        return dodged;
+    }
+    
+    /// <summary>
+    /// Checks if character is a boss enemy
+    /// </summary>
+    public bool IsBoss()
+    {
+        // This could be determined by a tag, name, or specific property
+        // For now, we'll check if the name contains "Boss"
+        return name.ToLower().Contains("boss");
+    }
+
+    /// <summary>
+    /// Applies damage reduction to incoming damage
+    /// </summary>
+    public int ApplyDamageReduction(int damage)
+    {
+        if (damageReduction <= 0f) return damage;
+        
+        int reducedDamage = Mathf.RoundToInt(damage * (1f - damageReduction));
+        int reductionAmount = damage - reducedDamage;
+        
+        if (reductionAmount > 0)
+        {
+            Debug.Log($"[PASSIVE] Damage reduction: {damage} -> {reducedDamage} (-{reductionAmount})");
+        }
+        
+        return reducedDamage;
+    }
+    
+
+    // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
+    public void TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical)
+    {
+        if (isInvincible)
+        {
+            Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương.");
+            return;
+        }
+        // Check for dodge first
+        if (CheckDodge())
+        {
+            return; // Attack missed, no damage taken
+        }
+        
+        // Apply conditional damage reduction first if ConditionalPassiveManager exists
+        int conditionallyReducedDamage = damage;
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            conditionallyReducedDamage = conditionalManager.ApplyConditionalDamageReduction(damage, attacker);
+        }
+        
+        // Apply regular damage reduction
+        int reducedDamage = ApplyDamageReduction(conditionallyReducedDamage);
+        
+        int actualDamage = Mathf.Max(1, reducedDamage - defense);
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
+        Color damageColor = Color.white; // Mặc định trắng (Physical)
+        if (damageType == DamageType.Magic) damageColor = Color.cyan; // Xanh (Magic)
+        else if (damageType == DamageType.True) damageColor = Color.yellow; // Vàng (True)
 
-        // ✅ PHÁT SÓNG TÍN HIỆU SAU KHI HP THAY ĐỔI
-        UpdateHPUI();
+        if (CombatEffectManager.Instance != null)
+        {
+            CombatEffectManager.Instance.ShowDamageNumber(this, actualDamage, damageColor);
+        }
+        // Gửi đi "attacker" và "actualDamage"
+        OnDamageTaken?.Invoke(attacker, actualDamage);
 
-        Debug.Log($"[BATTLE] {gameObject.name} took {actualDamage} damage (defense reduced {damage} to {actualDamage})");
+        // Play being hit effects
+        PlayHitAnimation();
+        if (CombatEffectManager.Instance != null)
+        {
+            // Show damage with appropriate color based on damage type
+            if (isLastDamageMagical)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                CombatEffectManager.Instance.ShowDamageNumberWithColor(uiPosition, actualDamage, Color.cyan);
+            }
+            else
+            {
+                CombatEffectManager.Instance.PlayBeingHitEffect(this, actualDamage);
+            }
+            isLastDamageMagical = false; // Reset flag
+        }
+
+        UpdateHPUI(); // Phát tín hiệu cho UI
+
+        // Phát tín hiệu cho các gimmick như CounterAttack
+        OnDamaged?.Invoke(attacker);
 
         if (currentHP <= 0)
         {
             Die();
         }
     }
+    #endregion
+
+    #region Health System
     public void UpdateHPUI()
     {
         // NHIỆM VỤ 1: PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
@@ -125,6 +511,22 @@ public class Character : MonoBehaviour
             hpFillImage.fillAmount = t;
     }
 
+    /// <summary>
+    /// Updates mana UI display
+    /// </summary>
+    public void UpdateManaUI()
+    {
+        // PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
+        OnManaChanged?.Invoke(currentMana, mana);
+
+        // CẬP NHẬT UI CỤC BỘ
+        float t = (float)currentMana / mana;
+        if (manaSlider != null)
+            manaSlider.value = t;
+        if (manaFillImage != null)
+            manaFillImage.fillAmount = t;
+    }
+
     // Tương tự, nếu bạn có hàm Heal(int amount), cũng hãy gọi event ở cuối
     public void Heal(int amount)
     {
@@ -134,25 +536,68 @@ public class Character : MonoBehaviour
         // ✅ PHÁT SÓNG TÍN HIỆU
         OnHealthChanged?.Invoke(currentHP, maxHP);
     }
-
-    public System.Action<Character> OnDeath;
-
-    void Die()
+    public void HealPercent(int percent)
     {
-        Debug.Log($"[BATTLE] {gameObject.name} has been defeated!");
-
-        OnDeath?.Invoke(this);
-
-        Destroy(gameObject);
+        int amountToHeal = Mathf.RoundToInt(maxHP * (percent / 100f));
+        Heal(amountToHeal); // Gọi hàm Heal(flat)
     }
 
-// ... (bên trong class Character)
+    public void TakeDamagePercent(int percent)
+    {
+        int amountToDamage = Mathf.RoundToInt(maxHP * (percent / 100f));
+        TakeDamage(amountToDamage, null); // Gọi hàm TakeDamage(flat)
+    }
 
+    /// <summary>
+    /// Restores mana by the specified amount
+    /// </summary>
+    public void RestoreMana(int amount)
+    {
+        currentMana += amount;
+        if (currentMana > mana) currentMana = mana;
+
+        // ✅ PHÁT SÓNG TÍN HIỆU
+        OnManaChanged?.Invoke(currentMana, mana);
+    }
+    public void UseMana(int amount)
+    {
+        currentMana -= amount;
+        OnManaChanged?.Invoke(currentMana, mana);
+    }
+
+    public void RestoreManaPercent(int percent)
+    {
+        int amountToRestore = Mathf.RoundToInt(mana * (percent / 100f));
+        RestoreMana(amountToRestore); // Gọi hàm RestoreMana(flat)
+    }
+    public void UseManaPercent(int percent)
+    {
+        // Tính toán mana sử dụng dựa trên % mana tối đa (mana)
+        int amountToUse = Mathf.RoundToInt(mana * (percent / 100f));
+        UseMana(amountToUse); // Gọi hàm UseMana(flat) với lượng mana đã tính
+    }
+    void Die()
+    {
+        // Play death animation
+        //PlayDeathAnimation();
+
+        // Play death effect
+        if (CombatEffectManager.Instance != null)
+        {
+            CombatEffectManager.Instance.PlayDeathEffect(this);
+        }
+
+        OnDeath?.Invoke(this);
+        // BattleManager will handle cleanup after gimmicks like Resurrect have a chance to act
+    }
+    #endregion
+
+    #region Utility Methods
     /// <summary>
     /// Hồi máu cho nhân vật một lượng bằng % máu tối đa.
     /// </summary>
     /// <param name="percentage">Tỷ lệ phần trăm để hồi, ví dụ 0.5f cho 50%</param>
-public void HealPercentage(float percentage)
+    public void HealPercentage(float percentage)
     {
         int healAmount = Mathf.FloorToInt(maxHP * percentage);
         currentHP += healAmount;
@@ -160,8 +605,6 @@ public void HealPercentage(float percentage)
         {
             currentHP = maxHP;
         }
-
-        Debug.Log($"[REST] Healed for {healAmount} HP ({percentage * 100}%). New HP: {currentHP}/{maxHP}");
 
         // Phát sóng tín hiệu để UI tự cập nhật
         OnHealthChanged?.Invoke(currentHP, maxHP);
@@ -173,10 +616,144 @@ public void HealPercentage(float percentage)
     public void RestoreFullMana()
     {
         currentMana = mana; // 'mana' là maxMana
-        Debug.Log($"[REST] Mana restored to full. New Mana: {currentMana}/{mana}");
+        UpdateManaUI(); // Update mana display
+    }
+    
+    public void RestoreHealth(int amount)
+    {
+        currentHP = Mathf.Min(currentHP + amount, maxHP);
+        UpdateHPUI();
+    }
+    
+    // Generic Status Effect Integration
+    public int CurrentShield => ShieldEffectHandler.GetShieldAmount(this);
+    public int ShieldTurnsRemaining => ShieldEffectHandler.GetShieldTurns(this);
+    public float DamageReflectionPercent => ShieldEffectHandler.GetReflectPercent(this);
+    
+    /// <summary>
+    /// Gets the intensity value of a status effect
+    /// </summary>
+    private int GetStatusEffectValue<T>() where T : StatusEffect
+    {
+        if (StatusEffectManager.Instance == null) return 0;
+        
+        var effect = StatusEffectManager.Instance.GetEffect(this, typeof(T)) as T;
+        return effect?.intensity ?? 0;
+    }
+    
+    /// <summary>
+    /// Gets the duration of a status effect
+    /// </summary>
+    private int GetStatusEffectDuration<T>() where T : StatusEffect
+    {
+        if (StatusEffectManager.Instance == null) return 0;
+        
+        var effect = StatusEffectManager.Instance.GetEffect(this, typeof(T)) as T;
+        return effect?.duration ?? 0;
+    }
+    
+    /// <summary>
+    /// Checks if character has a specific status effect
+    /// </summary>
+    public bool HasStatusEffect<T>() where T : StatusEffect
+    {
+        if (StatusEffectManager.Instance == null) return false;
+        return StatusEffectManager.Instance.HasEffect(this, typeof(T));
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility - now uses ShieldEffectHandler
+    /// </summary>
+    [System.Obsolete("Use ShieldEffectHandler.ApplyShield() instead")]
+    public void ApplyShield(int shieldAmount, int turns, float reflectionPercent = 0f)
+    {
+        ShieldEffectHandler.ApplyShield(this, shieldAmount, turns, reflectionPercent);
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility - now handled by StatusEffectManager
+    /// </summary>
+    [System.Obsolete("Status effects are now handled automatically by StatusEffectManager")]
+    public void ReduceShieldTurns()
+    {
+        // This is now handled automatically by StatusEffectManager
+    }
+    
+    /// <summary>
+    /// Takes damage with shield protection and reflection
+    /// </summary>
+    public int TakeDamageWithShield(int damage, Character attacker, DamageType damageType = DamageType.Physical)
+    {
+        if (isInvincible)
+        {
+            Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương (vào khiên).");
+            return 0; // Không nhận sát thương, không phản đòn
+       }
+        int reflectedDamage = 0;
+        int actualDamagePassedToHP = damage;
 
-        // Tương tự, nếu bạn có event cho Mana, hãy gọi nó ở đây
-        // OnManaChanged?.Invoke(currentMana, mana);
+        // Get current shield and reflect values from status effects
+        int currentShield = CurrentShield;
+        float reflectPercent = DamageReflectionPercent;
+
+        // Shield absorbs damage first
+        if (currentShield > 0)
+        {
+            int shieldAbsorbed = Mathf.Min(damage, currentShield);
+            actualDamagePassedToHP = damage - shieldAbsorbed;
+            ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
+
+            if (reflectPercent > 0 && attacker != null)
+            {
+                reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
+                // Phản đòn thường là sát thương vật lý? Hoặc cần type riêng? Tạm để Physical
+                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical);
+            }
+        }
+
+        // Gọi TakeDamage với sát thương còn lại và DamageType
+        if (actualDamagePassedToHP > 0)
+        {
+            // ✅ TRUYỀN damageType VÀO ĐÂY
+            TakeDamage(actualDamagePassedToHP, attacker, damageType);
+        }
+        else if (damage > 0) // Khiên đỡ hết, hiển thị số 0
+        {
+            if (CombatEffectManager.Instance != null)
+            {
+                // ✅ GỌI HÀM MỚI (Hiển thị số 0 màu xám)
+                CombatEffectManager.Instance.ShowDamageNumber(this, 0, Color.grey);
+            }
+        }
+        return reflectedDamage;
+    }
+
+    /// <summary>
+    /// Regenerates mana over time (call this in Update or coroutine)
+    /// </summary>
+    public void RegenerateMana(int amount)
+    {
+        if (currentMana < mana)
+        {
+            currentMana = Mathf.Min(mana, currentMana + amount);
+            UpdateManaUI();
+        }
+    }
+    
+    /// <summary>
+    /// Regenerates mana based on percentage of max mana
+    /// </summary>
+    public void RegenerateManaPercent(float percent)
+    {
+        // Add passive bonus to base regeneration percentage
+        // percent is already in percentage form (5.0f = 5%)
+        // manaRegenBonus is in decimal form (0.05 = 5%)
+        float totalPercent = percent + (manaRegenBonus * 100f);
+        int regenAmount = Mathf.RoundToInt(mana * totalPercent / 100.0f);
+        
+        // Mana regeneration with passive bonus
+        
+        RegenerateMana(regenAmount);
     }
 
     /// <summary>
@@ -184,13 +761,92 @@ public void HealPercentage(float percentage)
     /// </summary>
     public void RemoveAllNegativeStatusEffects()
     {
-        // PHẦN NÀY LÀ GIẢ ĐỊNH CHO TƯƠNG LAI
-        // Khi bạn có hệ thống status effect (ví dụ: một List<StatusEffect> activeEffects),
-        // bạn sẽ viết logic ở đây để xóa các hiệu ứng có hại.
-        // Ví dụ:
-        // activeEffects.RemoveAll(effect => effect.isNegative == true);
-
-        Debug.Log("[REST] All negative status effects have been purified.");
-        // Gọi event để cập nhật UI status effect nếu có
+        // Use StatusEffectManager to remove negative effects
+        if (StatusEffectManager.Instance != null)
+        {
+            StatusEffectManager.Instance.RemoveAllNegativeEffects(this);
+        }
     }
+    
+
+    /// <summary>
+    /// Resets mana regeneration bonus to zero (used when clearing passive skills)
+    /// </summary>
+    public void ResetManaRegenBonus()
+    {
+        manaRegenBonus = 0f;
+    }
+    
+    /// <summary>
+    /// Resets all passive skill bonuses to zero (used when clearing passive skills)
+    /// </summary>
+    public void ResetAllPassiveBonuses()
+    {
+        manaRegenBonus = 0f;
+        physicalDamageBonus = 0f;
+        magicDamageBonus = 0f;
+        lifestealPercent = 0f;
+        dodgeChance = 0f;
+        damageReduction = 0f;
+        
+        // Reset conditional passive bonuses if ConditionalPassiveManager exists
+        var conditionalManager = GetComponent<ConditionalPassiveManager>();
+        if (conditionalManager != null)
+        {
+            conditionalManager.ResetAllConditionalBonuses();
+        }
+    }
+    #endregion
+    
+    #region Visual Effects & Animations
+    /// <summary>
+    /// Plays hit animation when character takes damage
+    /// </summary>
+    public void PlayHitAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Flash red briefly
+            characterImage.DOColor(Color.red, 0.1f)
+                .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
+            
+            // Shake effect
+            transform.DOShakePosition(0.2f, 10f, 10, 90f, false, true);
+        }
+    }
+    
+    /// <summary>
+    /// Plays attack animation when character attacks
+    /// </summary>
+    public void PlayAttackAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Scale up briefly for attack
+            transform.DOScale(1.1f, 0.1f)
+                .OnComplete(() => transform.DOScale(1f, 0.1f));
+        }
+    }
+    
+    /// <summary>
+    /// Plays death animation - fade out and scale down
+    /// </summary>
+    public void PlayDeathAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Fade out and scale down over 1 second
+            characterImage.DOFade(0f, 1f);
+            transform.DOScale(0.5f, 1f).OnComplete(() => {
+                // Hide the character after animation completes
+                //gameObject.SetActive(false);
+            });
+        }
+        else
+        {
+            // Fallback: just hide the character if no image component
+            //gameObject.SetActive(false);
+        }
+    }
+    #endregion
 }

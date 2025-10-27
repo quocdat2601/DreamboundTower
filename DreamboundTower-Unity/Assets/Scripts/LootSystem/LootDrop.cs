@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Component that handles loot dropping when an enemy dies
@@ -41,7 +41,7 @@ public class LootDrop : MonoBehaviour
     
     private Character character;
     private LootManager lootManager;
-    
+    //private ResurrectBehavior resurrectGimmick;
     void Start()
     {
         // Get the Character component to listen for death
@@ -53,7 +53,7 @@ public class LootDrop : MonoBehaviour
         
         // Find the LootManager in the scene
         lootManager = FindFirstObjectByType<LootManager>();
-        
+
         // Subscribe to character death event
         character.OnDeath += OnCharacterDeath;
     }
@@ -74,6 +74,13 @@ public class LootDrop : MonoBehaviour
     /// <param name="deadCharacter">The character that died</param>
     void OnCharacterDeath(Character deadCharacter)
     {
+        ResurrectBehavior resurrectGimmick = GetComponent<ResurrectBehavior>();
+        // Logic kiểm tra của bạn vẫn giữ nguyên
+        if (resurrectGimmick != null && !resurrectGimmick.hasResurrected)
+        {
+            // Đây là cái chết "giả". Không làm gì cả.
+            return;
+        }
         DropLoot();
     }
     

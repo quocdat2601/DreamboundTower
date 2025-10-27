@@ -42,7 +42,6 @@ public class Inventory : MonoBehaviour
         // Ensure inventory is properly initialized
         EnsureInitialized();
         
-        
         // Find first empty slot
         for (int i = 0; i < items.Count; i++)
         {
@@ -74,6 +73,11 @@ public class Inventory : MonoBehaviour
     
     public bool RemoveItem(GearItem item)
     {
+        if (items.Count == 0)
+        {
+            return false;
+        }
+        
         for (int i = 0; i < items.Count; i++)
         {
             if (items[i] == item)

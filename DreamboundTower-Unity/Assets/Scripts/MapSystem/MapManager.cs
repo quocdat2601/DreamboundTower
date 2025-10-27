@@ -31,11 +31,6 @@ namespace Map
         public int steadfastHeartRestores = 3; // GDD: 3 times per checkpoint
         public int maxSteadfastHeartRestores = 3;
 
-        [Header("Enemy Templates")]
-        public Presets.EnemyTemplateSO normalTemplate;
-        public Presets.EnemyTemplateSO eliteTemplate;
-        public Presets.EnemyTemplateSO bossTemplate;
-
         private void Awake()
         {
             Instance = this;

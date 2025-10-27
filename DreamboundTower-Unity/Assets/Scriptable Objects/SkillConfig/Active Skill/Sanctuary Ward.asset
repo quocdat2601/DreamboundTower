@@ -25,3 +25,22 @@ MonoBehaviour:
   scalingPercent: 0
   cooldown: 5
   target: 2
+  isMagicDamage: 0
+  healAmount: 0
+  healPercent: 0
+  lifesteal: 0
+  lifestealPercent: 0
+  shieldAmount: 0
+  shieldPercent: 0.15
+  shieldDuration: 2
+  reflectPercent: 0
+  statusEffectsToApply: []
+  statusEffectsToRemove: []
+  statusEffectDuration: 0
+  statusEffectIntensity: 0
+  statModifiers: []
+  buffDuration: 0
+  removeAllDebuffs: 0
+  removeOneDebuff: 1
+  healingEffectivenessBonus: 0.1
+  healingEffectivenessDuration: 2
