@@ -42,6 +42,10 @@ public class Character : MonoBehaviour
     public float lifestealPercent = 0f; // Lifesteal percentage (0.05 = 5%)
     [Tooltip("Chance to dodge incoming attacks")]
     public float dodgeChance = 0f; // Dodge chance (0.1 = 10%)
+    
+    [Tooltip("Chance to land critical hits (0.1 = 10%)")]
+    public float criticalChance = 0f; // Critical hit chance
+    
     [Tooltip("Percentage damage reduction from all sources")]
     public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
     [HideInInspector]
@@ -171,23 +175,31 @@ public class Character : MonoBehaviour
         // Tính sát thương gốc (100%)
         int baseDamage = CalculatePhysicalDamage(attackPower, target);
 
+        // Check for critical hit
+        bool isCriticalHit = CheckCritical();
+        
+        // Apply critical damage multiplier (2x damage)
+        if (isCriticalHit)
+        {
+            damageMultiplier *= 2.0f;
+            Debug.Log($"[ATTACK] CRITICAL HIT! {name} deals 2x damage!");
+        }
+
         // ✅ ÁP DỤNG HỆ SỐ SÁT THƯƠNG
         int totalDamage = Mathf.RoundToInt(baseDamage * damageMultiplier);
+        
+        Debug.Log($"[ATTACK] {name} attacks {target.name} for {totalDamage} {(isCriticalHit ? "CRIT" : "normal")} damage");
 
-        // (Code PlayHitEffect của bạn... giữ nguyên)
-        if (CombatEffectManager.Instance != null)
-        {
-            CombatEffectManager.Instance.PlayHitEffect(target.transform.position);
-        }
+        // Note: Hit/Miss effect will be shown inside TakeDamage based on dodge result
 
         // (Code TakeDamage... giữ nguyên)
         if (target.isPlayer)
         {
-            target.TakeDamageWithShield(totalDamage, this);
+            target.TakeDamageWithShield(totalDamage, this, false, isCriticalHit);
         }
         else
         {
-            target.TakeDamage(totalDamage, this);
+            target.TakeDamage(totalDamage, this, isCriticalHit);
         }
 
         // Apply regular lifesteal if available
@@ -246,10 +258,18 @@ public class Character : MonoBehaviour
     /// </summary>
     public bool CheckDodge()
     {
+        // TEMPORARY: 100% dodge for PLAYER ONLY (for testing)
+        // if (isPlayer)
+        // {
+        //     dodgeChance = 1.0f;
+        // }
+        
         if (dodgeChance <= 0f) return false;
         
         float roll = UnityEngine.Random.Range(0f, 1f);
         bool dodged = roll < dodgeChance;
+        
+        Debug.Log($"[DODGE CHECK] {name}: Roll={roll:F2}, DodgeChance={dodgeChance:F2}, Result={(dodged ? "MISSED" : "HIT")}");
         
         if (dodged)
         {
@@ -257,6 +277,30 @@ public class Character : MonoBehaviour
         }
         
         return dodged;
+    }
+    
+    /// <summary>
+    /// Checks if attack is a critical hit
+    /// </summary>
+    public bool CheckCritical()
+    {
+        // TEMPORARY: 100% crit for PLAYER ONLY (for testing)
+        // if (isPlayer)
+        // {
+        //     criticalChance = 1.0f;
+        // }
+        
+        if (criticalChance <= 0f) return false;
+        
+        float roll = UnityEngine.Random.Range(0f, 1f);
+        bool isCritical = roll < criticalChance;
+        
+        if (isCritical)
+        {
+            Debug.Log($"[CRITICAL] {name} landed a CRIT! Roll: {roll:F2} < {criticalChance:F2}");
+        }
+        
+        return isCritical;
     }
     
     /// <summary>
@@ -288,8 +332,8 @@ public class Character : MonoBehaviour
     }
     
 
-    // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
-    public void TakeDamage(int damage, Character attacker)
+    // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker" và "isCritical"
+    public void TakeDamage(int damage, Character attacker, bool isCritical = false)
     {
         if (isInvincible)
         {
@@ -297,8 +341,20 @@ public class Character : MonoBehaviour
             return;
         }
         // Check for dodge first
-        if (CheckDodge())
+        bool dodged = CheckDodge();
+        
+        if (dodged)
         {
+            // Play miss animation
+            PlayMissAnimation();
+            
+            // Show "MISS" text
+            if (CombatEffectManager.Instance != null)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
+            }
+            
             return; // Attack missed, no damage taken
         }
         
@@ -318,22 +374,13 @@ public class Character : MonoBehaviour
         if (currentHP < 0) currentHP = 0;
 
         // Gửi đi "attacker" và "actualDamage"
-        OnDamageTaken?.Invoke(attacker, actualDamage);
+       OnDamageTaken?.Invoke(attacker, actualDamage);
 
-        // Play being hit effects
-        PlayHitAnimation();
+        // Play being hit effects (includes animation + damage number)
         if (CombatEffectManager.Instance != null)
         {
             // Show damage with appropriate color based on damage type
-            if (isLastDamageMagical)
-            {
-                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
-                CombatEffectManager.Instance.ShowDamageNumberWithColor(uiPosition, actualDamage, Color.cyan);
-            }
-            else
-            {
-                CombatEffectManager.Instance.PlayBeingHitEffect(this, actualDamage);
-            }
+            CombatEffectManager.Instance.PlayBeingHitEffect(this, actualDamage, isCritical, isLastDamageMagical);
             isLastDamageMagical = false; // Reset flag
         }
 
@@ -432,14 +479,8 @@ public class Character : MonoBehaviour
     }
     void Die()
     {
-        // Play death animation
-        //PlayDeathAnimation();
-
-        // Play death effect
-        if (CombatEffectManager.Instance != null)
-        {
-            CombatEffectManager.Instance.PlayDeathEffect(this);
-        }
+        // Play death animation (fade out and scale down)
+        PlayDeathAnimation();
 
         OnDeath?.Invoke(this);
         // BattleManager will handle cleanup after gimmicks like Resurrect have a chance to act
@@ -536,7 +577,7 @@ public class Character : MonoBehaviour
     /// <summary>
     /// Takes damage with shield protection and reflection
     /// </summary>
-    public int TakeDamageWithShield(int damage, Character attacker, bool isMagicalDamage = false)
+    public int TakeDamageWithShield(int damage, Character attacker, bool isMagicalDamage = false, bool isCritical = false)
     {
         if (isInvincible)
         {
@@ -571,7 +612,7 @@ public class Character : MonoBehaviour
         if (actualDamage > 0)
         {
             isLastDamageMagical = isMagicalDamage; // Set flag before taking damage
-            TakeDamage(actualDamage, attacker);
+            TakeDamage(actualDamage, attacker, isCritical);
         }
         
         return reflectedDamage;
@@ -650,17 +691,53 @@ public class Character : MonoBehaviour
     #region Visual Effects & Animations
     /// <summary>
     /// Plays hit animation when character takes damage
+    /// Includes PlayMissAnimation, PlayCriticalHitAnimation, PlayHitAnimation with customizable colors
     /// </summary>
     public void PlayHitAnimation()
     {
+        PlayHitAnimation(Color.red);
+    }
+    
+    public void PlayHitAnimation(Color flashColor)
+    {
         if (characterImage != null)
         {
-            // Flash red briefly
-            characterImage.DOColor(Color.red, 0.1f)
+            // Flash color briefly
+            characterImage.DOColor(flashColor, 0.1f)
                 .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
             
             // Shake effect
             transform.DOShakePosition(0.2f, 10f, 10, 90f, false, true);
+        }
+    }
+    
+    public void PlayCriticalHitAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Flash yellow and scale up for critical
+            characterImage.DOColor(Color.yellow, 0.15f)
+                .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
+            
+            // Larger shake for critical hits
+            transform.DOShakePosition(0.3f, 15f, 15, 90f, false, true);
+            
+            // Brief scale up
+            transform.DOScale(1.15f, 0.1f)
+                .OnComplete(() => transform.DOScale(1f, 0.1f));
+        }
+    }
+    
+    public void PlayMissAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Subtle blue flash for dodges
+            characterImage.DOColor(new Color(0.8f, 0.8f, 1f, 1f), 0.1f)
+                .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
+            
+            // Gentle shake for miss
+            transform.DOShakePosition(0.15f, 5f, 10, 90f, false, true);
         }
     }
     

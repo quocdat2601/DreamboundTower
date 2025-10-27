@@ -23,7 +23,7 @@ public class DamageNumber : MonoBehaviour
     
     #region Colors
     [Header("Colors")]
-    [Tooltip("Color for normal damage")]
+    [Tooltip("Color for normal physical damage")]
     public Color normalDamageColor = Color.white;
     
     [Tooltip("Color for critical damage")]
@@ -31,6 +31,12 @@ public class DamageNumber : MonoBehaviour
     
     [Tooltip("Color for healing")]
     public Color healingColor = Color.green;
+    
+    [Tooltip("Color for magical damage")]
+    public Color magicalDamageColor = Color.cyan;
+    
+    [Tooltip("Color for miss/dodge")]
+    public Color missColor = new Color(0.8f, 0.8f, 1f, 1f); // Light blue
     #endregion
 
     #region Private Variables
@@ -51,33 +57,53 @@ public class DamageNumber : MonoBehaviour
     #region Public Methods
     /// <summary>
     /// Shows damage number with animation
+    /// Updated to support magical damage (cyan) and miss effects (light blue)
     /// </summary>
-    /// <param name="damage">Amount of damage to display</param>
+    /// <param name="damage">Amount of damage to display (0 for miss)</param>
     /// <param name="isCritical">Whether this is a critical hit</param>
     /// <param name="isHealing">Whether this is healing (negative damage)</param>
-    public void ShowDamage(int damage, bool isCritical = false, bool isHealing = false)
+    /// <param name="isMagical">Whether this is magical damage</param>
+    /// <param name="isMiss">Whether this attack missed/dodged</param>
+    public void ShowDamage(int damage, bool isCritical = false, bool isHealing = false, bool isMagical = false, bool isMiss = false)
     {
         // Set text
-        string displayText = damage.ToString();
-        if (isCritical)
+        string displayText = "";
+        
+        if (isMiss)
         {
-            displayText = "CRIT! " + displayText;
+            displayText = "MISS";
+        }
+        else if (isCritical)
+        {
+            displayText = "CRIT! " + damage.ToString();
         }
         else if (isHealing)
         {
-            displayText = "+" + displayText;
+            displayText = "+" + damage.ToString();
+        }
+        else
+        {
+            displayText = damage.ToString();
         }
         
         damageText.text = displayText;
         
-        // Set color
-        if (isHealing)
+        // Set color based on damage type
+        if (isMiss)
+        {
+            damageText.color = missColor;
+        }
+        else if (isHealing)
         {
             damageText.color = healingColor;
         }
         else if (isCritical)
         {
             damageText.color = criticalDamageColor;
+        }
+        else if (isMagical)
+        {
+            damageText.color = magicalDamageColor;
         }
         else
         {
