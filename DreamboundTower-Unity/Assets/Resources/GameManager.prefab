@@ -3040,6 +3040,14 @@ PrefabInstance:
       value: AudioManager
       objectReference: {fileID: 0}
     - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: missSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 23f36117b4856af4bb1fee608230bb56, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: attackSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 58406c5ff4b6546499c9105a03bc4878, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
       propertyPath: sfxSource
       value: 
       objectReference: {fileID: 2424876924069477502}
@@ -3051,6 +3059,18 @@ PrefabInstance:
       propertyPath: musicSource
       value: 
       objectReference: {fileID: 5987262671071794995}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: skillBuffSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: bfb655b2723381642becbbd34af88736, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: criticalHitSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 95a826c81272d614daaa4831b8e71c23, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: skillAttackSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 39393e812e0623d448b3d7bab74243a6, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 397180829192345478, guid: 71493789776a61e47bd787a041cfb689, type: 3}

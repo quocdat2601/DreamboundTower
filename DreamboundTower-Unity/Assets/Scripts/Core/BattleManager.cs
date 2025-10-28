@@ -1164,7 +1164,7 @@ public class BattleManager : MonoBehaviour
                 yield return moveTween.WaitForCompletion(); // Đợi di chuyển xong
             }
             // --- KẾT THÚC DI CHUYỂN ĐẾN ---
-
+            AudioManager.Instance?.PlayAttackSFX();
             // --- Thực hiện đòn đánh của Enemy ---
             enemyChar.Attack(playerCharacter); // Enemy tấn công Player
 

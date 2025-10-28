@@ -210,7 +210,7 @@ public class Character : MonoBehaviour
     {
         if (target == null) return;
         PlayAttackAnimation(); // Chơi animation tấn công 1 lần
-
+        AudioManager.Instance?.PlayAttackSFX();
         // 1. Get base physical and magic damage from weapon
         (int physicalBase, int magicBase) = CalculateAttackDamage();
 
@@ -221,6 +221,7 @@ public class Character : MonoBehaviour
         if (physicalBase > 0)
         {
             isPhysicalCrit = CheckCritical();
+            //AudioManager.Instance?.PlayCriticalHitSFX(); // set tạm để test coi đúng không
             if (isPhysicalCrit)
             {
                 Debug.Log($"[CRITICAL] {name} Physical attack will CRIT!");
@@ -498,7 +499,8 @@ public class Character : MonoBehaviour
         {
             // Play miss animation
             PlayMissAnimation();
-            
+            PlayDodgeAnimation();
+            AudioManager.Instance?.PlayMissSFX();
             // Show "MISS" text
             if (CombatEffectManager.Instance != null)
             {
@@ -764,7 +766,25 @@ public class Character : MonoBehaviour
             Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương (vào khiên).");
             return 0;
         }
-        
+
+        bool dodged = CheckDodge();
+
+        if (dodged)
+        {
+            // Play miss animation
+            PlayMissAnimation();
+            PlayDodgeAnimation();
+            AudioManager.Instance?.PlayMissSFX();
+            // Show "MISS" text
+            if (CombatEffectManager.Instance != null)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
+            }
+
+            return 0; // Attack missed, no damage taken
+        }
+
         int reflectedDamage = 0;
         int actualDamagePassedToHP = damage;
         int currentShield = CurrentShield;
@@ -921,6 +941,30 @@ public class Character : MonoBehaviour
             // Fallback: just hide the character if no image component
             //gameObject.SetActive(false);
         }
+    }
+
+    /// <summary>
+    /// Plays dodge animation (moves back slightly then returns).
+    /// </summary>
+    public void PlayDodgeAnimation()
+    {
+        // Lưu vị trí gốc
+        Vector3 originalPosition = transform.position;
+        // Tính vị trí lùi lại (ví dụ: lùi 30 unit theo trục X âm - bạn có thể điều chỉnh)
+        float dodgeDistance = 30f;
+        Vector3 dodgePosition = originalPosition - transform.right * dodgeDistance; // Dùng transform.right để lùi đúng hướng
+
+        // Tạo chuỗi animation: Lùi nhanh -> Dừng ngắn -> Về nhanh
+        Sequence dodgeSequence = DOTween.Sequence();
+        dodgeSequence.Append(transform.DOMove(dodgePosition, 0.1f).SetEase(Ease.OutQuad)); // Lùi ra 0.1s
+        dodgeSequence.AppendInterval(0.05f); // Dừng 0.05s
+        dodgeSequence.Append(transform.DOMove(originalPosition, 0.1f).SetEase(Ease.InQuad)); // Về 0.1s
+
+        // (Tùy chọn: Thêm hiệu ứng khác như làm mờ nhẹ?)
+        // if (characterImage != null)
+        // {
+        //     dodgeSequence.Insert(0, characterImage.DOFade(0.7f, 0.1f).SetLoops(2, LoopType.Yoyo));
+        // }
     }
     #endregion
 }

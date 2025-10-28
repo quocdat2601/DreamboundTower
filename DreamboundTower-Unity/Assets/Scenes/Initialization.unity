@@ -584,6 +584,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3406178225878642357, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+      propertyPath: missSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 23f36117b4856af4bb1fee608230bb56, type: 3}
+    - target: {fileID: 3406178225878642357, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+      propertyPath: attackSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 58406c5ff4b6546499c9105a03bc4878, type: 3}
+    - target: {fileID: 3406178225878642357, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
+      propertyPath: criticalHitSFX
+      value: 
+      objectReference: {fileID: 8300000, guid: 95a826c81272d614daaa4831b8e71c23, type: 3}
     - target: {fileID: 3868899927579316489, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
       propertyPath: m_AnchorMax.x
       value: 0
