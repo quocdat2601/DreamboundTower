@@ -13,6 +13,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using Assets.Scripts.Data;
+using DG.Tweening;
 
 /// <summary>
 /// Battle system manager for turn-based combat
@@ -35,6 +36,15 @@ public class BattleManager : MonoBehaviour
     public int hpUnit = 10;
     public int manaUnit = 5;
     private bool playerHasExtraTurn = false; // True if player gets an extra turn from AGI
+
+    [Tooltip("Tốc độ di chuyển của sprite khi tấn công (pixels/giây)")]
+    public float moveSpeed = 500f;
+    [Tooltip("Khoảng cách giữ sprite tấn công và mục tiêu (pixels)")]
+    public float attackOffset = 100f;
+    [Tooltip("Thời gian chờ sau khi Player kết thúc hành động (nếu không có lượt thêm)")]
+    public float playerActionEndDelay = 0.3f; // Khoảng nghỉ ngắn sau khi Player đánh xong
+    [Tooltip("Thời gian chờ sau khi Enemy kết thúc tấn công trước khi Player bắt đầu lượt mới")]
+    public float enemyTurnEndDelay = 0.5f; // Khoảng nghỉ dài hơn sau lượt Enemy
 
     [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
@@ -839,7 +849,23 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    
+    /// <summary>
+    /// Ẩn khung vàng chọn mục tiêu mà KHÔNG thay đổi selectedEnemyIndex.
+    /// </summary>
+    void HideSelectionVisual()
+    {
+        if (enemySlots == null) return;
+
+        for (int i = 0; i < enemySlots.Length; i++)
+        {
+            var slotImg = enemySlots[i]?.GetComponent<Image>();
+            if (slotImg == null) continue;
+
+            // Luôn đặt về màu trong suốt
+            slotImg.color = new Color(1f, 1f, 1f, 0f);
+        }
+        // (Tùy chọn: Nếu bạn có UI khác để hiển thị target, ẩn nó ở đây)
+    }
     /// <summary>
     /// Updates the turn display UI
     /// </summary>
@@ -851,88 +877,115 @@ public class BattleManager : MonoBehaviour
         }
         
     }
-    #endregion
+    #endregion
 
-    #region Turn Coroutines
+    #region Turn Coroutines
 
-    // Coroutine for the player's basic attack
     IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
-        var target = enemyInstances[enemyIndex].GetComponent<Character>();
-        if (target != null)
+        // Lấy target và kiểm tra null (Giữ nguyên)
+        GameObject targetGO = enemyInstances[enemyIndex];
+        if (playerInstance == null || targetGO == null) yield break;
+        var target = targetGO.GetComponent<Character>();
+        if (target == null) yield break;
+
+        // --- LOGIC ANIMATION VÀ ATTACK ---
+        playerTurn = false; // Bắt đầu hành động, tạm khóa tương tác
+
+        Vector3 originalPlayerPos = playerInstance.transform.position;
+        Vector3 targetEnemyPos = targetGO.transform.position;
+        Vector3 directionToEnemy = (targetEnemyPos - originalPlayerPos).normalized;
+        Vector3 attackPosition = targetEnemyPos - directionToEnemy * attackOffset;
+
+        // Di chuyển đến
+        float distance = Vector3.Distance(originalPlayerPos, attackPosition);
+        float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
+        if (moveDuration > 0)
         {
-            playerCharacter.Attack(target);
+            // (Tùy chọn: Tăng Sorting Order hoặc SetAsLastSibling ở đây nếu cần)
+            Tween moveTween = playerInstance.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
+            yield return moveTween.WaitForCompletion();
         }
 
+        // Tấn công
+        playerCharacter.Attack(target); // Gây sát thương
+
+        // Chờ delay ngắn KHI đang ở vị trí tấn công
         yield return new WaitForSeconds(attackDelay);
 
+        // Di chuyển về
+        float returnDuration = (moveSpeed > 0) ? Vector3.Distance(playerInstance.transform.position, originalPlayerPos) / moveSpeed : 0f;
+        if (returnDuration > 0)
+        {
+            Tween returnTween = playerInstance.transform.DOMove(originalPlayerPos, returnDuration).SetEase(Ease.InQuad);
+            yield return returnTween.WaitForCompletion();
+            // (Tùy chọn: Giảm Sorting Order về mặc định ở đây nếu đã tăng)
+        }
+        // --- KẾT THÚC ANIMATION VÀ ATTACK ---
+
+        // --- XỬ LÝ SAU KHI HÀNH ĐỘNG KẾT THÚC ---
+
+        // 1. Kiểm tra thắng ngay lập tức
         if (AllEnemiesDead())
         {
             yield return StartCoroutine(VictoryRoutine());
-            yield break;
+            yield break; // Kết thúc hoàn toàn
         }
 
-        // Check for double action AFTER this attack but BEFORE enemy turn
-        CheckForDoubleAction();
+        // 2. Gọi hàm kiểm tra lượt thêm (Logic gốc của bạn)
+        // Giả sử hàm này sẽ set playerHasExtraTurn = true/false
+        CheckForDoubleAction(); // <--- Gọi hàm check của bạn ở đây
 
-        if (playerHasExtraTurn)
+        // 3. Xử lý lượt thêm (Logic gốc của bạn)
+        if (playerHasExtraTurn) // Kiểm tra cờ
         {
-            playerHasExtraTurn = false; // Used up the extra turn
+            playerHasExtraTurn = false; // Dùng mất lượt thêm
+            playerTurn = true; // Player giữ lượt để hành động tiếp
             Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! Taking another action!</color>");
-            yield break; // End this coroutine, don't run EnemyTurn - playerTurn stays true
+            // (Hiệu ứng UI/Sound nếu muốn)
+            yield break; // Kết thúc coroutine này, không chạy phần còn lại (EnemyTurn, EndTurn...)
         }
 
-        // No extra turn - proceed to enemy turn
-        playerTurn = false;
+        // 4. Nếu KHÔNG có lượt thêm: Chờ khoảng nghỉ ngắn
+        yield return new WaitForSeconds(playerActionEndDelay); // Đợi trước khi địch đánh
+
+        // ✅ ẨN KHUNG VÀNG TRƯỚC KHI BẮT ĐẦU LƯỢT ENEMY
+        HideSelectionVisual();
+        // 5. Bắt đầu lượt của Enemy (Logic gốc của bạn)
+        // playerTurn = false; // Đã set ở đầu rồi
         yield return StartCoroutine(EnemyTurnRoutine());
-        
-        // Process end-of-turn status effects
-        if (StatusEffectManager.Instance != null)
-        {
-            StatusEffectManager.Instance.ProcessEndOfTurnEffects();
-        }
-        
-        // Reduce skill cooldowns at the end of each turn
-        if (skillManager != null)
-        {
-            skillManager.ReduceSkillCooldowns();
-        }
-        
-        // Note: Double action is now checked AFTER each player action, not at end of turn
-        
-        // End of complete turn - increment turn counter
+
+        // 6. Xử lý cuối lượt chung (Logic gốc của bạn, chạy SAU EnemyTurn)
+        if (StatusEffectManager.Instance != null) { StatusEffectManager.Instance.ProcessEndOfTurnEffects(); }
+        if (skillManager != null) { skillManager.ReduceSkillCooldowns(); }
         currentTurn++;
-        playerTurn = true;
+        playerTurn = true; // Player nhận lại lượt cho turn KẾ TIẾP
         UpdateTurnDisplay();
         NotifyCharactersOfNewTurn(currentTurn);
-        
-        // Process start-of-turn status effects
+        // ✅ HIỆN LẠI KHUNG VÀNG (NẾU CÓ MỤC TIÊU CŨ VÀ CÒN SỐNG)
+        RefreshSelectionVisual(); // Hàm này sẽ tự kiểm tra selectedEnemyIndex
         if (StatusEffectManager.Instance != null)
         {
             StatusEffectManager.Instance.ProcessStartOfTurnEffects();
         }
-        
         // Regenerate mana at the start of player turn
         if (playerCharacter != null)
         {
             // Calculate total mana regeneration: base 5% + passive bonuses
             int oldMana = playerCharacter.currentMana;
             float totalRegenPercent = 5.0f; // Base 5% per turn
-            
             // Add passive skill mana regeneration per turn (Divine Resonance)
             var conditionalManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
             if (conditionalManager != null && conditionalManager.manaRegenPerTurn > 0f)
             {
                 totalRegenPercent += conditionalManager.manaRegenPerTurn * 100f; // Convert decimal to percentage
             }
-            
             // Apply combined mana regeneration
             playerCharacter.RegenerateManaPercent(totalRegenPercent);
             if (playerCharacter.currentMana > oldMana)
             {
                 Debug.Log($"[BATTLE] Mana regenerated: {playerCharacter.currentMana - oldMana} (now {playerCharacter.currentMana}/{playerCharacter.mana})");
             }
-            
             // Shield turns are now handled automatically by StatusEffectManager
         }
     }
@@ -1080,24 +1133,71 @@ public class BattleManager : MonoBehaviour
     }
 
     // Coroutine for the enemy's turn
-    IEnumerator EnemyTurnRoutine()
+    IEnumerator EnemyTurnRoutine()
     {
+        // Lặp qua tất cả các slot địch
         for (int i = 0; i < (enemyInstances?.Length ?? 0); i++)
         {
-            if (enemyInstances[i] == null) continue;
-            if (playerInstance == null)
-            {
-                yield break;
-            }
+            GameObject enemyGO = enemyInstances[i]; // Lấy GameObject của địch ở slot i
 
-            var enemyChar = enemyInstances[i].GetComponent<Character>();
-            if (enemyChar != null && playerCharacter != null)
+            // Bỏ qua nếu slot trống hoặc Player đã chết
+            if (enemyGO == null || playerInstance == null) continue;
+
+            var enemyChar = enemyGO.GetComponent<Character>();
+            if (enemyChar == null || playerCharacter == null) continue; // Bỏ qua nếu không lấy được Character
+
+            // --- LOGIC ANIMATION ENEMY BẮT ĐẦU ---
+            Vector3 originalEnemyPos = enemyGO.transform.position; // Lưu vị trí gốc của Enemy
+            Vector3 targetPlayerPos = playerInstance.transform.position; // Vị trí Player
+
+            // Tính vị trí đích (đến GẦN Player, có offset)
+            Vector3 directionToPlayer = (targetPlayerPos - originalEnemyPos).normalized;
+            Vector3 attackPosition = targetPlayerPos - directionToPlayer * attackOffset; // Dùng offset chung
+
+            // Di chuyển Enemy đến vị trí tấn công
+            float distance = Vector3.Distance(originalEnemyPos, attackPosition);
+            float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
+            if (moveDuration > 0)
             {
-                enemyChar.Attack(playerCharacter);
+                // (Tùy chọn: Tăng Sorting Order hoặc SetAsLastSibling)
+                Tween moveTween = enemyGO.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
+                yield return moveTween.WaitForCompletion(); // Đợi di chuyển xong
             }
+            // --- KẾT THÚC DI CHUYỂN ĐẾN ---
+
+            // --- Thực hiện đòn đánh của Enemy ---
+            enemyChar.Attack(playerCharacter); // Enemy tấn công Player
+
+            // Chờ một chút sau khi đánh (dùng attackDelay)
             yield return new WaitForSeconds(attackDelay);
-        }
+            // --- KẾT THÚC ĐÒN ĐÁNH ---
 
+            // --- LOGIC ANIMATION ENEMY KẾT THÚC ---
+            // Di chuyển Enemy về vị trí cũ
+            float returnDuration = (moveSpeed > 0) ? Vector3.Distance(enemyGO.transform.position, originalEnemyPos) / moveSpeed : 0f;
+            if (returnDuration > 0)
+            {
+                Tween returnTween = enemyGO.transform.DOMove(originalEnemyPos, returnDuration).SetEase(Ease.InQuad);
+                yield return returnTween.WaitForCompletion(); // Đợi quay về xong
+                                                              // (Tùy chọn: Giảm Sorting Order về mặc định)
+            }
+            // --- KẾT THÚC DI CHUYỂN VỀ ---
+
+            // Kiểm tra Player có chết sau đòn đánh này không
+            if (playerCharacter.currentHP <= 0)
+            {
+                // Không cần làm gì thêm ở đây, HandleCharacterDeath và ProcessDeathRoutine sẽ xử lý
+                yield break; // Kết thúc EnemyTurnRoutine nếu Player chết
+            }
+
+            // Chờ một khoảng nghỉ ngắn giữa các đòn đánh của Enemy (Nếu muốn)
+            // yield return new WaitForSeconds(0.1f); // Ví dụ: Chờ 0.1s
+
+        } // Kết thúc vòng lặp for (chuyển sang Enemy tiếp theo)
+
+        // --- KẾT THÚC TOÀN BỘ LƯỢT ENEMY ---
+        // Chờ khoảng nghỉ dài hơn trước khi trả lại lượt cho Player
+        yield return new WaitForSeconds(enemyTurnEndDelay); // Dùng biến delay mới
     }
 
     #endregion
@@ -1490,7 +1590,8 @@ public class BattleManager : MonoBehaviour
                 if (selectedEnemyIndex == i)
                 {
                     selectedEnemyIndex = -1;
-                    RefreshSelectionVisual();
+                    //RefreshSelectionVisual();
+                    HideSelectionVisual();
 
                     if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false);
                     if (enemyInfoPanel != null) enemyInfoPanel.HidePanel();
