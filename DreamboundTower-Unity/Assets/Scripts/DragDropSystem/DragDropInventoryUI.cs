@@ -1,8 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.Events;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Presets;
 
 /// <summary>
 /// Enhanced inventory UI with drag and drop support
@@ -58,7 +61,7 @@ public class DragDropInventoryUI : MonoBehaviour
         InitializeInventorySlots();
         InitializeEquipmentSlots();
         UpdateAllUI();
-        
+    
         // Force initial equipment UI update after a short delay to ensure everything is set up
         Invoke(nameof(ForceEquipmentUpdate), 0.1f);
         
@@ -71,8 +74,128 @@ public class DragDropInventoryUI : MonoBehaviour
         // Also try to find the correct inventory reference
         Invoke(nameof(FindCorrectInventoryReference), 1.0f);
         Invoke(nameof(FindCorrectInventoryReference), 2.0f);
+
+        // Setup tooltip connections (like BattleUIManager does for skills)
+        StartCoroutine(ConnectTooltipEvents());
+    
     }
     
+    IEnumerator ConnectTooltipEvents()
+    {
+        yield return new WaitForSeconds(0.1f);
+        
+        if (TooltipManager.Instance == null)
+        {
+            yield break;
+        }
+        
+        // Connect all BagSlot TooltipTriggers
+        for (int i = 0; i < inventorySlots.Count; i++)
+        {
+            if (inventorySlots[i] == null) continue;
+            
+            GameObject slotGameObject = inventorySlots[i].transform.parent.gameObject;
+            GearItem item = (i < inventory?.items.Count) ? inventory.items[i] : null;
+            
+            ConnectTooltipForSlot(slotGameObject, inventorySlots[i].transform.root, item);
+        }
+        
+        // Connect all Equipment Slot TooltipTriggers
+        for (int i = 0; i < equipmentSlots.Count; i++)
+        {
+            if (equipmentSlots[i] == null) continue;
+            
+            GameObject slotGameObject = equipmentSlots[i].transform.parent.gameObject;
+            GearItem item = (i < equipment?.equipmentSlots.Length) ? equipment.equipmentSlots[i] : null;
+            
+            ConnectTooltipForSlot(slotGameObject, equipmentSlots[i].transform.root, item);
+        }
+    }
+    
+    void ConnectTooltipForSlot(GameObject slotGameObject, Transform rootTransform, GearItem item)
+    {
+        TooltipTrigger trigger = slotGameObject.GetComponent<TooltipTrigger>();
+        if (trigger == null)
+        {
+            trigger = rootTransform.GetComponentInChildren<TooltipTrigger>();
+            if (trigger == null)
+            {
+                return;
+            }
+        }
+        
+        // Connect events
+        trigger.OnItemHoverEnter.RemoveAllListeners();
+        trigger.OnHoverExit.RemoveAllListeners();
+        
+        trigger.OnItemHoverEnter.AddListener(ShowItemTooltip);
+        trigger.OnHoverExit.AddListener(HideItemTooltip);
+        
+        // Set dataToShow
+        trigger.dataToShow = item;
+    }
+    
+    // Tooltip methods (like BattleUIManager has for skills)
+    void ShowItemTooltip(GearItem item)
+    {
+        if (TooltipManager.Instance != null)
+        {
+            TooltipManager.Instance.ShowItemTooltip(item);
+        }
+    }
+    
+    void HideItemTooltip()
+    {
+        if (TooltipManager.Instance != null)
+        {
+            TooltipManager.Instance.HideAllTooltips();
+        }
+    }
+    
+    /// <summary>
+    /// Sets up tooltip trigger on the item icon image
+    /// </summary>
+    void SetupTooltipOnItemIcon(Image itemImage, GearItem item)
+    {
+        if (itemImage == null) return;
+        
+        // Get or add TooltipTrigger component to the item icon
+        TooltipTrigger trigger = itemImage.GetComponent<TooltipTrigger>();
+        if (trigger == null)
+        {
+            trigger = itemImage.gameObject.AddComponent<TooltipTrigger>();
+        }
+        
+        // Initialize events if null
+        if (trigger.OnItemHoverEnter == null)
+        {
+            trigger.OnItemHoverEnter = new ItemTooltipEvent();
+        }
+        if (trigger.OnHoverExit == null)
+        {
+            trigger.OnHoverExit = new UnityEvent();
+        }
+        
+        // Set the data
+        trigger.dataToShow = item;
+        
+        // Connect event listeners
+        trigger.OnItemHoverEnter.RemoveAllListeners();
+        trigger.OnHoverExit.RemoveAllListeners();
+        
+        if (item != null)
+        {
+            trigger.OnItemHoverEnter.AddListener(ShowItemTooltip);
+            trigger.OnHoverExit.AddListener(HideItemTooltip);
+        }
+        
+        // Ensure the item icon can receive raycasts for tooltips
+        if (itemImage != null)
+        {
+            itemImage.raycastTarget = (item != null);
+        }
+    }
+        
     /// <summary>
     /// Find the correct Equipment reference (the instantiated one, not the prefab)
     /// </summary>
@@ -336,6 +459,9 @@ public class DragDropInventoryUI : MonoBehaviour
             // Always ensure the DraggableItem has the correct dragDropSystem reference
             draggableItem.dragDropSystem = FindFirstObjectByType<DragDropSystem>();
         }
+        
+        // Setup tooltip on the item icon (not the slot)
+        SetupTooltipOnItemIcon(itemImage, item);
     }
     
     /// <summary>
@@ -406,6 +532,9 @@ public class DragDropInventoryUI : MonoBehaviour
             // Always ensure the DraggableItem has the correct dragDropSystem reference
             draggableItem.dragDropSystem = FindFirstObjectByType<DragDropSystem>();
         }
+        
+        // Setup tooltip on the item icon (not the slot)
+        SetupTooltipOnItemIcon(itemImage, item);
     }
     
     /// <summary>

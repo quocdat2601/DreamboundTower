@@ -14,7 +14,7 @@ public class SplitBehavior : MonoBehaviour
     public float splitHealthThreshold = 0.5f;
 
     private Character character;
-    private bool hasSplit = false;
+    public bool hasSplit = false;
     private BattleManager battleManager;
 
     void Awake()

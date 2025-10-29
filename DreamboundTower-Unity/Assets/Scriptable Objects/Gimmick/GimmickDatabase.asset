@@ -47,3 +47,7 @@ MonoBehaviour:
     gimmickName: Regenerator
     description: Heals for 10% of max HP every 2 turns.
     icon: {fileID: 0}
+  - gimmick: 1048576
+    gimmickName: Summoner
+    description: Have 80% to summon minion(s) in which turn divide by 3
+    icon: {fileID: 0}

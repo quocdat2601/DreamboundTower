@@ -19,7 +19,25 @@ public static class SkillEffectProcessor
     public static void ProcessSkillEffects(SkillData skillData, Character caster, Character target = null)
     {
         if (skillData == null || caster == null) return;
-        
+        if (AudioManager.Instance != null)
+        {
+            // Kiểm tra xem mục tiêu có phải là bản thân hoặc đồng minh không
+            if (skillData.target == TargetType.Self ||
+                skillData.target == TargetType.Ally || // (Cần target nếu là Ally đơn lẻ)
+                skillData.target == TargetType.AllAlly)
+            {
+                // Nếu là Self hoặc Ally -> Phát âm thanh Buff/Hỗ trợ
+                AudioManager.Instance.PlaySkillBuffSFX();
+            }
+            // Ngược lại, nếu mục tiêu là kẻ địch
+            else if (skillData.target == TargetType.SingleEnemy ||
+                     skillData.target == TargetType.AllEnemies)
+            {
+                // Phát âm thanh Tấn công
+                AudioManager.Instance.PlaySkillAttackSFX();
+            }
+            // (Bạn có thể thêm else { } để xử lý các TargetType khác nếu có)
+        }
         // Use target if provided, otherwise use caster (for self-targeting skills)
         Character actualTarget = target ?? caster;
         

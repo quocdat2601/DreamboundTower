@@ -36,8 +36,18 @@ public class Character : MonoBehaviour
     public int intelligence;         // <-- THÊM MỚI
     public int agility;              // <-- THÊM MỚI
 
-    public const float DODGE_PER_AGI = 0.003f; // 0.3% dưới dạng thập phân
-    public const float DODGE_CAP = 0.40f; // 40%
+    // Dodge formula: 0.3% per AGI, max 40% cap
+    // You need 134 AGI to reach cap (134 * 0.003 = 0.402 > 0.40)
+    public const float DODGE_PER_AGI = 0.003f; // 0.3% dodge per AGI point (per design doc)
+    public const float DODGE_CAP = 0.40f; // 40% maximum dodge chance
+    
+    // Double Action formula: 0.15% per AGI, max 25%
+    // You need 167 AGI to reach cap (167 * 0.0015 = 0.2505 > 0.25)
+    public const float DOUBLE_ACTION_PER_AGI = 0.0015f; // 0.15% double action per AGI point
+    public const float DOUBLE_ACTION_CAP = 0.25f; // 25% maximum double action chance
+    
+    // Critical Damage formula: Crits deal 1.5x damage (was 2.0x)
+    public const float CRITICAL_DAMAGE_MULTIPLIER = 1.5f; // Critical hits deal 1.5x damage
 
     [Header("Passive Bonuses")]
     [Tooltip("Percentage bonus to mana regeneration from passive skills")]
@@ -50,6 +60,10 @@ public class Character : MonoBehaviour
     public float lifestealPercent = 0f; // Lifesteal percentage (0.05 = 5%)
     [Tooltip("Chance to dodge incoming attacks")]
     public float dodgeChance = 0f; // Dodge chance (0.1 = 10%)
+    
+    [Tooltip("Chance to land critical hits (0.1 = 10%)")]
+    public float criticalChance = 0f; // Critical hit chance
+    
     [Tooltip("Percentage damage reduction from all sources")]
     public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
     [HideInInspector]
@@ -60,6 +74,11 @@ public class Character : MonoBehaviour
     /// Tracks if the last damage received was magical (for color differentiation)
     /// </summary>
     private bool isLastDamageMagical = false;
+    
+    /// <summary>
+    /// Tracks the type of last damage received (for color differentiation)
+    /// </summary>
+    private DamageType lastDamageType = DamageType.Physical;
     #endregion
 
     #region Events
@@ -83,39 +102,18 @@ public class Character : MonoBehaviour
     public Image manaFillImage;
     #endregion
     
-    #region Visual Effects
+    #region Visual Components
     [Header("Visual Effects")]
     [Tooltip("UI Image component for the character (for hit effects)")]
     public Image characterImage;
     
     [Tooltip("Is this character the player? (affects screen effects)")]
     public bool isPlayer = false;
-    /// <summary>
-    /// Plays revive animation (flashes yellow)
-    /// </summary>
-    public void PlayReviveAnimation()
-    {
-        if (characterImage != null)
-        {
-            // Đảm bảo quái vật hiện hình trở lại (nếu nó đã bị mờ)
-            characterImage.DOFade(1f, 0.1f);
-            transform.DOScale(1f, 0.1f);
-
-            // Nhấp nháy màu vàng (Yellow) 3 lần
-            // .SetLoops(6, LoopType.Yoyo) nghĩa là (đi -> về) * 3 = 6 GIAI ĐOẠN
-            characterImage.DOColor(Color.yellow, 0.15f)
-          .SetLoops(6, LoopType.Yoyo)
-          .OnComplete(() => characterImage.color = Color.white); // Đảm bảo màu trở về trắng
-        }
-    }
     #endregion
 
     #region Unity Lifecycle
     private void Awake()
     {
-        //ResetToBaseStats();
-        //currentHP = maxHP;
-        //UpdateHPUI();
         equipment = GetComponent<Equipment>();
     }
     #endregion
@@ -179,17 +177,29 @@ public class Character : MonoBehaviour
         maxHP -= gear.hpBonus;
         attackPower -= gear.attackBonus;
         defense -= gear.defenseBonus;
+        intelligence -= gear.intBonus;
+        mana -= gear.manaBonus;
+        agility -= gear.agiBonus;
 
         maxHP = Mathf.Max(maxHP, baseMaxHP);
         attackPower = Mathf.Max(attackPower, baseAttackPower);
         defense = Mathf.Max(defense, baseDefense);
+        intelligence = Mathf.Max(intelligence, baseIntelligence);
+        mana = Mathf.Max(mana, baseMana);
+        agility = Mathf.Max(agility, baseAgility);
 
         if (currentHP > maxHP)
         {
             currentHP = maxHP;
         }
+        if (currentMana > mana)
+        {
+            currentMana = mana;
+        }
 
+        UpdateDerivedStats(); // Recalculate dodge chance after AGI change
         UpdateHPUI();
+        UpdateManaUI();
     }
     #endregion
 
@@ -200,28 +210,53 @@ public class Character : MonoBehaviour
     {
         if (target == null) return;
         PlayAttackAnimation(); // Chơi animation tấn công 1 lần
-
-        // 1. Lấy sát thương gốc vật lý và phép từ vũ khí
+        AudioManager.Instance?.PlayAttackSFX();
+        // 1. Get base physical and magic damage from weapon
         (int physicalBase, int magicBase) = CalculateAttackDamage();
 
-        // Log giá trị gốc (Giữ lại để debug nếu cần)
-        // Debug.Log($"[{name}] Base Damage Calculated - Physical: {physicalBase}, Magic: {magicBase}");
+        // 1.5. Check for critical hits SEPARATELY for Physical and Magic
+        bool isPhysicalCrit = false;
+        bool isMagicCrit = false;
+        
+        if (physicalBase > 0)
+        {
+            isPhysicalCrit = CheckCritical();
+            //AudioManager.Instance?.PlayCriticalHitSFX(); // set tạm để test coi đúng không
+            if (isPhysicalCrit)
+            {
+                Debug.Log($"[CRITICAL] {name} Physical attack will CRIT!");
+            }
+        }
+        
+        if (magicBase > 0)
+        {
+            isMagicCrit = CheckCritical();
+            if (isMagicCrit)
+            {
+                Debug.Log($"[CRITICAL] {name} Magic attack will CRIT!");
+            }
+        }
 
         // 2. Áp dụng Multiplier (ví dụ: CounterAttack) cho CẢ HAI
         int modifiedPhysical = Mathf.RoundToInt(physicalBase * damageMultiplier);
         int modifiedMagic = Mathf.RoundToInt(magicBase * damageMultiplier);
+        
+        // Apply critical damage multiplier if that type crit
+        if (isPhysicalCrit)
+        {
+            modifiedPhysical = Mathf.RoundToInt(modifiedPhysical * CRITICAL_DAMAGE_MULTIPLIER);
+        }
+        if (isMagicCrit)
+        {
+            modifiedMagic = Mathf.RoundToInt(modifiedMagic * CRITICAL_DAMAGE_MULTIPLIER);
+        }
 
-        // 3. Áp dụng Bonus % bị động/có điều kiện RIÊNG cho từng loại
-        // (Giả sử CalculatePhysicalDamage chỉ áp dụng bonus vật lý, CalculateMagicDamage chỉ áp dụng bonus phép)
-        int finalPhysicalDamage = CalculatePhysicalDamage(modifiedPhysical, target); // Dùng hàm cũ để cộng bonus vật lý
-        int finalMagicDamage = CalculateMagicDamage(modifiedMagic); // Dùng hàm cũ để cộng bonus phép
+        // 3. Apply passive bonuses separately for each damage type
+        int finalPhysicalDamage = CalculatePhysicalDamage(modifiedPhysical, target);
+        int finalMagicDamage = CalculateMagicDamage(modifiedMagic);
 
-        // Log giá trị cuối cùng trước khi trừ DEF (Giữ lại để debug nếu cần)
-        // Debug.Log($"[{name}] Final Damage Before Defense - Physical: {finalPhysicalDamage}, Magic: {finalMagicDamage}");
-
-
-        // 4. Áp dụng sát thương và hiệu ứng LẦN LƯỢT
-        bool hitConnected = false; // Biến kiểm tra xem có đánh trúng ít nhất 1 lần không
+        // 4. Apply damage and effects sequentially
+        bool hitConnected = false;
 
         // --- Áp dụng sát thương VẬT LÝ (Nếu > 0) ---
         if (finalPhysicalDamage > 0)
@@ -232,14 +267,14 @@ public class Character : MonoBehaviour
                 CombatEffectManager.Instance.PlayHitEffect(target.transform.position);
             }
 
-            // Gây sát thương Vật lý (Gọi hàm đã nâng cấp)
+            // Gây sát thương Vật lý (Gọi hàm đã nâng cấp với crit flag)
             if (target.isPlayer)
             {
-                target.TakeDamageWithShield(finalPhysicalDamage, this, DamageType.Physical); // Truyền Type
+                target.TakeDamageWithShield(finalPhysicalDamage, this, DamageType.Physical, isPhysicalCrit); // Truyền Type và Crit
             }
             else
             {
-                target.TakeDamage(finalPhysicalDamage, this, DamageType.Physical); // Truyền Type
+                target.TakeDamage(finalPhysicalDamage, this, DamageType.Physical, isPhysicalCrit); // Truyền Type và Crit
             }
             hitConnected = true; // Đánh dấu đã đánh trúng
         }
@@ -254,18 +289,17 @@ public class Character : MonoBehaviour
                 CombatEffectManager.Instance.PlayHitEffect(target.transform.position); // Tạm dùng hiệu ứng cũ
             }
 
-            // Gây sát thương Phép (Gọi hàm đã nâng cấp)
+            // Gây sát thương Phép (Gọi hàm đã nâng cấp với crit flag)
             if (target.isPlayer)
             {
-                target.TakeDamageWithShield(finalMagicDamage, this, DamageType.Magic); // Truyền Type
+                target.TakeDamageWithShield(finalMagicDamage, this, DamageType.Magic, isMagicCrit); // Truyền Type và Crit
             }
             else
             {
-                target.TakeDamage(finalMagicDamage, this, DamageType.Magic); // Truyền Type
+                target.TakeDamage(finalMagicDamage, this, DamageType.Magic, isMagicCrit); // Truyền Type và Crit
             }
             hitConnected = true; // Đánh dấu đã đánh trúng
         }
-
 
         // 5. Xử lý Lifesteal (Ví dụ: Chỉ tính trên phần sát thương vật lý)
         if (hitConnected && lifestealPercent > 0f)
@@ -344,16 +378,7 @@ public class Character : MonoBehaviour
         // Trả về cả hai giá trị
         return (physicalBase, magicBase);
     }
-    /// <summary>
-    /// Calculates physical damage with passive bonuses
-    /// </summary>
-    public int CalculatePhysicalDamage(int baseDamage)
-    {
-        float bonusMultiplier = 1f + physicalDamageBonus;
-        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
-    }
-
-    // Hàm CalculatePhysicalDamage giờ chỉ làm nhiệm vụ cộng bonus bị động/có điều kiện
+    // Hàm CalculatePhysicalDamage chỉ làm nhiệm vụ cộng bonus bị động/có điều kiện
     // Nó nhận sát thương đã tính theo vũ khí làm đầu vào
     public int CalculatePhysicalDamage(int baseDamageFromWeapon, Character target) // Đổi tên tham số cho rõ
     {
@@ -385,10 +410,18 @@ public class Character : MonoBehaviour
     /// </summary>
     public bool CheckDodge()
     {
+        // TEMPORARY: 100% dodge for PLAYER ONLY (for testing)
+        if (isPlayer)
+        {
+            dodgeChance = 1.0f;
+        }
+        
         if (dodgeChance <= 0f) return false;
         
         float roll = UnityEngine.Random.Range(0f, 1f);
         bool dodged = roll < dodgeChance;
+        
+        Debug.Log($"[DODGE CHECK] {name}: Roll={roll:F2}, DodgeChance={dodgeChance:F2}, Result={(dodged ? "MISSED" : "HIT")}");
         
         if (dodged)
         {
@@ -396,6 +429,30 @@ public class Character : MonoBehaviour
         }
         
         return dodged;
+    }
+    
+    /// <summary>
+    /// Checks if attack is a critical hit
+    /// </summary>
+    public bool CheckCritical()
+    {
+        // TEMPORARY: 100% crit for PLAYER ONLY (for testing)
+        if (isPlayer)
+        {
+            criticalChance = 1.0f;
+        }
+        
+        if (criticalChance <= 0f) return false;
+        
+        float roll = UnityEngine.Random.Range(0f, 1f);
+        bool isCritical = roll < criticalChance;
+        
+        if (isCritical)
+        {
+            Debug.Log($"[CRITICAL] {name} landed a CRIT! Roll: {roll:F2} < {criticalChance:F2}");
+        }
+        
+        return isCritical;
     }
     
     /// <summary>
@@ -427,17 +484,30 @@ public class Character : MonoBehaviour
     }
     
 
-    // ✅ SỬA LẠI: Hàm TakeDamage giờ nhận thêm tham số "attacker"
-    public void TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical)
+    // ✅ Hàm TakeDamage nhận tham số "attacker", "damageType", và "isCritical"
+    public void TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false)
     {
         if (isInvincible)
         {
             Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương.");
-            return;
-        }
+           return;
+        }
         // Check for dodge first
-        if (CheckDodge())
+        bool dodged = CheckDodge();
+        
+        if (dodged)
         {
+            // Play miss animation
+            PlayMissAnimation();
+            PlayDodgeAnimation();
+            AudioManager.Instance?.PlayMissSFX();
+            // Show "MISS" text
+            if (CombatEffectManager.Instance != null)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
+            }
+            
             return; // Attack missed, no damage taken
         }
         
@@ -452,36 +522,64 @@ public class Character : MonoBehaviour
         // Apply regular damage reduction
         int reducedDamage = ApplyDamageReduction(conditionallyReducedDamage);
         
+        // NOTE: Currently, defense applies to BOTH physical and magic
+        // TODO: If you want separate Magic Resistance, add int magicDefense stat and check damageType here
         int actualDamage = Mathf.Max(1, reducedDamage - defense);
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
-        Color damageColor = Color.white; // Mặc định trắng (Physical)
-        if (damageType == DamageType.Magic) damageColor = Color.cyan; // Xanh (Magic)
-        else if (damageType == DamageType.True) damageColor = Color.yellow; // Vàng (True)
-
-        if (CombatEffectManager.Instance != null)
+        
+        // Track damage type
+        lastDamageType = damageType;
+        isLastDamageMagical = (damageType == DamageType.Magic);
+        
+        // Choose color based on damage type AND crit status
+        Color damageColor = Color.white; // Default: white (Physical Normal)
+        if (damageType == DamageType.Magic)
         {
-            CombatEffectManager.Instance.ShowDamageNumber(this, actualDamage, damageColor);
+            damageColor = isCritical ? new Color(0f, 0.4f, 0.8f) : Color.cyan; // Darker blue (crit) or cyan (normal)
         }
-        // Gửi đi "attacker" và "actualDamage"
-        OnDamageTaken?.Invoke(attacker, actualDamage);
+        else if (damageType == DamageType.Physical)
+        {
+            damageColor = isCritical ? new Color(1f, 0.5f, 0f) : Color.white; // Orange (crit) or white (normal)
+        }
+        else if (damageType == DamageType.True)
+        {
+            damageColor = Color.yellow; // Yellow (True damage)
+        }
 
-        // Play being hit effects
-        PlayHitAnimation();
+        // Show damage with appropriate color based on damage type and crit
         if (CombatEffectManager.Instance != null)
         {
-            // Show damage with appropriate color based on damage type
-            if (isLastDamageMagical)
+            Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+            
+            // For critical hits, show "CRIT! [damage]" with custom color
+            if (isCritical)
             {
-                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
-                CombatEffectManager.Instance.ShowDamageNumberWithColor(uiPosition, actualDamage, Color.cyan);
+                string displayText = "CRIT! " + actualDamage.ToString();
+                CombatEffectManager.Instance.ShowDamageNumberAtPosition(uiPosition, displayText, damageColor);
             }
             else
             {
-                CombatEffectManager.Instance.PlayBeingHitEffect(this, actualDamage);
+                // Normal damage - use regular ShowDamageNumber for proper magical color handling
+                bool isMagical = (damageType == DamageType.Magic);
+                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, actualDamage, false, isMagical, false);
             }
-            isLastDamageMagical = false; // Reset flag
         }
+
+        // Gửi đi "attacker" và "actualDamage"
+        OnDamageTaken?.Invoke(attacker, actualDamage);
+
+        // Play hit animation (no damage number, already shown above)
+        if (isCritical)
+        {
+            PlayCriticalHitAnimation(); // Critical hit animation
+        }
+        else
+        {
+            PlayHitAnimation(); // Normal hit animation
+        }
+        
+        isLastDamageMagical = false; // Reset flag
 
         UpdateHPUI(); // Phát tín hiệu cho UI
 
@@ -495,15 +593,13 @@ public class Character : MonoBehaviour
     }
     #endregion
 
-    #region Health System
+    #region UI Updates
     public void UpdateHPUI()
     {
-        // NHIỆM VỤ 1: PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
-        // Bất kỳ ai đăng ký lắng nghe sẽ nhận được tín hiệu này.
+        // PHÁT SÓNG TÍN HIỆU RA BÊN NGOÀI
         OnHealthChanged?.Invoke(currentHP, maxHP);
 
-        // NHIỆM VỤ 2 (TÙY CHỌN): CẬP NHẬT UI CỤC BỘ
-        // Nếu bạn có thanh máu trên đầu quái, nó vẫn sẽ hoạt động.
+        // CẬP NHẬT UI CỤC BỘ
         float t = (float)currentHP / maxHP;
         if (hpSlider != null)
             hpSlider.value = t;
@@ -526,28 +622,54 @@ public class Character : MonoBehaviour
         if (manaFillImage != null)
             manaFillImage.fillAmount = t;
     }
+    #endregion
 
-    // Tương tự, nếu bạn có hàm Heal(int amount), cũng hãy gọi event ở cuối
+    #region Health Management
     public void Heal(int amount)
     {
         currentHP += amount;
         if (currentHP > maxHP) currentHP = maxHP;
-
-        // ✅ PHÁT SÓNG TÍN HIỆU
         OnHealthChanged?.Invoke(currentHP, maxHP);
     }
+
     public void HealPercent(int percent)
     {
         int amountToHeal = Mathf.RoundToInt(maxHP * (percent / 100f));
-        Heal(amountToHeal); // Gọi hàm Heal(flat)
+        Heal(amountToHeal);
+    }
+
+    /// <summary>
+    /// Heals character by percentage of max HP (0.5f = 50%)
+    /// </summary>
+    /// <param name="percentage">Percentage to heal (0.5f = 50%)</param>
+    public void HealPercentage(float percentage)
+    {
+        int healAmount = Mathf.FloorToInt(maxHP * percentage);
+        currentHP += healAmount;
+        if (currentHP > maxHP) currentHP = maxHP;
+        OnHealthChanged?.Invoke(currentHP, maxHP);
+    }
+
+    public void RestoreHealth(int amount)
+    {
+        currentHP = Mathf.Min(currentHP + amount, maxHP);
+        UpdateHPUI();
     }
 
     public void TakeDamagePercent(int percent)
     {
         int amountToDamage = Mathf.RoundToInt(maxHP * (percent / 100f));
-        TakeDamage(amountToDamage, null); // Gọi hàm TakeDamage(flat)
+        TakeDamage(amountToDamage, null);
     }
 
+    void Die()
+    {
+        //PlayDeathAnimation();
+        OnDeath?.Invoke(this);
+    }
+    #endregion
+
+    #region Mana Management
     /// <summary>
     /// Restores mana by the specified amount
     /// </summary>
@@ -555,10 +677,9 @@ public class Character : MonoBehaviour
     {
         currentMana += amount;
         if (currentMana > mana) currentMana = mana;
-
-        // ✅ PHÁT SÓNG TÍN HIỆU
         OnManaChanged?.Invoke(currentMana, mana);
     }
+
     public void UseMana(int amount)
     {
         currentMana -= amount;
@@ -568,164 +689,22 @@ public class Character : MonoBehaviour
     public void RestoreManaPercent(int percent)
     {
         int amountToRestore = Mathf.RoundToInt(mana * (percent / 100f));
-        RestoreMana(amountToRestore); // Gọi hàm RestoreMana(flat)
+        RestoreMana(amountToRestore);
     }
+
     public void UseManaPercent(int percent)
     {
-        // Tính toán mana sử dụng dựa trên % mana tối đa (mana)
         int amountToUse = Mathf.RoundToInt(mana * (percent / 100f));
-        UseMana(amountToUse); // Gọi hàm UseMana(flat) với lượng mana đã tính
-    }
-    void Die()
-    {
-        // Play death animation
-        //PlayDeathAnimation();
-
-        // Play death effect
-        if (CombatEffectManager.Instance != null)
-        {
-            CombatEffectManager.Instance.PlayDeathEffect(this);
-        }
-
-        OnDeath?.Invoke(this);
-        // BattleManager will handle cleanup after gimmicks like Resurrect have a chance to act
-    }
-    #endregion
-
-    #region Utility Methods
-    /// <summary>
-    /// Hồi máu cho nhân vật một lượng bằng % máu tối đa.
-    /// </summary>
-    /// <param name="percentage">Tỷ lệ phần trăm để hồi, ví dụ 0.5f cho 50%</param>
-    public void HealPercentage(float percentage)
-    {
-        int healAmount = Mathf.FloorToInt(maxHP * percentage);
-        currentHP += healAmount;
-        if (currentHP > maxHP)
-        {
-            currentHP = maxHP;
-        }
-
-        // Phát sóng tín hiệu để UI tự cập nhật
-        OnHealthChanged?.Invoke(currentHP, maxHP);
+        UseMana(amountToUse);
     }
 
     /// <summary>
-    /// Hồi đầy lại Mana của nhân vật.
+    /// Restores mana to full
     /// </summary>
     public void RestoreFullMana()
     {
-        currentMana = mana; // 'mana' là maxMana
-        UpdateManaUI(); // Update mana display
-    }
-    
-    public void RestoreHealth(int amount)
-    {
-        currentHP = Mathf.Min(currentHP + amount, maxHP);
-        UpdateHPUI();
-    }
-    
-    // Generic Status Effect Integration
-    public int CurrentShield => ShieldEffectHandler.GetShieldAmount(this);
-    public int ShieldTurnsRemaining => ShieldEffectHandler.GetShieldTurns(this);
-    public float DamageReflectionPercent => ShieldEffectHandler.GetReflectPercent(this);
-    
-    /// <summary>
-    /// Gets the intensity value of a status effect
-    /// </summary>
-    private int GetStatusEffectValue<T>() where T : StatusEffect
-    {
-        if (StatusEffectManager.Instance == null) return 0;
-        
-        var effect = StatusEffectManager.Instance.GetEffect(this, typeof(T)) as T;
-        return effect?.intensity ?? 0;
-    }
-    
-    /// <summary>
-    /// Gets the duration of a status effect
-    /// </summary>
-    private int GetStatusEffectDuration<T>() where T : StatusEffect
-    {
-        if (StatusEffectManager.Instance == null) return 0;
-        
-        var effect = StatusEffectManager.Instance.GetEffect(this, typeof(T)) as T;
-        return effect?.duration ?? 0;
-    }
-    
-    /// <summary>
-    /// Checks if character has a specific status effect
-    /// </summary>
-    public bool HasStatusEffect<T>() where T : StatusEffect
-    {
-        if (StatusEffectManager.Instance == null) return false;
-        return StatusEffectManager.Instance.HasEffect(this, typeof(T));
-    }
-    
-    /// <summary>
-    /// Legacy method for backward compatibility - now uses ShieldEffectHandler
-    /// </summary>
-    [System.Obsolete("Use ShieldEffectHandler.ApplyShield() instead")]
-    public void ApplyShield(int shieldAmount, int turns, float reflectionPercent = 0f)
-    {
-        ShieldEffectHandler.ApplyShield(this, shieldAmount, turns, reflectionPercent);
-    }
-    
-    /// <summary>
-    /// Legacy method for backward compatibility - now handled by StatusEffectManager
-    /// </summary>
-    [System.Obsolete("Status effects are now handled automatically by StatusEffectManager")]
-    public void ReduceShieldTurns()
-    {
-        // This is now handled automatically by StatusEffectManager
-    }
-    
-    /// <summary>
-    /// Takes damage with shield protection and reflection
-    /// </summary>
-    public int TakeDamageWithShield(int damage, Character attacker, DamageType damageType = DamageType.Physical)
-    {
-        if (isInvincible)
-        {
-            Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương (vào khiên).");
-            return 0; // Không nhận sát thương, không phản đòn
-       }
-        int reflectedDamage = 0;
-        int actualDamagePassedToHP = damage;
-
-        // Get current shield and reflect values from status effects
-        int currentShield = CurrentShield;
-        float reflectPercent = DamageReflectionPercent;
-
-        // Shield absorbs damage first
-        if (currentShield > 0)
-        {
-            int shieldAbsorbed = Mathf.Min(damage, currentShield);
-            actualDamagePassedToHP = damage - shieldAbsorbed;
-            ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
-
-            if (reflectPercent > 0 && attacker != null)
-            {
-                reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
-                // Phản đòn thường là sát thương vật lý? Hoặc cần type riêng? Tạm để Physical
-                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical);
-            }
-        }
-
-        // Gọi TakeDamage với sát thương còn lại và DamageType
-        if (actualDamagePassedToHP > 0)
-        {
-            // ✅ TRUYỀN damageType VÀO ĐÂY
-            TakeDamage(actualDamagePassedToHP, attacker, damageType);
-        }
-        else if (damage > 0) // Khiên đỡ hết, hiển thị số 0
-        {
-            if (CombatEffectManager.Instance != null)
-            {
-                // ✅ GỌI HÀM MỚI (Hiển thị số 0 màu xám)
-                CombatEffectManager.Instance.ShowDamageNumber(this, 0, Color.grey);
-            }
-        }
-        return reflectedDamage;
+        currentMana = mana;
+        UpdateManaUI();
     }
 
     /// <summary>
@@ -745,30 +724,96 @@ public class Character : MonoBehaviour
     /// </summary>
     public void RegenerateManaPercent(float percent)
     {
-        // Add passive bonus to base regeneration percentage
-        // percent is already in percentage form (5.0f = 5%)
-        // manaRegenBonus is in decimal form (0.05 = 5%)
         float totalPercent = percent + (manaRegenBonus * 100f);
         int regenAmount = Mathf.RoundToInt(mana * totalPercent / 100.0f);
-        
-        // Mana regeneration with passive bonus
-        
         RegenerateMana(regenAmount);
     }
+    #endregion
 
+    #region Status Effects Integration
+    // Generic Status Effect Integration
+    public int CurrentShield => ShieldEffectHandler.GetShieldAmount(this);
+    public int ShieldTurnsRemaining => ShieldEffectHandler.GetShieldTurns(this);
+    public float DamageReflectionPercent => ShieldEffectHandler.GetReflectPercent(this);
+    
     /// <summary>
-    /// Xóa bỏ tất cả các hiệu ứng trạng thái xấu đang có trên nhân vật.
+    /// Checks if character has a specific status effect
+    /// </summary>
+    public bool HasStatusEffect<T>() where T : StatusEffect
+    {
+        if (StatusEffectManager.Instance == null) return false;
+        return StatusEffectManager.Instance.HasEffect(this, typeof(T));
+    }
+    
+    /// <summary>
+    /// Removes all negative status effects from character
     /// </summary>
     public void RemoveAllNegativeStatusEffects()
     {
-        // Use StatusEffectManager to remove negative effects
         if (StatusEffectManager.Instance != null)
         {
             StatusEffectManager.Instance.RemoveAllNegativeEffects(this);
         }
     }
     
+    /// <summary>
+    /// Takes damage with shield protection and reflection
+    /// </summary>
+    public int TakeDamageWithShield(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false)
+    {
+        if (isInvincible)
+        {
+            Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương (vào khiên).");
+            return 0;
+        }
 
+        bool dodged = CheckDodge();
+
+        if (dodged)
+        {
+            // Play miss animation
+            PlayMissAnimation();
+            PlayDodgeAnimation();
+            AudioManager.Instance?.PlayMissSFX();
+            // Show "MISS" text
+            if (CombatEffectManager.Instance != null)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
+            }
+
+            return 0; // Attack missed, no damage taken
+        }
+
+        int reflectedDamage = 0;
+        int actualDamagePassedToHP = damage;
+        int currentShield = CurrentShield;
+        float reflectPercent = DamageReflectionPercent;
+
+        // Shield absorbs damage first
+        if (currentShield > 0)
+        {
+            int shieldAbsorbed = Mathf.Min(damage, currentShield);
+            actualDamagePassedToHP = damage - shieldAbsorbed;
+            ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
+
+            if (reflectPercent > 0 && attacker != null)
+            {
+                reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
+                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical);
+            }
+        }
+
+        // Apply remaining damage
+        if (actualDamagePassedToHP > 0)
+        {
+            TakeDamage(actualDamagePassedToHP, attacker, damageType, isCritical);
+        }
+        return reflectedDamage;
+    }
+    #endregion
+
+    #region Passive Bonuses Management
     /// <summary>
     /// Resets mana regeneration bonus to zero (used when clearing passive skills)
     /// </summary>
@@ -789,7 +834,6 @@ public class Character : MonoBehaviour
         dodgeChance = 0f;
         damageReduction = 0f;
         
-        // Reset conditional passive bonuses if ConditionalPassiveManager exists
         var conditionalManager = GetComponent<ConditionalPassiveManager>();
         if (conditionalManager != null)
         {
@@ -800,14 +844,34 @@ public class Character : MonoBehaviour
     
     #region Visual Effects & Animations
     /// <summary>
+    /// Plays revive animation (flashes yellow)
+    /// </summary>
+    public void PlayReviveAnimation()
+    {
+        if (characterImage != null)
+        {
+            characterImage.DOFade(1f, 0.1f);
+            transform.DOScale(1f, 0.1f);
+            characterImage.DOColor(Color.yellow, 0.15f)
+                .SetLoops(6, LoopType.Yoyo)
+                .OnComplete(() => characterImage.color = Color.white);
+        }
+    }
+
+    /// <summary>
     /// Plays hit animation when character takes damage
     /// </summary>
     public void PlayHitAnimation()
     {
+        PlayHitAnimation(Color.red);
+    }
+    
+    public void PlayHitAnimation(Color flashColor)
+    {
         if (characterImage != null)
         {
-            // Flash red briefly
-            characterImage.DOColor(Color.red, 0.1f)
+            // Flash color briefly
+            characterImage.DOColor(flashColor, 0.1f)
                 .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
             
             // Shake effect
@@ -815,17 +879,99 @@ public class Character : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// Plays attack animation when character attacks
-    /// </summary>
-    public void PlayAttackAnimation()
+    public void PlayCriticalHitAnimation()
     {
         if (characterImage != null)
         {
-            // Scale up briefly for attack
-            transform.DOScale(1.1f, 0.1f)
+            // Flash yellow and scale up for critical
+            characterImage.DOColor(Color.yellow, 0.15f)
+                .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
+            
+            // Larger shake for critical hits
+            transform.DOShakePosition(0.3f, 15f, 15, 90f, false, true);
+            
+            // Brief scale up
+            transform.DOScale(1.15f, 0.1f)
                 .OnComplete(() => transform.DOScale(1f, 0.1f));
         }
+    }
+    
+    public void PlayMissAnimation()
+    {
+        if (characterImage != null)
+        {
+            // Subtle blue flash for dodges
+            characterImage.DOColor(new Color(0.8f, 0.8f, 1f, 1f), 0.1f)
+                .OnComplete(() => characterImage.DOColor(Color.white, 0.1f));
+            
+            // Gentle shake for miss
+            transform.DOShakePosition(0.15f, 5f, 10, 90f, false, true);
+        }
+    }
+    
+    /// <summary>
+    /// Plays attack animation when character attacks
+    /// Includes a small lunge movement
+    /// </summary>
+    public void PlayAttackAnimation()
+    {
+        if (characterImage == null) return;
+        
+        RectTransform rectTransform = transform as RectTransform;
+        float lungeDistance = 50f; // Lunge distance (in UI units)
+        
+        // Default: move slightly right if player, left if enemy
+        Vector2 lungeDirection = new Vector2(isPlayer ? lungeDistance : -lungeDistance, 0);
+        
+        Vector2 originalAnchoredPosition;
+        if (rectTransform != null)
+        {
+            originalAnchoredPosition = rectTransform.anchoredPosition;
+        }
+        else
+        {
+            // Fallback to position if not RectTransform
+            Vector3 originalPos = transform.position;
+            originalAnchoredPosition = new Vector2(originalPos.x, originalPos.y);
+        }
+        
+        // Create attack animation sequence
+        Sequence attackSequence = DOTween.Sequence();
+        
+        // Scale up slightly
+        attackSequence.Join(transform.DOScale(1.1f, 0.08f));
+        
+        // Small lunge forward
+        if (rectTransform != null)
+        {
+            // For UI elements, use anchoredPosition
+            attackSequence.Join(DOTween.To(() => rectTransform.anchoredPosition, 
+                x => rectTransform.anchoredPosition = x, 
+                originalAnchoredPosition + lungeDirection, 0.1f)
+                .SetEase(Ease.OutQuad));
+        }
+        else
+        {
+            // For world space objects, use position
+            attackSequence.Join(transform.DOMove(
+                (Vector3)originalAnchoredPosition + (Vector3)lungeDirection, 0.1f)
+                .SetEase(Ease.OutQuad));
+        }
+        
+        // Return to original position and scale
+        if (rectTransform != null)
+        {
+            attackSequence.Append(DOTween.To(() => rectTransform.anchoredPosition, 
+                x => rectTransform.anchoredPosition = x, 
+                originalAnchoredPosition, 0.1f)
+                .SetEase(Ease.InQuad));
+        }
+        else
+        {
+            attackSequence.Append(transform.DOMove((Vector3)originalAnchoredPosition, 0.1f)
+                .SetEase(Ease.InQuad));
+        }
+        attackSequence.Join(transform.DOScale(1f, 0.1f));
     }
     
     /// <summary>
@@ -847,6 +993,30 @@ public class Character : MonoBehaviour
             // Fallback: just hide the character if no image component
             //gameObject.SetActive(false);
         }
+    }
+
+    /// <summary>
+    /// Plays dodge animation (moves back slightly then returns).
+    /// </summary>
+    public void PlayDodgeAnimation()
+    {
+        // Lưu vị trí gốc
+        Vector3 originalPosition = transform.position;
+        // Tính vị trí lùi lại (ví dụ: lùi 30 unit theo trục X âm - bạn có thể điều chỉnh)
+        float dodgeDistance = 30f;
+        Vector3 dodgePosition = originalPosition - transform.right * dodgeDistance; // Dùng transform.right để lùi đúng hướng
+
+        // Tạo chuỗi animation: Lùi nhanh -> Dừng ngắn -> Về nhanh
+        Sequence dodgeSequence = DOTween.Sequence();
+        dodgeSequence.Append(transform.DOMove(dodgePosition, 0.1f).SetEase(Ease.OutQuad)); // Lùi ra 0.1s
+        dodgeSequence.AppendInterval(0.05f); // Dừng 0.05s
+        dodgeSequence.Append(transform.DOMove(originalPosition, 0.1f).SetEase(Ease.InQuad)); // Về 0.1s
+
+        // (Tùy chọn: Thêm hiệu ứng khác như làm mờ nhẹ?)
+        // if (characterImage != null)
+        // {
+        //     dodgeSequence.Insert(0, characterImage.DOFade(0.7f, 0.1f).SetLoops(2, LoopType.Yoyo));
+        // }
     }
     #endregion
 }
