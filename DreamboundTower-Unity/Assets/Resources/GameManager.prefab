@@ -915,7 +915,7 @@ MonoBehaviour:
     availableEventPool: []
   playerInstance: {fileID: 0}
   fallbackRace: {fileID: 11400000, guid: 75d22c60321de4745970bd6c442e1405, type: 2}
-  fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
+  fallbackClass: {fileID: 11400000, guid: 90e79aba28f500149afc71761a9cde05, type: 2}
   overridePlayerStats: 1
   customPlayerStats:
     HP: 100
@@ -2734,6 +2734,186 @@ PrefabInstance:
       propertyPath: skillAttackSFX
       value: 
       objectReference: {fileID: 8300000, guid: 39393e812e0623d448b3d7bab74243a6, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: mapMusicClips.Array.size
+      value: 21
+      objectReference: {fileID: 0}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: combatMusicClips.Array.size
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[0]'
+      value: 
+      objectReference: {fileID: 8300000, guid: f21bbb29e86b4ef45a6349140e9bffee, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[1]'
+      value: 
+      objectReference: {fileID: 8300000, guid: ac5a39b7c4975bb4e93f8a9bace8a15a, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[2]'
+      value: 
+      objectReference: {fileID: 8300000, guid: c2a3053912b2f834c88f04924329287d, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[3]'
+      value: 
+      objectReference: {fileID: 8300000, guid: a296c681adc6ea143a2db895b56a5dbe, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[4]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 89f3d76d046462c4ea2d70eb62427dda, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[5]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 469787a7e773e304d96141562d4b27bb, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[6]'
+      value: 
+      objectReference: {fileID: 8300000, guid: fb4cce5036db0f546b2400f5dbb399a8, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[7]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 4291ac44d01ab2e4f89a0f856febfe18, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[8]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 60b76cb6010d2df47af690441d52d117, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[9]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 91d6755a6716d0e42ae3dc43de5674d9, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[10]'
+      value: 
+      objectReference: {fileID: 8300000, guid: c4a465c89a0c0a447939ce69bce1d20a, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[11]'
+      value: 
+      objectReference: {fileID: 8300000, guid: fad4683fc26ccaa499e2dfaa1d4790bb, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[12]'
+      value: 
+      objectReference: {fileID: 8300000, guid: bc64d7643b327cf408c8ab8f0bcac279, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[13]'
+      value: 
+      objectReference: {fileID: 8300000, guid: c8d6be3ad9c04584d893c192b41c544e, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[14]'
+      value: 
+      objectReference: {fileID: 8300000, guid: a6c924751a85abd4e897ce4bee3b293a, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[15]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 66477c5512293104c83c43a27192f1a1, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[16]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 7c35757529c1e1f458e8f22bffca3eee, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[17]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 3df7a141017299343840c2901fd6116e, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[18]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 5162ae1cc0203944fb12279a37ab8fe6, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[19]'
+      value: 
+      objectReference: {fileID: 8300000, guid: b90dc7ed020bcf948ba7291bc887d412, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'mapMusicClips.Array.data[20]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 8d22125039516304cab3ef643e1d1eb3, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[0]'
+      value: 
+      objectReference: {fileID: 8300000, guid: ef67e5e7143ede646ada9cdcc7f6670f, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[1]'
+      value: 
+      objectReference: {fileID: 8300000, guid: bf8b68109a2f41143a63948703fc667c, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[2]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 95b488f8f7da2a342abb2dcc6b4603db, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[3]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 777033db614f6dd42a681136476d3761, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[4]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 94d561f1843ec7048bafc622c65565df, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[5]'
+      value: 
+      objectReference: {fileID: 8300000, guid: ccac5265da9545f4ab0c63193a2ece7b, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[6]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 6904719f758bfc24a9ea0dac7da34ce5, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[7]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 66829e76d74b610488584ef4927a3885, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[8]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 96ff8426c4959d14fa7d98b9191b1025, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[9]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 83009cecb523f394893eea67a8fade37, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[10]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 9d70b43b22e971440adbc7af6d6ff8de, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[11]'
+      value: 
+      objectReference: {fileID: 8300000, guid: f84ea6f23afff434b8f9356d00bfb4da, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[12]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 9746b4049d1950542aece268890ac7b9, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[13]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 7fcb2bc19ca70c944ad4bb211134134a, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[14]'
+      value: 
+      objectReference: {fileID: 8300000, guid: a750c4a124258b64ca6149070e39e69b, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[15]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 354b9dd4ce276144cbb15b156a75bc52, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[16]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 0fd733ad0b84f2141b63031c5a335616, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[17]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 1c972fbe0e9c5e1449610f226aa838b1, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[18]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 30f34438f71bf11418b139f1bb642f73, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[19]'
+      value: 
+      objectReference: {fileID: 8300000, guid: b14c5d13c4d69994ea9a91c3a035f810, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[20]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 9ec6c588659c37b4fa6d0197c09d149e, type: 3}
+    - target: {fileID: 6909267212157215141, guid: 71493789776a61e47bd787a041cfb689, type: 3}
+      propertyPath: 'combatMusicClips.Array.data[21]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 348110f91902f0a49849f6b1db3a4dee, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 397180829192345478, guid: 71493789776a61e47bd787a041cfb689, type: 3}

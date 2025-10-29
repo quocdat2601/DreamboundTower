@@ -664,7 +664,7 @@ public class Character : MonoBehaviour
 
     void Die()
     {
-        PlayDeathAnimation();
+        //PlayDeathAnimation();
         OnDeath?.Invoke(this);
     }
     #endregion

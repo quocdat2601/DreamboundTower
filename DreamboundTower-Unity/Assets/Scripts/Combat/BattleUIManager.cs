@@ -91,23 +91,17 @@ public class BattleUIManager : MonoBehaviour
         Debug.Log($"[BattleUI] Đã kết nối sự kiện cho {spawnedSkillIcons.Count} skill icons.");
     }
 
-    public void ShowTooltip(BaseSkillSO skill, RectTransform iconTransform)
+    public void ShowTooltip(BaseSkillSO skill, Character caster, RectTransform iconTransform)
     {
-        Character playerCharacter = battleManager.GetPlayerCharacter();
-        if (playerCharacter == null) return;
-
-        StatBlock currentStats = new StatBlock
+        if (caster == null)
         {
-            HP = playerCharacter.maxHP,
-            STR = playerCharacter.attackPower,
-            DEF = playerCharacter.defense,
-            MANA = playerCharacter.mana,
-            INT = playerCharacter.intelligence,
-            AGI = playerCharacter.agility
-        };
-
+            Debug.LogWarning("ShowTooltip received null caster from event.");
+            // Thử lấy lại caster từ BattleManager làm dự phòng
+            caster = battleManager.GetPlayerCharacter();
+            if (caster == null) return; // Nếu vẫn null thì không hiển thị
+        }
         // Ra lệnh cho TooltipManager hiển thị
-        TooltipManager.Instance.ShowSkillTooltip(skill, currentStats);
+        TooltipManager.Instance.ShowSkillTooltip(skill, caster, iconTransform);
     }
     public void HideTooltip()
     {
