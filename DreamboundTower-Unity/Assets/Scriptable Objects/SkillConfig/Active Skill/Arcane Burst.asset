@@ -19,12 +19,14 @@ MonoBehaviour:
     for 2 turns.
   resource: 1
   cost: 12
+  cooldown: 4
+  target: 1
+  vfxPrefab: {fileID: 5069109496326652748, guid: bb215333720912340ab7e30727cc411a, type: 3}
   baseDamage: 24
   scalingStat: 1
   scalingPercent: 1
-  cooldown: 4
-  target: 1
   isMagicDamage: 1
+  hitCount: 1
   healAmount: 0
   healPercent: 0
   lifesteal: 0
@@ -44,3 +46,6 @@ MonoBehaviour:
   removeOneDebuff: 0
   healingEffectivenessBonus: 0
   healingEffectivenessDuration: 0
+  recoilDamagePercent: 0
+  stunChance: 0
+  bonusDamageToStunned: 0

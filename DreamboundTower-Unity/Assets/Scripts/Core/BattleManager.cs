@@ -36,11 +36,12 @@ public class BattleManager : MonoBehaviour
     public int hpUnit = 10;
     public int manaUnit = 5;
     private bool playerHasExtraTurn = false; // True if player gets an extra turn from AGI
+    private bool hasUsedExtraActionThisTurn = false; // Tracks if player has already used extra action this turn (cap at 1)
 
     [Tooltip("Tốc độ di chuyển của sprite khi tấn công (pixels/giây)")]
     public float moveSpeed = 500f;
     [Tooltip("Khoảng cách giữ sprite tấn công và mục tiêu (pixels)")]
-    public float attackOffset = 100f;
+    public float attackOffset = 30f; // Reduced from 100f to 30% (30f)
     [Tooltip("Thời gian chờ sau khi Player kết thúc hành động (nếu không có lượt thêm)")]
     public float playerActionEndDelay = 0.3f; // Khoảng nghỉ ngắn sau khi Player đánh xong
     [Tooltip("Thời gian chờ sau khi Enemy kết thúc tấn công trước khi Player bắt đầu lượt mới")]
@@ -704,13 +705,22 @@ public class BattleManager : MonoBehaviour
     }
     /// <summary>
     /// Kiểm tra xem Player có được hành động thêm dựa trên AGI không.
-    /// Nên gọi hàm này vào ĐẦU lượt của Player.
+    /// CHỈ GỌI SAU KHI PLAYER TẤN CÔNG (không gọi cho skills).
+    /// Capped at 1 extra action per turn.
     /// </summary>
     private void CheckForDoubleAction()
     {
         if (playerCharacter == null)
         {
             playerHasExtraTurn = false;
+            return;
+        }
+
+        // Cap: Only allow 1 extra action per turn
+        if (hasUsedExtraActionThisTurn)
+        {
+            playerHasExtraTurn = false;
+            Debug.Log("[BATTLE] Double action already used this turn. Capped at 1 per turn.");
             return;
         }
 
@@ -910,17 +920,7 @@ public class BattleManager : MonoBehaviour
 
         // --- Animation và Attack ---
         Vector3 originalPlayerPos = playerInstance.transform.position;
-        // ... (Code di chuyển đến, tính moveDuration) ...
-        Vector3 targetEnemyPos = targetGO.transform.position;
-        Vector3 directionToEnemy = (targetEnemyPos - originalPlayerPos).normalized;
-        Vector3 attackPosition = targetEnemyPos - directionToEnemy * attackOffset;
-        float distance = Vector3.Distance(originalPlayerPos, attackPosition);
-        float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
-        if (moveDuration > 0)
-        {
-            Tween moveTween = playerInstance.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
-            yield return moveTween.WaitForCompletion();
-        }
+        // Characters now attack from their current position - no movement
 
 
         // --- KIỂM TRA SPLIT TRƯỚC KHI GÂY SÁT THƯƠNG ---
@@ -964,17 +964,7 @@ public class BattleManager : MonoBehaviour
         // --- KẾT THÚC KIỂM TRA VÀ ĐỢI SPLIT ---
 
 
-        // --- Di chuyển về (Luôn thực hiện) ---
-        float returnDuration = 0f;
-        if (playerInstance.transform.position != originalPlayerPos)
-        {
-            returnDuration = (moveSpeed > 0) ? Vector3.Distance(playerInstance.transform.position, originalPlayerPos) / moveSpeed : 0f;
-            if (returnDuration > 0)
-            {
-                Tween returnTween = playerInstance.transform.DOMove(originalPlayerPos, returnDuration).SetEase(Ease.InQuad);
-                yield return returnTween.WaitForCompletion();
-            }
-        }
+        // Characters attack from their position - no return movement needed
 
 
         // --- XỬ LÝ SAU KHI HÀNH ĐỘNG VÀ SPLIT (NẾU CÓ) ĐÃ XONG ---
@@ -986,14 +976,16 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        CheckForDoubleAction(); // Kiểm tra lượt thêm
+        // Check for double action AFTER normal attack (not skills)
+        CheckForDoubleAction();
 
         if (playerHasExtraTurn) // Có lượt thêm?
         {
             playerHasExtraTurn = false;
+            hasUsedExtraActionThisTurn = true; // Mark as used, cap at 1 per turn
             playerTurn = true; // Giữ lượt Player
             if (attackButton != null) attackButton.interactable = true; // Mở khóa UI
-            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn!...</color>");
+            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! (1/1 used this turn)</color>");
             yield break; // Dừng coroutine, Player hành động tiếp
         }
 
@@ -1010,6 +1002,7 @@ public class BattleManager : MonoBehaviour
         if (skillManager != null) { skillManager.ReduceSkillCooldowns(); }
         currentTurn++;
         playerTurn = true; // Player nhận lại lượt cho turn KẾ TIẾP
+        hasUsedExtraActionThisTurn = false; // Reset extra action flag for new turn
         if (attackButton != null) attackButton.interactable = true;
         UpdateTurnDisplay();
         NotifyCharactersOfNewTurn(currentTurn);
@@ -1059,6 +1052,9 @@ public class BattleManager : MonoBehaviour
             
             // Use the skill (consumes mana and sets cooldown)
             skillManager.UseSkill(skill);
+            
+            // Spawn VFX before processing effects
+            SpawnSkillVFX(skill, enemyIndex);
             
             // Apply skill effects using the new system
             switch (skill.target)
@@ -1121,16 +1117,8 @@ public class BattleManager : MonoBehaviour
 
         selectedSkill = null; // Reset selected skill after use
 
-        // Check for double action AFTER skill use
-        CheckForDoubleAction();
-
-        if (playerHasExtraTurn)
-        {
-            playerHasExtraTurn = false; // Used up the extra turn
-            playerTurn = true;          // Player immediately gets another turn
-            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! Taking another action!</color>");
-            yield break; // End this coroutine, don't end the turn
-        }
+        // Skills do NOT trigger double action - only normal attacks do
+        // (CheckForDoubleAction removed from here)
 
         // Check if all enemies are dead after skill use
         if (AllEnemiesDead())
@@ -1225,24 +1213,7 @@ public class BattleManager : MonoBehaviour
             }
             if (!enemyActed)
             {
-                // --- LOGIC ANIMATION ENEMY BẮT ĐẦU ---
-                Vector3 originalEnemyPos = enemyGO.transform.position; // Lưu vị trí gốc của Enemy
-                Vector3 targetPlayerPos = playerInstance.transform.position; // Vị trí Player
-
-                // Tính vị trí đích (đến GẦN Player, có offset)
-                Vector3 directionToPlayer = (targetPlayerPos - originalEnemyPos).normalized;
-                Vector3 attackPosition = targetPlayerPos - directionToPlayer * attackOffset; // Dùng offset chung
-
-                // Di chuyển Enemy đến vị trí tấn công
-                float distance = Vector3.Distance(originalEnemyPos, attackPosition);
-                float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
-                if (moveDuration > 0)
-                {
-                    // (Tùy chọn: Tăng Sorting Order hoặc SetAsLastSibling)
-                    Tween moveTween = enemyGO.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
-                    yield return moveTween.WaitForCompletion(); // Đợi di chuyển xong
-                }
-                // --- KẾT THÚC DI CHUYỂN ĐẾN ---
+                // Enemies now attack from their current position - no movement
                 AudioManager.Instance?.PlayAttackSFX();
                 // --- Thực hiện đòn đánh của Enemy ---
                 enemyChar.Attack(playerCharacter); // Enemy tấn công Player
@@ -1250,16 +1221,6 @@ public class BattleManager : MonoBehaviour
                 // Chờ một chút sau khi đánh (dùng attackDelay)
                 yield return new WaitForSeconds(attackDelay);
                 // --- KẾT THÚC ĐÒN ĐÁNH ---
-                // --- LOGIC ANIMATION ENEMY KẾT THÚC ---
-                // Di chuyển Enemy về vị trí cũ
-                float returnDuration = (moveSpeed > 0) ? Vector3.Distance(enemyGO.transform.position, originalEnemyPos) / moveSpeed : 0f;
-                if (returnDuration > 0)
-                {
-                    Tween returnTween = enemyGO.transform.DOMove(originalEnemyPos, returnDuration).SetEase(Ease.InQuad);
-                    yield return returnTween.WaitForCompletion(); // Đợi quay về xong
-                                                                  // (Tùy chọn: Giảm Sorting Order về mặc định)
-                }
-                // --- KẾT THÚC DI CHUYỂN VỀ ---
             }
             // Kiểm tra Player có chết sau đòn đánh này không
             if (playerCharacter.currentHP <= 0)
@@ -1374,12 +1335,129 @@ public class BattleManager : MonoBehaviour
     #endregion
 
     #region Helpers
-    /// <summary>
-    /// Moves the persistent player back under the GameManager before leaving the battle scene.
-    /// Without this the player instance stays parented to the battle scene's slot and gets
-    /// destroyed when the scene unloads, causing the missing player on the map.
-    /// </summary>
-    void RestorePersistentPlayer()
+    #region Skill VFX
+    
+    /// <summary>
+    /// Spawns skill VFX at the appropriate target location
+    /// For buff skills (Self/AllAlly), VFX will track the character
+    /// For attacking skills (SingleEnemy/AllEnemies), VFX spawns at target position
+    /// </summary>
+    private void SpawnSkillVFX(SkillData skill, int enemyIndex)
+    {
+        if (skill == null || skill.vfxPrefab == null)
+        {
+            return; // No VFX to spawn
+        }
+        
+        // Find canvas for VFX parent
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BATTLE] No Canvas found for skill VFX!");
+            return;
+        }
+        
+        switch (skill.target)
+        {
+            case TargetType.Self:
+            case TargetType.AllAlly:
+                // Buff skills: Spawn VFX on player and make it track the character
+                if (playerCharacter != null)
+                {
+                    SpawnTrackingVFX(skill.vfxPrefab, playerCharacter, canvas.transform);
+                }
+                break;
+                
+            case TargetType.SingleEnemy:
+                // Attacking skill: Spawn VFX at enemy position
+                if (enemyIndex >= 0 && enemyIndex < enemyInstances.Length && enemyInstances[enemyIndex] != null)
+                {
+                    var target = enemyInstances[enemyIndex].GetComponent<Character>();
+                    if (target != null)
+                    {
+                        SpawnPositionVFX(skill.vfxPrefab, target, canvas.transform);
+                    }
+                }
+                break;
+                
+            case TargetType.AllEnemies:
+                // AOE skill: Spawn VFX on all enemies
+                for (int i = 0; i < enemyInstances.Length; i++)
+                {
+                    if (enemyInstances[i] != null)
+                    {
+                        var target = enemyInstances[i].GetComponent<Character>();
+                        if (target != null)
+                        {
+                            SpawnPositionVFX(skill.vfxPrefab, target, canvas.transform);
+                        }
+                    }
+                }
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Spawns a VFX that tracks the character (for buff skills)
+    /// </summary>
+    private void SpawnTrackingVFX(GameObject vfxPrefab, Character target, Transform canvasTransform)
+    {
+        if (vfxPrefab == null || target == null) return;
+        
+        Vector3 spawnPosition = GetCharacterUIPosition(target);
+        GameObject vfx = Instantiate(vfxPrefab, canvasTransform);
+        vfx.transform.position = spawnPosition;
+        
+        // Add VFXTracker component to make it follow the character
+        VFXTracker tracker = vfx.GetComponent<VFXTracker>();
+        if (tracker == null)
+        {
+            tracker = vfx.AddComponent<VFXTracker>();
+        }
+        tracker.targetCharacter = target;
+        
+        Debug.Log($"[BATTLE] Spawned tracking VFX for {target.name}");
+    }
+    
+    /// <summary>
+    /// Spawns a VFX at the character's position (for attacking skills)
+    /// </summary>
+    private void SpawnPositionVFX(GameObject vfxPrefab, Character target, Transform canvasTransform)
+    {
+        if (vfxPrefab == null || target == null) return;
+        
+        Vector3 spawnPosition = GetCharacterUIPosition(target);
+        GameObject vfx = Instantiate(vfxPrefab, canvasTransform);
+        vfx.transform.position = spawnPosition;
+        
+        Debug.Log($"[BATTLE] Spawned VFX at {target.name} position");
+    }
+    
+    /// <summary>
+    /// Gets the UI position of a character for VFX spawning
+    /// </summary>
+    private Vector3 GetCharacterUIPosition(Character character)
+    {
+        if (character == null) return Vector3.zero;
+        
+        // Try to get the character's UI Image position first
+        if (character.characterImage != null)
+        {
+            return character.characterImage.transform.position;
+        }
+        
+        // Fallback to transform position
+        return character.transform.position;
+    }
+    
+    #endregion
+
+    /// <summary>
+    /// Moves the persistent player back under the GameManager before leaving the battle scene.
+    /// Without this the player instance stays parented to the battle scene's slot and gets
+    /// destroyed when the scene unloads, causing the missing player on the map.
+    /// </summary>
+    void RestorePersistentPlayer()
     {
         if (GameManager.Instance == null) return;
 

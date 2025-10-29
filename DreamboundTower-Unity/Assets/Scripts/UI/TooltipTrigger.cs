@@ -5,7 +5,7 @@ using Presets;
 
 // Định nghĩa các event mới có thể gửi dữ liệu đi
 [System.Serializable] public class ItemTooltipEvent : UnityEvent<GearItem> { }
-[System.Serializable] public class SkillTooltipEvent : UnityEvent<BaseSkillSO, RectTransform> { }
+[System.Serializable] public class SkillTooltipEvent : UnityEvent<BaseSkillSO> { }
 
 public class TooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
@@ -23,17 +23,26 @@ public class TooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         // Kiểm tra loại dữ liệu và phát sóng sự kiện tương ứng
         if (dataToShow is GearItem item)
         {
-            OnItemHoverEnter.Invoke(item);
+            if (OnItemHoverEnter != null)
+            {
+                OnItemHoverEnter.Invoke(item);
+            }
         }
         else if (dataToShow is BaseSkillSO skill)
         {
-            OnSkillHoverEnter.Invoke(skill, transform as RectTransform);
+            if (OnSkillHoverEnter != null)
+            {
+                OnSkillHoverEnter.Invoke(skill);
+            }
         }
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         // Luôn phát sóng tín hiệu Exit
-        OnHoverExit.Invoke();
+        if (OnHoverExit != null)
+        {
+            OnHoverExit.Invoke();
+        }
     }
 }

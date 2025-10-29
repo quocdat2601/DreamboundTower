@@ -86,7 +86,7 @@ public class PlayerHUDController : MonoBehaviour
                 if (trigger != null)
                 {
                     trigger.dataToShow = skillSO;
-                    trigger.OnSkillHoverEnter.AddListener((skill, rect) => {
+                    trigger.OnSkillHoverEnter.AddListener((skill) => {
 
                         StatBlock statsToDisplay = new StatBlock(); // Tạo một StatBlock rỗng làm phương án dự phòng
 

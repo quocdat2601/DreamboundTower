@@ -84,14 +84,14 @@ public class BattleUIManager : MonoBehaviour
                 trigger.OnHoverExit.RemoveAllListeners();
 
                 // 2. Thêm listener nâng cao của BattleUIManager
-                trigger.OnSkillHoverEnter.AddListener(ShowTooltip);
+                trigger.OnSkillHoverEnter.AddListener((skill) => ShowTooltip(skill));
                 trigger.OnHoverExit.AddListener(HideTooltip);
             }
         }
         Debug.Log($"[BattleUI] Đã kết nối sự kiện cho {spawnedSkillIcons.Count} skill icons.");
     }
 
-    public void ShowTooltip(BaseSkillSO skill, RectTransform iconTransform)
+    public void ShowTooltip(BaseSkillSO skill)
     {
         Character playerCharacter = battleManager.GetPlayerCharacter();
         if (playerCharacter == null) return;

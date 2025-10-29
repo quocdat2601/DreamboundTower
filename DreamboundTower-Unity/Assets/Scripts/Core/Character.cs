@@ -911,15 +911,67 @@ public class Character : MonoBehaviour
     
     /// <summary>
     /// Plays attack animation when character attacks
+    /// Includes a small lunge movement
     /// </summary>
     public void PlayAttackAnimation()
     {
-        if (characterImage != null)
+        if (characterImage == null) return;
+        
+        RectTransform rectTransform = transform as RectTransform;
+        float lungeDistance = 50f; // Lunge distance (in UI units)
+        
+        // Default: move slightly right if player, left if enemy
+        Vector2 lungeDirection = new Vector2(isPlayer ? lungeDistance : -lungeDistance, 0);
+        
+        Vector2 originalAnchoredPosition;
+        if (rectTransform != null)
         {
-            // Scale up briefly for attack
-            transform.DOScale(1.1f, 0.1f)
-                .OnComplete(() => transform.DOScale(1f, 0.1f));
+            originalAnchoredPosition = rectTransform.anchoredPosition;
         }
+        else
+        {
+            // Fallback to position if not RectTransform
+            Vector3 originalPos = transform.position;
+            originalAnchoredPosition = new Vector2(originalPos.x, originalPos.y);
+        }
+        
+        // Create attack animation sequence
+        Sequence attackSequence = DOTween.Sequence();
+        
+        // Scale up slightly
+        attackSequence.Join(transform.DOScale(1.1f, 0.08f));
+        
+        // Small lunge forward
+        if (rectTransform != null)
+        {
+            // For UI elements, use anchoredPosition
+            attackSequence.Join(DOTween.To(() => rectTransform.anchoredPosition, 
+                x => rectTransform.anchoredPosition = x, 
+                originalAnchoredPosition + lungeDirection, 0.1f)
+                .SetEase(Ease.OutQuad));
+        }
+        else
+        {
+            // For world space objects, use position
+            attackSequence.Join(transform.DOMove(
+                (Vector3)originalAnchoredPosition + (Vector3)lungeDirection, 0.1f)
+                .SetEase(Ease.OutQuad));
+        }
+        
+        // Return to original position and scale
+        if (rectTransform != null)
+        {
+            attackSequence.Append(DOTween.To(() => rectTransform.anchoredPosition, 
+                x => rectTransform.anchoredPosition = x, 
+                originalAnchoredPosition, 0.1f)
+                .SetEase(Ease.InQuad));
+        }
+        else
+        {
+            attackSequence.Append(transform.DOMove((Vector3)originalAnchoredPosition, 0.1f)
+                .SetEase(Ease.InQuad));
+        }
+        attackSequence.Join(transform.DOScale(1f, 0.1f));
     }
     
     /// <summary>
