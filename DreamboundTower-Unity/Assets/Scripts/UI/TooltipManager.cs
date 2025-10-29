@@ -1,8 +1,9 @@
-﻿using UnityEngine;
-using TMPro;
+﻿using Presets; // Cần thiết để nhận biết BaseSkillSO và GearItem
 using System.Text;
-using Presets; // Cần thiết để nhận biết BaseSkillSO và GearItem
+using TMPro;
+using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class TooltipManager : MonoBehaviour
 {
@@ -14,6 +15,7 @@ public class TooltipManager : MonoBehaviour
     public TextMeshProUGUI itemHeaderCostText;
     public Transform statContainer; // Kéo panel "Main" có Grid Layout vào đây
     public GameObject statTextPrefab; // Kéo prefab TextMeshPro cho chỉ số vào đây
+    public GameObject itemDescriptionGO;
     public TextMeshProUGUI itemDescriptionText;
     private RectTransform itemTooltipRect;
 
@@ -113,29 +115,51 @@ public class TooltipManager : MonoBehaviour
 
     public void ShowItemTooltip(GearItem item)
     {
+        // Kiểm tra null ban đầu (giữ nguyên)
         if (item == null || itemTooltipPanel == null) return;
 
+        // Ẩn tooltip khác và set active (giữ nguyên)
         HideAllTooltips();
         activeTooltipRect = itemTooltipRect;
-        // Cập nhật Header
-        itemHeaderNameText.text = item.itemName;
-        itemHeaderCostText.text = item.basePrice.ToString();
 
-        // Dọn dẹp và tạo các dòng chỉ số mới
+        // Cập nhật Header (giữ nguyên)
+        if (itemHeaderNameText) itemHeaderNameText.text = item.itemName;
+        if (itemHeaderCostText) itemHeaderCostText.text = item.basePrice.ToString(); // Thêm .ToString() nếu basePrice là số
+
+        // Dọn dẹp và tạo các dòng chỉ số mới (giữ nguyên)
         PopulateStats(item);
 
-        // Cập nhật mô tả
-        if (!string.IsNullOrEmpty(item.description))
+        // --- SỬA LOGIC ẨN/HIỆN DESCRIPTION ---
+        if (itemDescriptionGO != null) // Kiểm tra GameObject cha
         {
-            itemDescriptionText.gameObject.SetActive(true);
-            itemDescriptionText.text = item.description;
+            // Kiểm tra xem description có rỗng hay null không
+            if (string.IsNullOrEmpty(item.description))
+            {
+                // Nếu rỗng -> Ẩn GameObject CHA ("ItemDescription")
+                itemDescriptionGO.SetActive(false);
+                if (itemDescriptionText != null) itemDescriptionText.text = ""; // Xóa text cũ (an toàn)
+            }
+            else
+            {
+                // Nếu có nội dung -> Hiện GameObject CHA
+                itemDescriptionGO.SetActive(true);
+                // Gán Text vào component con
+                if (itemDescriptionText != null) itemDescriptionText.text = item.description;
+            }
         }
-        else
+        // --- KẾT THÚC SỬA ---
+
+        // Hiện Panel chính
+        itemTooltipPanel.SetActive(true);
+
+        // QUAN TRỌNG: Buộc tính toán lại layout NGAY LẬP TỨC
+        if (itemTooltipRect != null)
         {
-            itemDescriptionText.gameObject.SetActive(false);
+            // Phải gọi sau khi đã SetActive và điền hết data
+            LayoutRebuilder.ForceRebuildLayoutImmediate(itemTooltipRect);
         }
 
-        itemTooltipPanel.SetActive(true);
+        // (Hàm UpdatePosition() sẽ chạy sau để đặt tooltip đúng chỗ)
     }
 
     // Hàm này sẽ được gọi từ BattleUIManager sau khi refactor
