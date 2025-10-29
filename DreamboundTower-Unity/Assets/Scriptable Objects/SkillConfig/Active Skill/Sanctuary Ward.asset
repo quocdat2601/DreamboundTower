@@ -15,9 +15,9 @@ MonoBehaviour:
   id: cleric_sanctuary_ward
   displayName: Sanctuary Ward
   icon: {fileID: 5527117462476026276, guid: 3fcb4158b82d07443b4cad9d990c9009, type: 3}
-  descriptionTemplate: Grant a shield that absorbs {shield_amount} damage (15% MaxHP)
-    for 2 turns and removes 1 negative status. Outgoing heals are +10% more effective
-    while the shield is active.
+  descriptionTemplate: Grant a shield that absorbs {shield_value} {shield_scaling}
+    damage for {duration} turns and removes 1 negative status. Outgoing heals are
+    +10% more effective while the shield is active.
   resource: 1
   cost: 10
   cooldown: 5
@@ -32,10 +32,14 @@ MonoBehaviour:
   healPercent: 0
   lifesteal: 0
   lifestealPercent: 0
+  healScalingStat: 6
+  healScalingPercent: 0
   shieldAmount: 0
   shieldPercent: 0.15
   shieldDuration: 2
   reflectPercent: 0
+  shieldScalingStat: 3
+  shieldScalingPercent: 0.15
   statusEffectsToApply: []
   statusEffectsToRemove: []
   statusEffectDuration: 0

@@ -15,8 +15,8 @@ MonoBehaviour:
   id: cleric_sanctified_strike
   displayName: Sanctified Strike
   icon: {fileID: 21300000, guid: 720336132a19dcc4b9e2dfec5acb2d6a, type: 3}
-  descriptionTemplate: Deals {damage} magic damage and heals you for 20% of the damage
-    dealt.
+  descriptionTemplate: Deals {damage} {scaling_info} magic damage and heals you for
+    20% of the damage dealt.
   resource: 1
   cost: 8
   cooldown: 3
@@ -31,10 +31,14 @@ MonoBehaviour:
   healPercent: 0
   lifesteal: 1
   lifestealPercent: 0.2
+  healScalingStat: 6
+  healScalingPercent: 0
   shieldAmount: 0
   shieldPercent: 0
   shieldDuration: 0
   reflectPercent: 0
+  shieldScalingStat: 6
+  shieldScalingPercent: 0
   statusEffectsToApply: []
   statusEffectsToRemove: []
   statusEffectDuration: 0

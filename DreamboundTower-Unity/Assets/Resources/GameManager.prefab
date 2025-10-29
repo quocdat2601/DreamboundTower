@@ -915,7 +915,7 @@ MonoBehaviour:
     availableEventPool: []
   playerInstance: {fileID: 0}
   fallbackRace: {fileID: 11400000, guid: 75d22c60321de4745970bd6c442e1405, type: 2}
-  fallbackClass: {fileID: 11400000, guid: 90e79aba28f500149afc71761a9cde05, type: 2}
+  fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
   overridePlayerStats: 1
   customPlayerStats:
     HP: 100

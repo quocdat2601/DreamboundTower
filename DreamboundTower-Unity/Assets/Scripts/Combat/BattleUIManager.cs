@@ -84,7 +84,7 @@ public class BattleUIManager : MonoBehaviour
                 trigger.OnHoverExit.RemoveAllListeners();
 
                 // 2. Thêm listener nâng cao của BattleUIManager
-                trigger.OnSkillHoverEnter.AddListener((skill) => ShowTooltip(skill));
+                trigger.OnSkillHoverEnter.AddListener(ShowTooltip);
                 trigger.OnHoverExit.AddListener(HideTooltip);
             }
         }
