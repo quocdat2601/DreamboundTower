@@ -65,7 +65,8 @@ public class BattleManager : MonoBehaviour
     public EnemyInfoPanel enemyInfoPanel; // Tham chiếu đến script panel (Từ Bước 3)
     public Button inspectTagButton; // Nút "Tag" duy nhất (Từ Bước 2)
     public TextMeshProUGUI inspectTagButtonText; // Text bên trong nút Tag
-    
+    public Button attackButton;
+
     [Header("Status Effect Display")]
     public GameObject statusEffectIconPrefab; // Prefab for status effect icons
     public StatusEffectIconDatabase statusEffectIconDatabase; // Database of status effect icons
@@ -880,79 +881,112 @@ public class BattleManager : MonoBehaviour
     #endregion
 
     #region Turn Coroutines
-
     IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
-        // Lấy target và kiểm tra null (Giữ nguyên)
-        GameObject targetGO = enemyInstances[enemyIndex];
-        if (playerInstance == null || targetGO == null) yield break;
+        // --- Kiểm tra target ban đầu ---
+        if (enemyIndex < 0 || enemyIndex >= enemyInstances.Length || enemyInstances[enemyIndex] == null) yield break;
+        GameObject targetGO = enemyInstances[enemyIndex]; // Lưu target ban đầu
         var target = targetGO.GetComponent<Character>();
-        if (target == null) yield break;
+        if (playerInstance == null || target == null) yield break;
 
-        // --- LOGIC ANIMATION VÀ ATTACK ---
-        playerTurn = false; // Bắt đầu hành động, tạm khóa tương tác
+        // --- Khóa UI ---
+        if (attackButton != null) attackButton.interactable = false;
 
+        // --- Animation và Attack ---
         Vector3 originalPlayerPos = playerInstance.transform.position;
+        // ... (Code di chuyển đến, tính moveDuration) ...
         Vector3 targetEnemyPos = targetGO.transform.position;
         Vector3 directionToEnemy = (targetEnemyPos - originalPlayerPos).normalized;
         Vector3 attackPosition = targetEnemyPos - directionToEnemy * attackOffset;
-
-        // Di chuyển đến
         float distance = Vector3.Distance(originalPlayerPos, attackPosition);
         float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
         if (moveDuration > 0)
         {
-            // (Tùy chọn: Tăng Sorting Order hoặc SetAsLastSibling ở đây nếu cần)
             Tween moveTween = playerInstance.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
             yield return moveTween.WaitForCompletion();
         }
 
-        // Tấn công
-        playerCharacter.Attack(target); // Gây sát thương
 
-        // Chờ delay ngắn KHI đang ở vị trí tấn công
+        // --- KIỂM TRA SPLIT TRƯỚC KHI GÂY SÁT THƯƠNG ---
+        // (Kiểm tra này có thể không cần thiết nếu SplitBehavior đáng tin cậy)
+        // Lưu HP trước
+        int hpBeforeAttack = target.currentHP;
+        // Lấy SplitBehavior (nếu có)
+        SplitBehavior splitBehavior = targetGO.GetComponent<SplitBehavior>();
+        bool targetCanSplit = splitBehavior != null && !splitBehavior.hasSplit;
+        int splitThresholdHP = 0;
+        if (targetCanSplit) splitThresholdHP = Mathf.RoundToInt(target.maxHP * splitBehavior.splitHealthThreshold);
+        // ---
+
+        playerCharacter.Attack(target); // Gây sát thương -> Có thể trigger SplitBehavior.HandleDamage() ở đây
+
+        // Chờ delay ngắn
         yield return new WaitForSeconds(attackDelay);
 
-        // Di chuyển về
-        float returnDuration = (moveSpeed > 0) ? Vector3.Distance(playerInstance.transform.position, originalPlayerPos) / moveSpeed : 0f;
-        if (returnDuration > 0)
+        // --- KIỂM TRA VÀ ĐỢI SPLIT SAU KHI GÂY SÁT THƯƠNG ---
+        // Kiểm tra xem target ban đầu có còn tồn tại không VÀ HP có giảm qua ngưỡng không
+        if (targetCanSplit && // Nó có khả năng Split
+            hpBeforeAttack > splitThresholdHP && // HP trước đó trên ngưỡng
+            (targetGO == null || target.currentHP <= 0 || target.currentHP <= splitThresholdHP)) // Target đã bị hủy HOẶC HP đã dưới ngưỡng
+                                                                                                 // (Kiểm tra targetGO == null là quan trọng nhất nếu SplitBehavior gọi HandleSplit đáng tin cậy)
         {
-            Tween returnTween = playerInstance.transform.DOMove(originalPlayerPos, returnDuration).SetEase(Ease.InQuad);
-            yield return returnTween.WaitForCompletion();
-            // (Tùy chọn: Giảm Sorting Order về mặc định ở đây nếu đã tăng)
+            // Có vẻ Split đã được kích hoạt bởi SplitBehavior.HandleDamage -> BattleManager.HandleSplit
+            Debug.Log($"[BATTLE] Attack seems to have triggered Split for {target.name}. Waiting for SplitRoutine...");
+
+            // Cần một cách để đợi Coroutine được gọi từ SplitBehavior.
+            // Cách đơn giản nhất là đợi một khoảng thời gian đủ để SplitRoutine chạy xong.
+            // Thời gian này nên dài hơn 1.1s (animation chết) + thời gian spawn.
+            float splitWaitTime = 1.5f; // Ví dụ: đợi 1.5 giây
+            yield return new WaitForSeconds(splitWaitTime);
+
+            // Hoặc, cách tốt hơn: BattleManager có thể lưu lại Coroutine đang chạy từ HandleSplit
+            // Coroutine currentSplitCoroutine = null; // Biến thành viên của BattleManager
+            // Trong HandleSplit: currentSplitCoroutine = StartCoroutine(...)
+            // Ở đây: if (currentSplitCoroutine != null) yield return currentSplitCoroutine;
+            Debug.Log("[BATTLE] Assumed SplitRoutine finished. Continuing PlayerAttackRoutine.");
         }
-        // --- KẾT THÚC ANIMATION VÀ ATTACK ---
+        // --- KẾT THÚC KIỂM TRA VÀ ĐỢI SPLIT ---
 
-        // --- XỬ LÝ SAU KHI HÀNH ĐỘNG KẾT THÚC ---
 
-        // 1. Kiểm tra thắng ngay lập tức
+        // --- Di chuyển về (Luôn thực hiện) ---
+        float returnDuration = 0f;
+        if (playerInstance.transform.position != originalPlayerPos)
+        {
+            returnDuration = (moveSpeed > 0) ? Vector3.Distance(playerInstance.transform.position, originalPlayerPos) / moveSpeed : 0f;
+            if (returnDuration > 0)
+            {
+                Tween returnTween = playerInstance.transform.DOMove(originalPlayerPos, returnDuration).SetEase(Ease.InQuad);
+                yield return returnTween.WaitForCompletion();
+            }
+        }
+
+
+        // --- XỬ LÝ SAU KHI HÀNH ĐỘNG VÀ SPLIT (NẾU CÓ) ĐÃ XONG ---
+        // Bây giờ mới kiểm tra thắng (bao gồm cả trường hợp giết quái Split cuối cùng)
         if (AllEnemiesDead())
         {
+            if (attackButton != null) attackButton.interactable = true; // Mở khóa trước khi thắng
             yield return StartCoroutine(VictoryRoutine());
-            yield break; // Kết thúc hoàn toàn
+            yield break;
         }
 
-        // 2. Gọi hàm kiểm tra lượt thêm (Logic gốc của bạn)
-        // Giả sử hàm này sẽ set playerHasExtraTurn = true/false
-        CheckForDoubleAction(); // <--- Gọi hàm check của bạn ở đây
+        CheckForDoubleAction(); // Kiểm tra lượt thêm
 
-        // 3. Xử lý lượt thêm (Logic gốc của bạn)
-        if (playerHasExtraTurn) // Kiểm tra cờ
+        if (playerHasExtraTurn) // Có lượt thêm?
         {
-            playerHasExtraTurn = false; // Dùng mất lượt thêm
-            playerTurn = true; // Player giữ lượt để hành động tiếp
-            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! Taking another action!</color>");
-            // (Hiệu ứng UI/Sound nếu muốn)
-            yield break; // Kết thúc coroutine này, không chạy phần còn lại (EnemyTurn, EndTurn...)
+            playerHasExtraTurn = false;
+            playerTurn = true; // Giữ lượt Player
+            if (attackButton != null) attackButton.interactable = true; // Mở khóa UI
+            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn!...</color>");
+            yield break; // Dừng coroutine, Player hành động tiếp
         }
 
         // 4. Nếu KHÔNG có lượt thêm: Chờ khoảng nghỉ ngắn
         yield return new WaitForSeconds(playerActionEndDelay); // Đợi trước khi địch đánh
 
-        // ✅ ẨN KHUNG VÀNG TRƯỚC KHI BẮT ĐẦU LƯỢT ENEMY
+        playerTurn = false;
         HideSelectionVisual();
         // 5. Bắt đầu lượt của Enemy (Logic gốc của bạn)
-        // playerTurn = false; // Đã set ở đầu rồi
         yield return StartCoroutine(EnemyTurnRoutine());
 
         // 6. Xử lý cuối lượt chung (Logic gốc của bạn, chạy SAU EnemyTurn)
@@ -960,6 +994,7 @@ public class BattleManager : MonoBehaviour
         if (skillManager != null) { skillManager.ReduceSkillCooldowns(); }
         currentTurn++;
         playerTurn = true; // Player nhận lại lượt cho turn KẾ TIẾP
+        if (attackButton != null) attackButton.interactable = true;
         UpdateTurnDisplay();
         NotifyCharactersOfNewTurn(currentTurn);
         // ✅ HIỆN LẠI KHUNG VÀNG (NẾU CÓ MỤC TIÊU CŨ VÀ CÒN SỐNG)
@@ -1004,7 +1039,6 @@ public class BattleManager : MonoBehaviour
                 selectedSkill = null;
                 yield break;
             }
-            
             // Skills don't end the player's turn - player can continue using skills/attacks
             
             // Use the skill (consumes mana and sets cooldown)
@@ -1355,64 +1389,43 @@ public class BattleManager : MonoBehaviour
     /// </summary>
     private IEnumerator SplitRoutine(Character originalSlime, EnemyTemplateSO templateToSpawn)
     {
-        // 1. Tìm slot và HP TỐI ĐA của con quái gốc
+        Debug.Log($"[BATTLE] Starting SplitRoutine for {originalSlime.name}");
+
+        // 1. Tìm slot và HP gốc (Giữ nguyên)
         int originalSlotIndex = -1;
-        int originalMaxHP = originalSlime.maxHP; // Lấy HP GỐC
+        int originalMaxHP = originalSlime.maxHP;
+        GameObject originalGO = originalSlime.gameObject; // Lưu GameObject để kiểm tra null sau Destroy
+        for (int i = 0; i < enemyInstances.Length; i++) { if (enemyInstances[i] == originalGO) { originalSlotIndex = i; break; } }
+        if (originalSlotIndex == -1) { Debug.LogError("SplitRoutine: Cannot find original enemy!"); yield break; }
 
-        for (int i = 0; i < enemyInstances.Length; i++)
-        {
-            if (enemyInstances[i] != null && enemyInstances[i] == originalSlime.gameObject)
-            {
-                originalSlotIndex = i;
-                break;
-            }
-        }
+        // --- KHÔNG QUẢN LÝ LƯỢT Ở ĐÂY ---
 
-        if (originalSlotIndex == -1)
-        {
-            Debug.LogError("[BATTLE] Không tìm thấy quái gốc để tách!");
-            yield break;
-        }
-
-        // 2. Giết con quái gốc (mà không kích hoạt VictoryRoutine)
-        originalSlime.OnDeath -= HandleCharacterDeath; // (Rất quan trọng)
+        // 2. Giết quái gốc
+        originalSlime.OnDeath -= HandleCharacterDeath; // Hủy đăng ký trước khi kill
         originalSlime.PlayDeathAnimation();
+        yield return new WaitForSeconds(1.1f); // Đợi animation
 
-        yield return new WaitForSeconds(1.1f); // Đợi animation chết
+        // 3. Dọn dẹp quái gốc
+        // Chỉ Destroy nếu GameObject gốc vẫn còn (phòng lỗi)
+        if (originalGO != null) Destroy(originalGO);
+        // Cập nhật mảng ngay sau khi Destroy logic xảy ra
+        if (originalSlotIndex >= 0 && originalSlotIndex < enemyInstances.Length) enemyInstances[originalSlotIndex] = null;
+        if (originalSlotIndex >= 0 && originalSlotIndex < enemyTemplates.Length) enemyTemplates[originalSlotIndex] = null;
+        if (selectedEnemyIndex == originalSlotIndex) selectedEnemyIndex = -1;
 
-        // 3. Dọn dẹp con quái gốc và giải phóng slot
-        Destroy(originalSlime.gameObject);
-        enemyInstances[originalSlotIndex] = null; // Slot 1 (đã trống)
-
-        // 4. Tìm SLOT 2 (slot trống bất kỳ khác slot gốc)
+        // 4. Tìm slot 2 (Giữ nguyên)
         int secondSlotIndex = -1;
-        for (int i = 0; i < enemyInstances.Length; i++)
-        {
-            // Nếu slot này trống VÀ không phải là slot gốc
-            if (i != originalSlotIndex && enemyInstances[i] == null)
-            {
-                secondSlotIndex = i;
-                break; // Chỉ cần 1 slot
-            }
-        }
+        for (int i = 0; i < enemyInstances.Length; i++) { if (i != originalSlotIndex && enemyInstances[i] == null) { secondSlotIndex = i; break; } }
 
-        // 5. Tính HP cho quái mới (50% HP GỐC)
+        // 5. Tính HP mới (Giữ nguyên)
         int newHP = Mathf.Max(1, Mathf.RoundToInt(originalMaxHP * 0.5f));
 
-        // 6. Spawn Quái 1 (vào slot gốc)
-        Debug.Log($"[BATTLE] Spawning quái tách ra ở slot {originalSlotIndex} với {newHP} HP");
+        // 6. Spawn Quái 1 & 2 (Giữ nguyên)
         SpawnIndividualSplitEnemy(originalSlotIndex, templateToSpawn, newHP);
+        if (secondSlotIndex != -1) { SpawnIndividualSplitEnemy(secondSlotIndex, templateToSpawn, newHP); }
 
-        // 7. Spawn Quái 2 (vào slot thứ 2, NẾU tìm thấy)
-        if (secondSlotIndex != -1)
-        {
-            Debug.Log($"[BATTLE] Spawning quái tách ra ở slot {secondSlotIndex} với {newHP} HP");
-            SpawnIndividualSplitEnemy(secondSlotIndex, templateToSpawn, newHP);
-        }
-        else
-        {
-            Debug.LogWarning("[BATTLE] Không tìm thấy slot trống thứ 2, chỉ tách ra 1 quái mới.");
-        }
+        Debug.Log($"[BATTLE] SplitRoutine finished spawning.");
+        // --- KHÔNG GỌI ENEMY TURN HAY XỬ LÝ CUỐI LƯỢT ---
     }
 
     /// <summary>
