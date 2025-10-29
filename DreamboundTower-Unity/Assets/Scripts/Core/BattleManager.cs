@@ -420,7 +420,7 @@ public class BattleManager : MonoBehaviour
             else if (finalTemplate != null)
             {
                 StatBlock finalStats = finalTemplate.GetStatsAtFloor(absoluteFloor);
-                ApplyEnemyData(enemyGO, finalStats, finalTemplate, false);
+                ApplyEnemyData(enemyGO, finalStats, finalTemplate, false, true);
             }
             else
             {
@@ -439,7 +439,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template, bool isSplitChild = false)
+    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template, bool isSplitChild = false, bool allowSummonerGimmick = true)
     {
         if (enemyGO == null) return;
 
@@ -536,7 +536,23 @@ public class BattleManager : MonoBehaviour
         {
             enemyGO.AddComponent<RegeneratorBehavior>();
         }
-        
+
+        // Gimmick: Summoner
+        // Sửa lại điều kiện if này:
+        if (allowSummonerGimmick && !isSplitChild && (template.gimmick & EnemyGimmick.Summoner) != 0)
+        {
+            // Kiểm tra xem có danh sách triệu hồi không
+            if (template.summonableEnemies != null && template.summonableEnemies.Count > 0)
+            {
+                var summoner = enemyGO.AddComponent<SummonerBehavior>();
+                summoner.SetSummonList(template.summonableEnemies); // Gán danh sách
+                Debug.Log($"[BATTLE] Đã gán SummonerBehavior cho {enemyGO.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"[BATTLE] {template.name} có gimmick Summoner nhưng danh sách summonableEnemies rỗng!");
+            }
+        }
         // Set up status effect display for enemy
         SetupEnemyStatusEffectDisplay(enemyGO);
     }
@@ -1180,43 +1196,71 @@ public class BattleManager : MonoBehaviour
             var enemyChar = enemyGO.GetComponent<Character>();
             if (enemyChar == null || playerCharacter == null) continue; // Bỏ qua nếu không lấy được Character
 
-            // --- LOGIC ANIMATION ENEMY BẮT ĐẦU ---
-            Vector3 originalEnemyPos = enemyGO.transform.position; // Lưu vị trí gốc của Enemy
-            Vector3 targetPlayerPos = playerInstance.transform.position; // Vị trí Player
+            // --- ✅ THÔNG BÁO LƯỢT HIỆN TẠI CHO ENEMY NÀY ---
+            // Gửi message "OnNewTurnStarted" đến CHỈ enemy hiện tại
+            // Dùng SendMessage thay vì NotifyCharactersOfNewTurn để tránh spam các enemy khác
+            enemyGO.SendMessage("OnNewTurnStarted", currentTurn, SendMessageOptions.DontRequireReceiver);
+            // --- KẾT THÚC THÔNG BÁO ---
 
-            // Tính vị trí đích (đến GẦN Player, có offset)
-            Vector3 directionToPlayer = (targetPlayerPos - originalEnemyPos).normalized;
-            Vector3 attackPosition = targetPlayerPos - directionToPlayer * attackOffset; // Dùng offset chung
+            bool enemyActed = false; // Cờ đánh dấu
 
-            // Di chuyển Enemy đến vị trí tấn công
-            float distance = Vector3.Distance(originalEnemyPos, attackPosition);
-            float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
-            if (moveDuration > 0)
+            // --- KIỂM TRA SUMMONER ---
+            SummonerBehavior summoner = enemyGO.GetComponent<SummonerBehavior>();
+            // Hàm TryConsumeSummonIntent() sẽ đọc cờ wantsToSummon (được set bởi OnNewTurnStarted vừa gọi)
+            if (summoner != null && summoner.TryConsumeSummonIntent())
             {
-                // (Tùy chọn: Tăng Sorting Order hoặc SetAsLastSibling)
-                Tween moveTween = enemyGO.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
-                yield return moveTween.WaitForCompletion(); // Đợi di chuyển xong
+                Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Đang thử triệu hồi (Turn {currentTurn})...</color>"); // Thêm log Turn
+                bool summonSuccess = AttemptSummon(enemyChar, summoner.GetSummonableEnemies());
+
+                if (summonSuccess)
+                {
+                    Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Triệu hồi thành công!</color>");
+                    enemyActed = true;
+                    yield return new WaitForSeconds(attackDelay); // Chờ sau khi summon
+                }
+                else
+                {
+                    Debug.Log($"<color=orange>[{enemyChar.name}] SUMMONER: Triệu hồi thất bại (Turn {currentTurn}). Sẽ tấn công.</color>"); // Thêm log Turn
+                }
             }
-            // --- KẾT THÚC DI CHUYỂN ĐẾN ---
-            AudioManager.Instance?.PlayAttackSFX();
-            // --- Thực hiện đòn đánh của Enemy ---
-            enemyChar.Attack(playerCharacter); // Enemy tấn công Player
-
-            // Chờ một chút sau khi đánh (dùng attackDelay)
-            yield return new WaitForSeconds(attackDelay);
-            // --- KẾT THÚC ĐÒN ĐÁNH ---
-
-            // --- LOGIC ANIMATION ENEMY KẾT THÚC ---
-            // Di chuyển Enemy về vị trí cũ
-            float returnDuration = (moveSpeed > 0) ? Vector3.Distance(enemyGO.transform.position, originalEnemyPos) / moveSpeed : 0f;
-            if (returnDuration > 0)
+            if (!enemyActed)
             {
-                Tween returnTween = enemyGO.transform.DOMove(originalEnemyPos, returnDuration).SetEase(Ease.InQuad);
-                yield return returnTween.WaitForCompletion(); // Đợi quay về xong
-                                                              // (Tùy chọn: Giảm Sorting Order về mặc định)
-            }
-            // --- KẾT THÚC DI CHUYỂN VỀ ---
+                // --- LOGIC ANIMATION ENEMY BẮT ĐẦU ---
+                Vector3 originalEnemyPos = enemyGO.transform.position; // Lưu vị trí gốc của Enemy
+                Vector3 targetPlayerPos = playerInstance.transform.position; // Vị trí Player
 
+                // Tính vị trí đích (đến GẦN Player, có offset)
+                Vector3 directionToPlayer = (targetPlayerPos - originalEnemyPos).normalized;
+                Vector3 attackPosition = targetPlayerPos - directionToPlayer * attackOffset; // Dùng offset chung
+
+                // Di chuyển Enemy đến vị trí tấn công
+                float distance = Vector3.Distance(originalEnemyPos, attackPosition);
+                float moveDuration = (moveSpeed > 0) ? distance / moveSpeed : 0f;
+                if (moveDuration > 0)
+                {
+                    // (Tùy chọn: Tăng Sorting Order hoặc SetAsLastSibling)
+                    Tween moveTween = enemyGO.transform.DOMove(attackPosition, moveDuration).SetEase(Ease.OutQuad);
+                    yield return moveTween.WaitForCompletion(); // Đợi di chuyển xong
+                }
+                // --- KẾT THÚC DI CHUYỂN ĐẾN ---
+                AudioManager.Instance?.PlayAttackSFX();
+                // --- Thực hiện đòn đánh của Enemy ---
+                enemyChar.Attack(playerCharacter); // Enemy tấn công Player
+
+                // Chờ một chút sau khi đánh (dùng attackDelay)
+                yield return new WaitForSeconds(attackDelay);
+                // --- KẾT THÚC ĐÒN ĐÁNH ---
+                // --- LOGIC ANIMATION ENEMY KẾT THÚC ---
+                // Di chuyển Enemy về vị trí cũ
+                float returnDuration = (moveSpeed > 0) ? Vector3.Distance(enemyGO.transform.position, originalEnemyPos) / moveSpeed : 0f;
+                if (returnDuration > 0)
+                {
+                    Tween returnTween = enemyGO.transform.DOMove(originalEnemyPos, returnDuration).SetEase(Ease.InQuad);
+                    yield return returnTween.WaitForCompletion(); // Đợi quay về xong
+                                                                  // (Tùy chọn: Giảm Sorting Order về mặc định)
+                }
+                // --- KẾT THÚC DI CHUYỂN VỀ ---
+            }
             // Kiểm tra Player có chết sau đòn đánh này không
             if (playerCharacter.currentHP <= 0)
             {
@@ -1352,7 +1396,149 @@ public class BattleManager : MonoBehaviour
         //DontDestroyOnLoad(persistentPlayer);
         persistentPlayer.SetActive(false);
     }
+    /// <summary>
+    /// Cố gắng triệu hồi một đồng minh mới cho Summoner.
+    /// </summary>
+    /// <param name="summonerChar">Character của Summoner</param>
+    /// <param name="summonList">Danh sách các EnemyTemplateSO có thể gọi</param>
+    /// <returns>True nếu triệu hồi thành công, False nếu thất bại (hết slot).</returns>
+    private bool AttemptSummon(Character summonerChar, List<EnemyTemplateSO> summonList)
+    {
+        // 1. Tìm slot trống
+        int emptySlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] == null)
+            {
+                emptySlotIndex = i;
+                break; // Tìm thấy slot trống đầu tiên
+            }
+        }
 
+        // Nếu không còn slot trống
+        if (emptySlotIndex == -1)
+        {
+            Debug.LogWarning($"[{summonerChar.name}] SUMMONER: Không còn slot trống để triệu hồi!");
+            return false; // Triệu hồi thất bại
+        }
+
+        // 2. Chọn quái vật để triệu hồi theo logic
+        EnemyTemplateSO templateToSummon = SelectEnemyToSummon(summonList);
+
+        // Nếu không chọn được template nào (ví dụ danh sách lỗi)
+        if (templateToSummon == null)
+        {
+            Debug.LogError($"[{summonerChar.name}] SUMMONER: Không thể chọn template từ summonList!");
+            return false; // Triệu hồi thất bại
+        }
+
+        // 3. Spawn quái vật vào slot trống
+        Debug.Log($"[{summonerChar.name}] SUMMONER: Triệu hồi {templateToSummon.name} vào slot {emptySlotIndex}");
+        SpawnIndividualSummonedEnemy(emptySlotIndex, templateToSummon);
+
+        return true; // Triệu hồi thành công
+    }
+    /// <summary>
+    /// Spawn một quái vật được triệu hồi vào slot cụ thể.
+    /// </summary>
+    private void SpawnIndividualSummonedEnemy(int slotIndex, EnemyTemplateSO template)
+    {
+        if (slotIndex < 0 || slotIndex >= enemySlots.Length || template == null)
+        {
+            Debug.LogError($"[BATTLE] Lỗi tham số khi spawn quái triệu hồi: Slot={slotIndex}, Template={(template != null ? template.name : "NULL")}");
+            return;
+        }
+
+        Transform slot = enemySlots[slotIndex];
+        if (slot == null)
+        {
+            Debug.LogError($"[BATTLE] Enemy Slot {slotIndex} bị null!");
+            return;
+        }
+
+        // Đảm bảo slot được kích hoạt
+        slot.gameObject.SetActive(true);
+
+        // Lấy tầng hiện tại (để quái mới có chỉ số đúng)
+        int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+
+        // Tạo GameObject
+        var enemyGO = Instantiate(enemyPrefab, slot, false);
+        enemyGO.transform.localPosition = Vector2.zero;
+        enemyGO.transform.localScale = Vector3.one;
+        enemyGO.name = $"Enemy_{slotIndex}_{template.name}_Summoned";
+
+        // Lấy chỉ số từ template
+        StatBlock finalStats = template.GetStatsAtFloor(absoluteFloor);
+
+        // Dùng hàm ApplyEnemyData để gán chỉ số, sprite, gimmick...
+        // QUAN TRỌNG: KHÔNG truyền isSplitChild = true, để nó có thể tự add gimmick nếu cần
+        // Tuy nhiên, ApplyEnemyData nên có kiểm tra để không add SummonerBehavior nếu template có cờ Summoner,
+        // tránh triệu hồi đệ quy vô hạn. Cần sửa ApplyEnemyData một chút.
+        ApplyEnemyData(enemyGO, finalStats, template, false, false); // <<< Sẽ sửa ApplyEnemyData ở bước sau
+
+        // Hồi đầy máu (ApplyEnemyData đã làm)
+        var ch = enemyGO.GetComponent<Character>();
+        // if (ch != null) { ch.currentHP = ch.maxHP; ch.UpdateHPUI(); } // Không cần nếu ApplyEnemyData đã hồi
+
+        // Đăng ký quái mới vào mảng quản lý
+        enemyInstances[slotIndex] = enemyGO;
+        enemyTemplates[slotIndex] = template; // Lưu template của con mới
+
+        // Gán lại sự kiện click cho slot này
+        var btn = slot.GetComponent<Button>();
+        if (btn != null)
+        {
+            btn.onClick.RemoveAllListeners();
+            int idx = slotIndex;
+            btn.onClick.AddListener(() => SelectEnemy(idx));
+        }
+
+        // (Tùy chọn: Chơi animation spawn/xuất hiện cho quái mới)
+         enemyGO.transform.localScale = Vector3.zero;
+         enemyGO.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack);
+    }
+    /// <summary>
+    /// Chọn một EnemyTemplateSO từ danh sách theo tỷ lệ Normal/Elite.
+    /// </summary>
+    private EnemyTemplateSO SelectEnemyToSummon(List<EnemyTemplateSO> summonList)
+    {
+        if (summonList == null || summonList.Count == 0) return null;
+
+        // Phân loại Normal và Elite
+        List<EnemyTemplateSO> normalSummons = summonList.Where(e => e != null && e.kind == EnemyKind.Normal).ToList();
+        List<EnemyTemplateSO> eliteSummons = summonList.Where(e => e != null && e.kind == EnemyKind.Elite).ToList();
+
+        // Trường hợp đặc biệt: Chỉ có Elite
+        if (normalSummons.Count == 0 && eliteSummons.Count > 0)
+        {
+            return eliteSummons[Random.Range(0, eliteSummons.Count)]; // Chọn Elite ngẫu nhiên
+        }
+
+        // Trường hợp không có loại nào (lỗi dữ liệu?)
+        if (normalSummons.Count == 0 && eliteSummons.Count == 0)
+        {
+            return null;
+        }
+
+        // Roll tỷ lệ 80% Normal / 20% Elite
+        float roll = Random.value; // Số ngẫu nhiên từ 0.0 đến 1.0
+
+        if (roll <= 0.8f && normalSummons.Count > 0) // 80% cơ hội VÀ có Normal
+        {
+            return normalSummons[Random.Range(0, normalSummons.Count)]; // Chọn Normal ngẫu nhiên
+        }
+        else if (eliteSummons.Count > 0) // Còn lại (20% hoặc không có Normal) VÀ có Elite
+        {
+            return eliteSummons[Random.Range(0, eliteSummons.Count)]; // Chọn Elite ngẫu nhiên
+        }
+        else if (normalSummons.Count > 0) // Nếu roll ra Elite nhưng không có Elite -> Quay lại chọn Normal
+        {
+            return normalSummons[Random.Range(0, normalSummons.Count)];
+        }
+
+        return null; // Trường hợp không mong muốn
+    }
     // Checks if all enemies are dead
     bool AllEnemiesDead()
     {
@@ -1452,7 +1638,7 @@ public class BattleManager : MonoBehaviour
         // ✅ GỌI HÀM APPLY MỚI
         // Ghi rõ "isSplitChild: true" để nó không thêm SplitBehavior
         // Note: SetupEnemyStatusEffectDisplay is already called inside ApplyEnemyData
-        ApplyEnemyData(enemyGO, finalStats, template, true);
+        ApplyEnemyData(enemyGO, finalStats, template, true, false);
 
         // GHI ĐÈ HP VỀ 50%
         var ch = enemyGO.GetComponent<Character>();
