@@ -19,13 +19,14 @@ MonoBehaviour:
     hit that lands heals you for 25% of the damage dealt.
   resource: 0
   cost: 0
+  cooldown: 3
+  target: 0
+  vfxPrefab: {fileID: 5069109496326652748, guid: 04d993ef9f53ee243a37ae8ace848b27, type: 3}
   baseDamage: 12
   scalingStat: 0
   scalingPercent: 1
-  hitCount: 3
-  cooldown: 3
-  target: 0
   isMagicDamage: 0
+  hitCount: 3
   healAmount: 0
   healPercent: 0
   lifesteal: 1
@@ -44,3 +45,6 @@ MonoBehaviour:
   removeOneDebuff: 0
   healingEffectivenessBonus: 0
   healingEffectivenessDuration: 0
+  recoilDamagePercent: 0
+  stunChance: 0
+  bonusDamageToStunned: 0

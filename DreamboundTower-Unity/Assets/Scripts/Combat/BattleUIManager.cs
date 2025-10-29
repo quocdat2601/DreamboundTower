@@ -1,4 +1,4 @@
-﻿// File: BattleUIManager.cs
+// File: BattleUIManager.cs
 using UnityEngine;
 using System.Collections.Generic;
 using TMPro;
@@ -84,7 +84,7 @@ public class BattleUIManager : MonoBehaviour
                 trigger.OnHoverExit.RemoveAllListeners();
 
                 // 2. Thêm listener nâng cao của BattleUIManager
-                trigger.OnSkillHoverEnter.AddListener(ShowTooltip);
+                trigger.OnSkillHoverEnter.AddListener((skill) => ShowTooltip(skill));
                 trigger.OnHoverExit.AddListener(HideTooltip);
             }
         }

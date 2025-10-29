@@ -31,7 +31,10 @@ public class TooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         // Kiểm tra loại dữ liệu và phát sóng sự kiện tương ứng
         if (dataToShow is GearItem item)
         {
-            OnItemHoverEnter.Invoke(item);
+            if (OnItemHoverEnter != null)
+            {
+                OnItemHoverEnter.Invoke(item);
+            }
         }
         else if (dataToShow is BaseSkillSO skill)
         {
@@ -62,6 +65,9 @@ public class TooltipTrigger : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     public void OnPointerExit(PointerEventData eventData)
     {
         // Luôn phát sóng tín hiệu Exit
-        OnHoverExit.Invoke();
+        if (OnHoverExit != null)
+        {
+            OnHoverExit.Invoke();
+        }
     }
 }

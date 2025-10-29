@@ -50,9 +50,19 @@ public class TooltipManager : MonoBehaviour
 
     private void Update()
     {
-
         if (activeTooltipRect == null || !activeTooltipRect.gameObject.activeSelf) return; // Chỉ chạy nếu có tooltip đang hiển thị
-
+        
+        // Update tooltip position to follow cursor
+        PositionTooltipAtCursor();
+    }
+    
+    /// <summary>
+    /// Positions the active tooltip at the cursor position with boundary detection
+    /// </summary>
+    private void PositionTooltipAtCursor()
+    {
+        if (activeTooltipRect == null || !activeTooltipRect.gameObject.activeSelf) return;
+        
         if (Mouse.current == null) return;
 
         Vector2 mousePosition = Mouse.current.position.ReadValue();
@@ -77,33 +87,36 @@ public class TooltipManager : MonoBehaviour
         Vector2 targetLocalPosition = localPoint;
         Vector2 pivot = Vector2.zero; // Mặc định hiển thị về phía trên bên phải (pivot 0,0)
 
-        // ✅ LOGIC ĐIỀU CHỈNH VỊ TRÍ
+        // ✅ LOGIC ĐIỀU CHỈNH VỊ TRÍ - Reduced offset for closer positioning
+        float offsetX = 5f; // Small offset to avoid cursor blocking tooltip
+        float offsetY = 5f;
+        
         // 1. Kiểm tra nếu tooltip tràn ra ngoài rìa phải màn hình
-        if (localPoint.x + tooltipSize.x > canvasRect.rect.width / 2) // canvasRect.rect.width / 2 là cạnh phải của canvas
+        if (localPoint.x + tooltipSize.x + offsetX > canvasRect.rect.width / 2) // canvasRect.rect.width / 2 là cạnh phải của canvas
         {
             // Nếu tràn, dịch tooltip sang trái (pivot 1,0)
-            targetLocalPosition.x = localPoint.x; // Không cần offset x ban đầu
+            targetLocalPosition.x = localPoint.x - offsetX; // Position to the left of cursor
             pivot.x = 1; // Pivot sang phải để neo tooltip vào chuột
         }
         else
         {
-            // Nếu không tràn, dịch tooltip sang phải (pivot 0,0) với offset
-            targetLocalPosition.x = localPoint.x + 15f; // Offset 15f giống bạn đã dùng
+            // Nếu không tràn, dịch tooltip sang phải (pivot 0,0) với offset nhỏ
+            targetLocalPosition.x = localPoint.x + offsetX; // Small offset to the right
             pivot.x = 0;
         }
 
         // 2. Kiểm tra nếu tooltip tràn ra ngoài rìa trên màn hình
         // Lưu ý: localPoint.y sẽ âm nếu chuột ở nửa dưới Canvas
-        if (localPoint.y + tooltipSize.y > canvasRect.rect.height / 2) // canvasRect.rect.height / 2 là cạnh trên của canvas
+        if (localPoint.y + tooltipSize.y + offsetY > canvasRect.rect.height / 2) // canvasRect.rect.height / 2 là cạnh trên của canvas
         {
             // Nếu tràn, dịch tooltip xuống dưới (pivot 0,1)
-            targetLocalPosition.y = localPoint.y - 15f; // Offset 15f giống bạn đã dùng, nhưng dịch xuống
+            targetLocalPosition.y = localPoint.y - offsetY; // Position below cursor
             pivot.y = 1; // Pivot lên trên để neo tooltip vào chuột
         }
         else
         {
             // Nếu không tràn, dịch tooltip lên trên (pivot 0,0)
-            targetLocalPosition.y = localPoint.y + 15f; // Offset 15f giống bạn đã dùng
+            targetLocalPosition.y = localPoint.y + offsetY; // Small offset above cursor
             pivot.y = 0;
         }
 
@@ -158,9 +171,15 @@ public class TooltipManager : MonoBehaviour
         {
             // Phải gọi sau khi đã SetActive và điền hết data
             LayoutRebuilder.ForceRebuildLayoutImmediate(itemTooltipRect);
+            
+            // Position tooltip after layout rebuild (size might have changed)
+            PositionTooltipAtCursor();
         }
-
-        // (Hàm UpdatePosition() sẽ chạy sau để đặt tooltip đúng chỗ)
+        else
+        {
+            // Position tooltip immediately at cursor if no layout rebuild needed
+            PositionTooltipAtCursor();
+        }
     }
 
     // Hàm này sẽ được gọi từ BattleUIManager sau khi refactor
@@ -181,7 +200,9 @@ public class TooltipManager : MonoBehaviour
 
         // ... (Code hiển thị tên skill, icon, cost, cooldown giữ nguyên) ...
         if (tooltipSkillName) tooltipSkillName.text = skill.displayName;
-        // (Code xử lý cost, cooldown sẽ xem xét sau nếu cần tính toán động)
+        
+        // Position tooltip immediately at cursor
+        PositionTooltipAtCursor();
 
         // --- XỬ LÝ DESCRIPTION ĐỘNG ---
         if (tooltipDescription != null)
