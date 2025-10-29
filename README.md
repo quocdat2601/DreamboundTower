@@ -94,30 +94,3 @@ Please open an issue for discussion before large changes.
 <div align="center">
 Climb the dream. Face the nightmare. Find yourself.
 </div>
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-//s
-
