@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
-  m_Name: Ashen Boots
+  m_Name: Moonstone Charm
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Moonstone Charm
   gearType: 5

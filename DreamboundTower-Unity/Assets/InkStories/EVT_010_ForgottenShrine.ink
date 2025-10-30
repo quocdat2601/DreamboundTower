@@ -9,19 +9,19 @@ EXTERNAL GetRace()
 VAR player_race = ""
 ~ player_race = GetRace()
 
-A dusty altar to a goddess of light awaits an offering.
+A small, dusty altar to a long-forgotten goddess of light awaits an offering.
+
 * [Offer 20 gold.]
 	~ GainGold(-20)
 	~ GainStat("DEF", 1)
-	~ GainRelic("Charm of Purity")
-	You feel protected. (+1 DEF, Relic: Charm of Purity)
+	~ GainRelic("Moonstone Charm")
+	You place the coins on the altar. A faint, protective light envelops you. (-20 Gold, +1 DEF, Got [Relic: Moonstone Charm])
 	-> END
 
-// CÚ PHÁP THAY THẾ CHÍNH XÁC
 * { player_race == "Celestial" } [Pray silently (Celestial).]
 	~ GainStat("MANA", 2)
 	~ GainStat("INT", 1)
-	Grace fills you. (+2 MANA, +1 INT)
+You whisper an ancient prayer. The altar resonates with your celestial nature, blessing you. (+2 MANA, +1 INT)
 	-> END
 
 * { player_race == "Demon" } [Desecrate the shrine (Demon).]
@@ -29,5 +29,5 @@ A dusty altar to a goddess of light awaits an offering.
 	~ GainStat("STR", 2)
 	~ GainItem("Sinbrand Dagger")
 	~ SetFlag("SHRINE_DESECRATED")
-	Power answers blasphemy. (-10 HP, +2 STR, Rare dagger, unlock retribution)
+You smash the altar. A pulse of dark energy answers your blasphemy, strengthening your rage. (-10 HP, +2 STR, Got [Sinbrand Dagger], Flag set: SHRINE_DESECRATED)
 	-> END

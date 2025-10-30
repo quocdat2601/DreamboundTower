@@ -337,13 +337,14 @@ public class BattleManager : MonoBehaviour
 
         // --- 2. KIỂM TRA MIMIC (SAU KHI ĐÃ CÓ archetypeId) ---
         // Tên file SO của bạn phải là "Mimic"
-        bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
+        //bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
+        bool isSpecialEncounter = (archetypeId == "Mimic" || archetypeId == "RivalChild");
 
         // --- 3. TÍNH TOÁN SỐ LƯỢNG KẺ ĐỊCH ---
         int enemyCount = 1;
-        if (isMimicEncounter)
+        if (isSpecialEncounter)
         {
-            Debug.Log("[BATTLE] MIMIC ENCOUNTER! Ép số lượng quái = 1.");
+            Debug.Log($"[BATTLE] SPECIAL ENCOUNTER ({archetypeId})! Ép số lượng quái = 1.");
             enemyCount = 1;
         }
         else
@@ -359,11 +360,15 @@ public class BattleManager : MonoBehaviour
 
         // --- 4. LỌC DANH SÁCH QUÁI VẬT PHÙ HỢP ---
         List<EnemyTemplateSO> availableEnemies = null;
-        if (!isMimicEncounter && !overrideUseCustomStats) // Chỉ cần lọc nếu không phải Mimic hoặc custom stats
+        if (!isSpecialEncounter && !overrideUseCustomStats) // Chỉ cần lọc nếu không phải Mimic hoặc custom stats
         {
             availableEnemies = GameManager.Instance.allEnemyTemplates
-                .Where(template => template.kind == encounterKind)
-                .ToList();
+            .Where(template =>
+            template != null && // Kiểm tra null
+            template.kind == encounterKind && // Đúng loại (Normal/Elite/Boss)
+            !template.isUniqueOrEventOnly
+        )
+        .ToList();
             if (availableEnemies.Count == 0)
             {
                 Debug.LogError($"[BATTLE] Không tìm thấy EnemyTemplateSO nào có Kind là '{encounterKind}'!");
@@ -377,7 +382,7 @@ public class BattleManager : MonoBehaviour
             if (enemyPrefab == null) continue;
 
             int slotIndex = i; // Vị trí bình thường
-            if (isMimicEncounter)
+            if (isSpecialEncounter)
             {
                 slotIndex = 0; // Ép vào Slot 1 (index 0)
             }
@@ -393,9 +398,9 @@ public class BattleManager : MonoBehaviour
             {
                 finalTemplate = null; // Sẽ chỉ áp dụng custom stats
             }
-            else if (isMimicEncounter)
+            else if (isSpecialEncounter)
             {
-                finalTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Mimic");
+                finalTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == archetypeId);
             }
             else
             {

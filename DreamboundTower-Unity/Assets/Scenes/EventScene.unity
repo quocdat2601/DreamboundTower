@@ -561,6 +561,7 @@ MonoBehaviour:
   backgroundImage: {fileID: 2139425615}
   scriptReader: {fileID: 804130627}
   debugEventToLoad: {fileID: 0}
+  rivalChildTemplate: {fileID: 11400000, guid: e118c58e7daddfe45950087212db1bfa, type: 2}
 --- !u!4 &910500693
 Transform:
   m_ObjectHideFlags: 0
