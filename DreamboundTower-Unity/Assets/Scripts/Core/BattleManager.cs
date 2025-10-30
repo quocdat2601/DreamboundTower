@@ -13,6 +13,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 using Assets.Scripts.Data;
+using DG.Tweening;
 
 /// <summary>
 /// Battle system manager for turn-based combat
@@ -34,7 +35,17 @@ public class BattleManager : MonoBehaviour
     [Tooltip("Final HP = cfg.enemyStats.HP * hpUnit. Set to 1 if your templates already store absolute HP, Mana for 5.")]
     public int hpUnit = 10;
     public int manaUnit = 5;
-    private bool playerHasExtraAction = false;
+    private bool playerHasExtraTurn = false; // True if player gets an extra turn from AGI
+    private bool hasUsedExtraActionThisTurn = false; // Tracks if player has already used extra action this turn (cap at 1)
+
+    [Tooltip("Tốc độ di chuyển của sprite khi tấn công (pixels/giây)")]
+    public float moveSpeed = 500f;
+    [Tooltip("Khoảng cách giữ sprite tấn công và mục tiêu (pixels)")]
+    public float attackOffset = 30f; // Reduced from 100f to 30% (30f)
+    [Tooltip("Thời gian chờ sau khi Player kết thúc hành động (nếu không có lượt thêm)")]
+    public float playerActionEndDelay = 0.3f; // Khoảng nghỉ ngắn sau khi Player đánh xong
+    [Tooltip("Thời gian chờ sau khi Enemy kết thúc tấn công trước khi Player bắt đầu lượt mới")]
+    public float enemyTurnEndDelay = 0.5f; // Khoảng nghỉ dài hơn sau lượt Enemy
 
     [Header("Debug / Enemy Overrides")]
     [Tooltip("If true, combat ignores map payload and uses the template below.")]
@@ -55,7 +66,8 @@ public class BattleManager : MonoBehaviour
     public EnemyInfoPanel enemyInfoPanel; // Tham chiếu đến script panel (Từ Bước 3)
     public Button inspectTagButton; // Nút "Tag" duy nhất (Từ Bước 2)
     public TextMeshProUGUI inspectTagButtonText; // Text bên trong nút Tag
-    
+    public Button attackButton;
+
     [Header("Status Effect Display")]
     public GameObject statusEffectIconPrefab; // Prefab for status effect icons
     public StatusEffectIconDatabase statusEffectIconDatabase; // Database of status effect icons
@@ -409,7 +421,7 @@ public class BattleManager : MonoBehaviour
             else if (finalTemplate != null)
             {
                 StatBlock finalStats = finalTemplate.GetStatsAtFloor(absoluteFloor);
-                ApplyEnemyData(enemyGO, finalStats, finalTemplate, false);
+                ApplyEnemyData(enemyGO, finalStats, finalTemplate, false, true);
             }
             else
             {
@@ -428,7 +440,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template, bool isSplitChild = false)
+    void ApplyEnemyData(GameObject enemyGO, StatBlock stats, EnemyTemplateSO template, bool isSplitChild = false, bool allowSummonerGimmick = true)
     {
         if (enemyGO == null) return;
 
@@ -525,7 +537,23 @@ public class BattleManager : MonoBehaviour
         {
             enemyGO.AddComponent<RegeneratorBehavior>();
         }
-        
+
+        // Gimmick: Summoner
+        // Sửa lại điều kiện if này:
+        if (allowSummonerGimmick && !isSplitChild && (template.gimmick & EnemyGimmick.Summoner) != 0)
+        {
+            // Kiểm tra xem có danh sách triệu hồi không
+            if (template.summonableEnemies != null && template.summonableEnemies.Count > 0)
+            {
+                var summoner = enemyGO.AddComponent<SummonerBehavior>();
+                summoner.SetSummonList(template.summonableEnemies); // Gán danh sách
+                Debug.Log($"[BATTLE] Đã gán SummonerBehavior cho {enemyGO.name}");
+            }
+            else
+            {
+                Debug.LogWarning($"[BATTLE] {template.name} có gimmick Summoner nhưng danh sách summonableEnemies rỗng!");
+            }
+        }
         // Set up status effect display for enemy
         SetupEnemyStatusEffectDisplay(enemyGO);
     }
@@ -677,13 +705,22 @@ public class BattleManager : MonoBehaviour
     }
     /// <summary>
     /// Kiểm tra xem Player có được hành động thêm dựa trên AGI không.
-    /// Nên gọi hàm này vào ĐẦU lượt của Player.
+    /// CHỈ GỌI SAU KHI PLAYER TẤN CÔNG (không gọi cho skills).
+    /// Capped at 1 extra action per turn.
     /// </summary>
     private void CheckForDoubleAction()
     {
         if (playerCharacter == null)
         {
-            playerHasExtraAction = false;
+            playerHasExtraTurn = false;
+            return;
+        }
+
+        // Cap: Only allow 1 extra action per turn
+        if (hasUsedExtraActionThisTurn)
+        {
+            playerHasExtraTurn = false;
+            Debug.Log("[BATTLE] Double action already used this turn. Capped at 1 per turn.");
             return;
         }
 
@@ -697,13 +734,19 @@ public class BattleManager : MonoBehaviour
         // Tung xúc xắc
         if (Random.value <= doubleActionChance)
         {
-            playerHasExtraAction = true;
-            Debug.Log($"<color=yellow>[BATTLE] Player nhận được Lượt Hành Động Thêm! (AGI: {playerCharacter.agility}, Chance: {doubleActionChance * 100f}%)</color>");
-            // (Tùy chọn: Hiển thị hiệu ứng UI/Sound báo hiệu)
+            playerHasExtraTurn = true;
+            
+            // Show visual effect for double action
+            if (CombatEffectManager.Instance != null)
+            {
+                CombatEffectManager.Instance.ShowDoubleActionEffect(playerCharacter);
+            }
+            
+            Debug.Log($"<color=yellow>[BATTLE] DOUBLE ACTION PROC! Player gets an extra turn! (AGI: {playerCharacter.agility}, Chance: {doubleActionChance * 100f}%)</color>");
         }
         else
         {
-            playerHasExtraAction = false;
+            playerHasExtraTurn = false;
         }
     }
     #endregion
@@ -833,7 +876,23 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    
+    /// <summary>
+    /// Ẩn khung vàng chọn mục tiêu mà KHÔNG thay đổi selectedEnemyIndex.
+    /// </summary>
+    void HideSelectionVisual()
+    {
+        if (enemySlots == null) return;
+
+        for (int i = 0; i < enemySlots.Length; i++)
+        {
+            var slotImg = enemySlots[i]?.GetComponent<Image>();
+            if (slotImg == null) continue;
+
+            // Luôn đặt về màu trong suốt
+            slotImg.color = new Color(1f, 1f, 1f, 0f);
+        }
+        // (Tùy chọn: Nếu bạn có UI khác để hiển thị target, ẩn nó ở đây)
+    }
     /// <summary>
     /// Updates the turn display UI
     /// </summary>
@@ -845,85 +904,132 @@ public class BattleManager : MonoBehaviour
         }
         
     }
-    #endregion
+    #endregion
 
-    #region Turn Coroutines
-
-    // Coroutine for the player's basic attack
+    #region Turn Coroutines
     IEnumerator PlayerAttackRoutine(int enemyIndex)
     {
-        playerTurn = false;
+        // --- Kiểm tra target ban đầu ---
+        if (enemyIndex < 0 || enemyIndex >= enemyInstances.Length || enemyInstances[enemyIndex] == null) yield break;
+        GameObject targetGO = enemyInstances[enemyIndex]; // Lưu target ban đầu
+        var target = targetGO.GetComponent<Character>();
+        if (playerInstance == null || target == null) yield break;
 
-        var target = enemyInstances[enemyIndex].GetComponent<Character>();
-        if (target != null)
-        {
-            playerCharacter.Attack(target);
-        }
+        // --- Khóa UI ---
+        if (attackButton != null) attackButton.interactable = false;
 
+        // --- Animation và Attack ---
+        Vector3 originalPlayerPos = playerInstance.transform.position;
+        // Characters now attack from their current position - no movement
+
+
+        // --- KIỂM TRA SPLIT TRƯỚC KHI GÂY SÁT THƯƠNG ---
+        // (Kiểm tra này có thể không cần thiết nếu SplitBehavior đáng tin cậy)
+        // Lưu HP trước
+        int hpBeforeAttack = target.currentHP;
+        // Lấy SplitBehavior (nếu có)
+        SplitBehavior splitBehavior = targetGO.GetComponent<SplitBehavior>();
+        bool targetCanSplit = splitBehavior != null && !splitBehavior.hasSplit;
+        int splitThresholdHP = 0;
+        if (targetCanSplit) splitThresholdHP = Mathf.RoundToInt(target.maxHP * splitBehavior.splitHealthThreshold);
+        // ---
+
+        playerCharacter.Attack(target); // Gây sát thương -> Có thể trigger SplitBehavior.HandleDamage() ở đây
+
+        // Chờ delay ngắn
         yield return new WaitForSeconds(attackDelay);
 
-        if (playerHasExtraAction)
+        // --- KIỂM TRA VÀ ĐỢI SPLIT SAU KHI GÂY SÁT THƯƠNG ---
+        // Kiểm tra xem target ban đầu có còn tồn tại không VÀ HP có giảm qua ngưỡng không
+        if (targetCanSplit && // Nó có khả năng Split
+            hpBeforeAttack > splitThresholdHP && // HP trước đó trên ngưỡng
+            (targetGO == null || target.currentHP <= 0 || target.currentHP <= splitThresholdHP)) // Target đã bị hủy HOẶC HP đã dưới ngưỡng
+                                                                                                 // (Kiểm tra targetGO == null là quan trọng nhất nếu SplitBehavior gọi HandleSplit đáng tin cậy)
         {
-            playerHasExtraAction = false; // Dùng mất lượt thêm
-            playerTurn = true;            // Player LẬP TỨC lấy lại lượt
-            Debug.Log("<color=yellow>[BATTLE] Player dùng Lượt Hành Động Thêm!</color>");
-            // (Hiệu ứng UI/Sound nếu muốn)
-            yield break; // Kết thúc Coroutine này ngay lập tức, KHÔNG chạy EnemyTurn
-        }
+            // Có vẻ Split đã được kích hoạt bởi SplitBehavior.HandleDamage -> BattleManager.HandleSplit
+            Debug.Log($"[BATTLE] Attack seems to have triggered Split for {target.name}. Waiting for SplitRoutine...");
 
+            // Cần một cách để đợi Coroutine được gọi từ SplitBehavior.
+            // Cách đơn giản nhất là đợi một khoảng thời gian đủ để SplitRoutine chạy xong.
+            // Thời gian này nên dài hơn 1.1s (animation chết) + thời gian spawn.
+            float splitWaitTime = 1.5f; // Ví dụ: đợi 1.5 giây
+            yield return new WaitForSeconds(splitWaitTime);
+
+            // Hoặc, cách tốt hơn: BattleManager có thể lưu lại Coroutine đang chạy từ HandleSplit
+            // Coroutine currentSplitCoroutine = null; // Biến thành viên của BattleManager
+            // Trong HandleSplit: currentSplitCoroutine = StartCoroutine(...)
+            // Ở đây: if (currentSplitCoroutine != null) yield return currentSplitCoroutine;
+            Debug.Log("[BATTLE] Assumed SplitRoutine finished. Continuing PlayerAttackRoutine.");
+        }
+        // --- KẾT THÚC KIỂM TRA VÀ ĐỢI SPLIT ---
+
+
+        // Characters attack from their position - no return movement needed
+
+
+        // --- XỬ LÝ SAU KHI HÀNH ĐỘNG VÀ SPLIT (NẾU CÓ) ĐÃ XONG ---
+        // Bây giờ mới kiểm tra thắng (bao gồm cả trường hợp giết quái Split cuối cùng)
         if (AllEnemiesDead())
         {
+            if (attackButton != null) attackButton.interactable = true; // Mở khóa trước khi thắng
             yield return StartCoroutine(VictoryRoutine());
             yield break;
         }
 
+        // Check for double action AFTER normal attack (not skills)
+        CheckForDoubleAction();
+
+        if (playerHasExtraTurn) // Có lượt thêm?
+        {
+            playerHasExtraTurn = false;
+            hasUsedExtraActionThisTurn = true; // Mark as used, cap at 1 per turn
+            playerTurn = true; // Giữ lượt Player
+            if (attackButton != null) attackButton.interactable = true; // Mở khóa UI
+            Debug.Log("<color=yellow>[BATTLE] Player uses extra turn! (1/1 used this turn)</color>");
+            yield break; // Dừng coroutine, Player hành động tiếp
+        }
+
+        // 4. Nếu KHÔNG có lượt thêm: Chờ khoảng nghỉ ngắn
+        yield return new WaitForSeconds(playerActionEndDelay); // Đợi trước khi địch đánh
+
+        playerTurn = false;
+        HideSelectionVisual();
+        // 5. Bắt đầu lượt của Enemy (Logic gốc của bạn)
         yield return StartCoroutine(EnemyTurnRoutine());
-        
-        // Process end-of-turn status effects
-        if (StatusEffectManager.Instance != null)
-        {
-            StatusEffectManager.Instance.ProcessEndOfTurnEffects();
-        }
-        
-        // Reduce skill cooldowns at the end of each turn
-        if (skillManager != null)
-        {
-            skillManager.ReduceSkillCooldowns();
-        }
-        
-        // End of complete turn - increment turn counter
+
+        // 6. Xử lý cuối lượt chung (Logic gốc của bạn, chạy SAU EnemyTurn)
+        if (StatusEffectManager.Instance != null) { StatusEffectManager.Instance.ProcessEndOfTurnEffects(); }
+        if (skillManager != null) { skillManager.ReduceSkillCooldowns(); }
         currentTurn++;
-        playerTurn = true;
+        playerTurn = true; // Player nhận lại lượt cho turn KẾ TIẾP
+        hasUsedExtraActionThisTurn = false; // Reset extra action flag for new turn
+        if (attackButton != null) attackButton.interactable = true;
         UpdateTurnDisplay();
         NotifyCharactersOfNewTurn(currentTurn);
-        CheckForDoubleAction();
-        // Process start-of-turn status effects
+        // ✅ HIỆN LẠI KHUNG VÀNG (NẾU CÓ MỤC TIÊU CŨ VÀ CÒN SỐNG)
+        RefreshSelectionVisual(); // Hàm này sẽ tự kiểm tra selectedEnemyIndex
         if (StatusEffectManager.Instance != null)
         {
             StatusEffectManager.Instance.ProcessStartOfTurnEffects();
         }
-        
         // Regenerate mana at the start of player turn
         if (playerCharacter != null)
         {
             // Calculate total mana regeneration: base 5% + passive bonuses
             int oldMana = playerCharacter.currentMana;
             float totalRegenPercent = 5.0f; // Base 5% per turn
-            
             // Add passive skill mana regeneration per turn (Divine Resonance)
             var conditionalManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
             if (conditionalManager != null && conditionalManager.manaRegenPerTurn > 0f)
             {
                 totalRegenPercent += conditionalManager.manaRegenPerTurn * 100f; // Convert decimal to percentage
             }
-            
             // Apply combined mana regeneration
             playerCharacter.RegenerateManaPercent(totalRegenPercent);
             if (playerCharacter.currentMana > oldMana)
             {
                 Debug.Log($"[BATTLE] Mana regenerated: {playerCharacter.currentMana - oldMana} (now {playerCharacter.currentMana}/{playerCharacter.mana})");
             }
-            
             // Shield turns are now handled automatically by StatusEffectManager
         }
     }
@@ -942,11 +1048,13 @@ public class BattleManager : MonoBehaviour
                 selectedSkill = null;
                 yield break;
             }
-            
             // Skills don't end the player's turn - player can continue using skills/attacks
             
             // Use the skill (consumes mana and sets cooldown)
             skillManager.UseSkill(skill);
+            
+            // Spawn VFX before processing effects
+            SpawnSkillVFX(skill, enemyIndex);
             
             // Apply skill effects using the new system
             switch (skill.target)
@@ -1009,14 +1117,8 @@ public class BattleManager : MonoBehaviour
 
         selectedSkill = null; // Reset selected skill after use
 
-        if (playerHasExtraAction)
-        {
-            playerHasExtraAction = false; // Dùng mất lượt thêm
-            playerTurn = true;            // Player LẬP TỨC lấy lại lượt
-            Debug.Log("<color=yellow>[BATTLE] Player dùng Lượt Hành Động Thêm!</color>");
-            // (Hiệu ứng UI/Sound nếu muốn)
-            yield break; // Kết thúc Coroutine này ngay lập tức, KHÔNG kết thúc lượt
-        }
+        // Skills do NOT trigger double action - only normal attacks do
+        // (CheckForDoubleAction removed from here)
 
         // Check if all enemies are dead after skill use
         if (AllEnemiesDead())
@@ -1069,24 +1171,72 @@ public class BattleManager : MonoBehaviour
     }
 
     // Coroutine for the enemy's turn
-    IEnumerator EnemyTurnRoutine()
+    IEnumerator EnemyTurnRoutine()
     {
+        // Lặp qua tất cả các slot địch
         for (int i = 0; i < (enemyInstances?.Length ?? 0); i++)
         {
-            if (enemyInstances[i] == null) continue;
-            if (playerInstance == null)
+            GameObject enemyGO = enemyInstances[i]; // Lấy GameObject của địch ở slot i
+
+            // Bỏ qua nếu slot trống hoặc Player đã chết
+            if (enemyGO == null || playerInstance == null) continue;
+
+            var enemyChar = enemyGO.GetComponent<Character>();
+            if (enemyChar == null || playerCharacter == null) continue; // Bỏ qua nếu không lấy được Character
+
+            // --- ✅ THÔNG BÁO LƯỢT HIỆN TẠI CHO ENEMY NÀY ---
+            // Gửi message "OnNewTurnStarted" đến CHỈ enemy hiện tại
+            // Dùng SendMessage thay vì NotifyCharactersOfNewTurn để tránh spam các enemy khác
+            enemyGO.SendMessage("OnNewTurnStarted", currentTurn, SendMessageOptions.DontRequireReceiver);
+            // --- KẾT THÚC THÔNG BÁO ---
+
+            bool enemyActed = false; // Cờ đánh dấu
+
+            // --- KIỂM TRA SUMMONER ---
+            SummonerBehavior summoner = enemyGO.GetComponent<SummonerBehavior>();
+            // Hàm TryConsumeSummonIntent() sẽ đọc cờ wantsToSummon (được set bởi OnNewTurnStarted vừa gọi)
+            if (summoner != null && summoner.TryConsumeSummonIntent())
             {
-                yield break;
+                Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Đang thử triệu hồi (Turn {currentTurn})...</color>"); // Thêm log Turn
+                bool summonSuccess = AttemptSummon(enemyChar, summoner.GetSummonableEnemies());
+
+                if (summonSuccess)
+                {
+                    Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Triệu hồi thành công!</color>");
+                    enemyActed = true;
+                    yield return new WaitForSeconds(attackDelay); // Chờ sau khi summon
+                }
+                else
+                {
+                    Debug.Log($"<color=orange>[{enemyChar.name}] SUMMONER: Triệu hồi thất bại (Turn {currentTurn}). Sẽ tấn công.</color>"); // Thêm log Turn
+                }
+            }
+            if (!enemyActed)
+            {
+                // Enemies now attack from their current position - no movement
+                AudioManager.Instance?.PlayAttackSFX();
+                // --- Thực hiện đòn đánh của Enemy ---
+                enemyChar.Attack(playerCharacter); // Enemy tấn công Player
+
+                // Chờ một chút sau khi đánh (dùng attackDelay)
+                yield return new WaitForSeconds(attackDelay);
+                // --- KẾT THÚC ĐÒN ĐÁNH ---
+            }
+            // Kiểm tra Player có chết sau đòn đánh này không
+            if (playerCharacter.currentHP <= 0)
+            {
+                // Không cần làm gì thêm ở đây, HandleCharacterDeath và ProcessDeathRoutine sẽ xử lý
+                yield break; // Kết thúc EnemyTurnRoutine nếu Player chết
             }
 
-            var enemyChar = enemyInstances[i].GetComponent<Character>();
-            if (enemyChar != null && playerCharacter != null)
-            {
-                enemyChar.Attack(playerCharacter);
-            }
-            yield return new WaitForSeconds(attackDelay);
-        }
+            // Chờ một khoảng nghỉ ngắn giữa các đòn đánh của Enemy (Nếu muốn)
+            // yield return new WaitForSeconds(0.1f); // Ví dụ: Chờ 0.1s
 
+        } // Kết thúc vòng lặp for (chuyển sang Enemy tiếp theo)
+
+        // --- KẾT THÚC TOÀN BỘ LƯỢT ENEMY ---
+        // Chờ khoảng nghỉ dài hơn trước khi trả lại lượt cho Player
+        yield return new WaitForSeconds(enemyTurnEndDelay); // Dùng biến delay mới
     }
 
     #endregion
@@ -1185,12 +1335,129 @@ public class BattleManager : MonoBehaviour
     #endregion
 
     #region Helpers
-    /// <summary>
-    /// Moves the persistent player back under the GameManager before leaving the battle scene.
-    /// Without this the player instance stays parented to the battle scene's slot and gets
-    /// destroyed when the scene unloads, causing the missing player on the map.
-    /// </summary>
-    void RestorePersistentPlayer()
+    #region Skill VFX
+    
+    /// <summary>
+    /// Spawns skill VFX at the appropriate target location
+    /// For buff skills (Self/AllAlly), VFX will track the character
+    /// For attacking skills (SingleEnemy/AllEnemies), VFX spawns at target position
+    /// </summary>
+    private void SpawnSkillVFX(SkillData skill, int enemyIndex)
+    {
+        if (skill == null || skill.vfxPrefab == null)
+        {
+            return; // No VFX to spawn
+        }
+        
+        // Find canvas for VFX parent
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BATTLE] No Canvas found for skill VFX!");
+            return;
+        }
+        
+        switch (skill.target)
+        {
+            case TargetType.Self:
+            case TargetType.AllAlly:
+                // Buff skills: Spawn VFX on player and make it track the character
+                if (playerCharacter != null)
+                {
+                    SpawnTrackingVFX(skill.vfxPrefab, playerCharacter, canvas.transform);
+                }
+                break;
+                
+            case TargetType.SingleEnemy:
+                // Attacking skill: Spawn VFX at enemy position
+                if (enemyIndex >= 0 && enemyIndex < enemyInstances.Length && enemyInstances[enemyIndex] != null)
+                {
+                    var target = enemyInstances[enemyIndex].GetComponent<Character>();
+                    if (target != null)
+                    {
+                        SpawnPositionVFX(skill.vfxPrefab, target, canvas.transform);
+                    }
+                }
+                break;
+                
+            case TargetType.AllEnemies:
+                // AOE skill: Spawn VFX on all enemies
+                for (int i = 0; i < enemyInstances.Length; i++)
+                {
+                    if (enemyInstances[i] != null)
+                    {
+                        var target = enemyInstances[i].GetComponent<Character>();
+                        if (target != null)
+                        {
+                            SpawnPositionVFX(skill.vfxPrefab, target, canvas.transform);
+                        }
+                    }
+                }
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Spawns a VFX that tracks the character (for buff skills)
+    /// </summary>
+    private void SpawnTrackingVFX(GameObject vfxPrefab, Character target, Transform canvasTransform)
+    {
+        if (vfxPrefab == null || target == null) return;
+        
+        Vector3 spawnPosition = GetCharacterUIPosition(target);
+        GameObject vfx = Instantiate(vfxPrefab, canvasTransform);
+        vfx.transform.position = spawnPosition;
+        
+        // Add VFXTracker component to make it follow the character
+        VFXTracker tracker = vfx.GetComponent<VFXTracker>();
+        if (tracker == null)
+        {
+            tracker = vfx.AddComponent<VFXTracker>();
+        }
+        tracker.targetCharacter = target;
+        
+        Debug.Log($"[BATTLE] Spawned tracking VFX for {target.name}");
+    }
+    
+    /// <summary>
+    /// Spawns a VFX at the character's position (for attacking skills)
+    /// </summary>
+    private void SpawnPositionVFX(GameObject vfxPrefab, Character target, Transform canvasTransform)
+    {
+        if (vfxPrefab == null || target == null) return;
+        
+        Vector3 spawnPosition = GetCharacterUIPosition(target);
+        GameObject vfx = Instantiate(vfxPrefab, canvasTransform);
+        vfx.transform.position = spawnPosition;
+        
+        Debug.Log($"[BATTLE] Spawned VFX at {target.name} position");
+    }
+    
+    /// <summary>
+    /// Gets the UI position of a character for VFX spawning
+    /// </summary>
+    private Vector3 GetCharacterUIPosition(Character character)
+    {
+        if (character == null) return Vector3.zero;
+        
+        // Try to get the character's UI Image position first
+        if (character.characterImage != null)
+        {
+            return character.characterImage.transform.position;
+        }
+        
+        // Fallback to transform position
+        return character.transform.position;
+    }
+    
+    #endregion
+
+    /// <summary>
+    /// Moves the persistent player back under the GameManager before leaving the battle scene.
+    /// Without this the player instance stays parented to the battle scene's slot and gets
+    /// destroyed when the scene unloads, causing the missing player on the map.
+    /// </summary>
+    void RestorePersistentPlayer()
     {
         if (GameManager.Instance == null) return;
 
@@ -1207,7 +1474,149 @@ public class BattleManager : MonoBehaviour
         //DontDestroyOnLoad(persistentPlayer);
         persistentPlayer.SetActive(false);
     }
+    /// <summary>
+    /// Cố gắng triệu hồi một đồng minh mới cho Summoner.
+    /// </summary>
+    /// <param name="summonerChar">Character của Summoner</param>
+    /// <param name="summonList">Danh sách các EnemyTemplateSO có thể gọi</param>
+    /// <returns>True nếu triệu hồi thành công, False nếu thất bại (hết slot).</returns>
+    private bool AttemptSummon(Character summonerChar, List<EnemyTemplateSO> summonList)
+    {
+        // 1. Tìm slot trống
+        int emptySlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] == null)
+            {
+                emptySlotIndex = i;
+                break; // Tìm thấy slot trống đầu tiên
+            }
+        }
 
+        // Nếu không còn slot trống
+        if (emptySlotIndex == -1)
+        {
+            Debug.LogWarning($"[{summonerChar.name}] SUMMONER: Không còn slot trống để triệu hồi!");
+            return false; // Triệu hồi thất bại
+        }
+
+        // 2. Chọn quái vật để triệu hồi theo logic
+        EnemyTemplateSO templateToSummon = SelectEnemyToSummon(summonList);
+
+        // Nếu không chọn được template nào (ví dụ danh sách lỗi)
+        if (templateToSummon == null)
+        {
+            Debug.LogError($"[{summonerChar.name}] SUMMONER: Không thể chọn template từ summonList!");
+            return false; // Triệu hồi thất bại
+        }
+
+        // 3. Spawn quái vật vào slot trống
+        Debug.Log($"[{summonerChar.name}] SUMMONER: Triệu hồi {templateToSummon.name} vào slot {emptySlotIndex}");
+        SpawnIndividualSummonedEnemy(emptySlotIndex, templateToSummon);
+
+        return true; // Triệu hồi thành công
+    }
+    /// <summary>
+    /// Spawn một quái vật được triệu hồi vào slot cụ thể.
+    /// </summary>
+    private void SpawnIndividualSummonedEnemy(int slotIndex, EnemyTemplateSO template)
+    {
+        if (slotIndex < 0 || slotIndex >= enemySlots.Length || template == null)
+        {
+            Debug.LogError($"[BATTLE] Lỗi tham số khi spawn quái triệu hồi: Slot={slotIndex}, Template={(template != null ? template.name : "NULL")}");
+            return;
+        }
+
+        Transform slot = enemySlots[slotIndex];
+        if (slot == null)
+        {
+            Debug.LogError($"[BATTLE] Enemy Slot {slotIndex} bị null!");
+            return;
+        }
+
+        // Đảm bảo slot được kích hoạt
+        slot.gameObject.SetActive(true);
+
+        // Lấy tầng hiện tại (để quái mới có chỉ số đúng)
+        int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+
+        // Tạo GameObject
+        var enemyGO = Instantiate(enemyPrefab, slot, false);
+        enemyGO.transform.localPosition = Vector2.zero;
+        enemyGO.transform.localScale = Vector3.one;
+        enemyGO.name = $"Enemy_{slotIndex}_{template.name}_Summoned";
+
+        // Lấy chỉ số từ template
+        StatBlock finalStats = template.GetStatsAtFloor(absoluteFloor);
+
+        // Dùng hàm ApplyEnemyData để gán chỉ số, sprite, gimmick...
+        // QUAN TRỌNG: KHÔNG truyền isSplitChild = true, để nó có thể tự add gimmick nếu cần
+        // Tuy nhiên, ApplyEnemyData nên có kiểm tra để không add SummonerBehavior nếu template có cờ Summoner,
+        // tránh triệu hồi đệ quy vô hạn. Cần sửa ApplyEnemyData một chút.
+        ApplyEnemyData(enemyGO, finalStats, template, false, false); // <<< Sẽ sửa ApplyEnemyData ở bước sau
+
+        // Hồi đầy máu (ApplyEnemyData đã làm)
+        var ch = enemyGO.GetComponent<Character>();
+        // if (ch != null) { ch.currentHP = ch.maxHP; ch.UpdateHPUI(); } // Không cần nếu ApplyEnemyData đã hồi
+
+        // Đăng ký quái mới vào mảng quản lý
+        enemyInstances[slotIndex] = enemyGO;
+        enemyTemplates[slotIndex] = template; // Lưu template của con mới
+
+        // Gán lại sự kiện click cho slot này
+        var btn = slot.GetComponent<Button>();
+        if (btn != null)
+        {
+            btn.onClick.RemoveAllListeners();
+            int idx = slotIndex;
+            btn.onClick.AddListener(() => SelectEnemy(idx));
+        }
+
+        // (Tùy chọn: Chơi animation spawn/xuất hiện cho quái mới)
+         enemyGO.transform.localScale = Vector3.zero;
+         enemyGO.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack);
+    }
+    /// <summary>
+    /// Chọn một EnemyTemplateSO từ danh sách theo tỷ lệ Normal/Elite.
+    /// </summary>
+    private EnemyTemplateSO SelectEnemyToSummon(List<EnemyTemplateSO> summonList)
+    {
+        if (summonList == null || summonList.Count == 0) return null;
+
+        // Phân loại Normal và Elite
+        List<EnemyTemplateSO> normalSummons = summonList.Where(e => e != null && e.kind == EnemyKind.Normal).ToList();
+        List<EnemyTemplateSO> eliteSummons = summonList.Where(e => e != null && e.kind == EnemyKind.Elite).ToList();
+
+        // Trường hợp đặc biệt: Chỉ có Elite
+        if (normalSummons.Count == 0 && eliteSummons.Count > 0)
+        {
+            return eliteSummons[Random.Range(0, eliteSummons.Count)]; // Chọn Elite ngẫu nhiên
+        }
+
+        // Trường hợp không có loại nào (lỗi dữ liệu?)
+        if (normalSummons.Count == 0 && eliteSummons.Count == 0)
+        {
+            return null;
+        }
+
+        // Roll tỷ lệ 80% Normal / 20% Elite
+        float roll = Random.value; // Số ngẫu nhiên từ 0.0 đến 1.0
+
+        if (roll <= 0.8f && normalSummons.Count > 0) // 80% cơ hội VÀ có Normal
+        {
+            return normalSummons[Random.Range(0, normalSummons.Count)]; // Chọn Normal ngẫu nhiên
+        }
+        else if (eliteSummons.Count > 0) // Còn lại (20% hoặc không có Normal) VÀ có Elite
+        {
+            return eliteSummons[Random.Range(0, eliteSummons.Count)]; // Chọn Elite ngẫu nhiên
+        }
+        else if (normalSummons.Count > 0) // Nếu roll ra Elite nhưng không có Elite -> Quay lại chọn Normal
+        {
+            return normalSummons[Random.Range(0, normalSummons.Count)];
+        }
+
+        return null; // Trường hợp không mong muốn
+    }
     // Checks if all enemies are dead
     bool AllEnemiesDead()
     {
@@ -1244,64 +1653,43 @@ public class BattleManager : MonoBehaviour
     /// </summary>
     private IEnumerator SplitRoutine(Character originalSlime, EnemyTemplateSO templateToSpawn)
     {
-        // 1. Tìm slot và HP TỐI ĐA của con quái gốc
+        Debug.Log($"[BATTLE] Starting SplitRoutine for {originalSlime.name}");
+
+        // 1. Tìm slot và HP gốc (Giữ nguyên)
         int originalSlotIndex = -1;
-        int originalMaxHP = originalSlime.maxHP; // Lấy HP GỐC
+        int originalMaxHP = originalSlime.maxHP;
+        GameObject originalGO = originalSlime.gameObject; // Lưu GameObject để kiểm tra null sau Destroy
+        for (int i = 0; i < enemyInstances.Length; i++) { if (enemyInstances[i] == originalGO) { originalSlotIndex = i; break; } }
+        if (originalSlotIndex == -1) { Debug.LogError("SplitRoutine: Cannot find original enemy!"); yield break; }
 
-        for (int i = 0; i < enemyInstances.Length; i++)
-        {
-            if (enemyInstances[i] != null && enemyInstances[i] == originalSlime.gameObject)
-            {
-                originalSlotIndex = i;
-                break;
-            }
-        }
+        // --- KHÔNG QUẢN LÝ LƯỢT Ở ĐÂY ---
 
-        if (originalSlotIndex == -1)
-        {
-            Debug.LogError("[BATTLE] Không tìm thấy quái gốc để tách!");
-            yield break;
-        }
-
-        // 2. Giết con quái gốc (mà không kích hoạt VictoryRoutine)
-        originalSlime.OnDeath -= HandleCharacterDeath; // (Rất quan trọng)
+        // 2. Giết quái gốc
+        originalSlime.OnDeath -= HandleCharacterDeath; // Hủy đăng ký trước khi kill
         originalSlime.PlayDeathAnimation();
+        yield return new WaitForSeconds(1.1f); // Đợi animation
 
-        yield return new WaitForSeconds(1.1f); // Đợi animation chết
+        // 3. Dọn dẹp quái gốc
+        // Chỉ Destroy nếu GameObject gốc vẫn còn (phòng lỗi)
+        if (originalGO != null) Destroy(originalGO);
+        // Cập nhật mảng ngay sau khi Destroy logic xảy ra
+        if (originalSlotIndex >= 0 && originalSlotIndex < enemyInstances.Length) enemyInstances[originalSlotIndex] = null;
+        if (originalSlotIndex >= 0 && originalSlotIndex < enemyTemplates.Length) enemyTemplates[originalSlotIndex] = null;
+        if (selectedEnemyIndex == originalSlotIndex) selectedEnemyIndex = -1;
 
-        // 3. Dọn dẹp con quái gốc và giải phóng slot
-        Destroy(originalSlime.gameObject);
-        enemyInstances[originalSlotIndex] = null; // Slot 1 (đã trống)
-
-        // 4. Tìm SLOT 2 (slot trống bất kỳ khác slot gốc)
+        // 4. Tìm slot 2 (Giữ nguyên)
         int secondSlotIndex = -1;
-        for (int i = 0; i < enemyInstances.Length; i++)
-        {
-            // Nếu slot này trống VÀ không phải là slot gốc
-            if (i != originalSlotIndex && enemyInstances[i] == null)
-            {
-                secondSlotIndex = i;
-                break; // Chỉ cần 1 slot
-            }
-        }
+        for (int i = 0; i < enemyInstances.Length; i++) { if (i != originalSlotIndex && enemyInstances[i] == null) { secondSlotIndex = i; break; } }
 
-        // 5. Tính HP cho quái mới (50% HP GỐC)
+        // 5. Tính HP mới (Giữ nguyên)
         int newHP = Mathf.Max(1, Mathf.RoundToInt(originalMaxHP * 0.5f));
 
-        // 6. Spawn Quái 1 (vào slot gốc)
-        Debug.Log($"[BATTLE] Spawning quái tách ra ở slot {originalSlotIndex} với {newHP} HP");
+        // 6. Spawn Quái 1 & 2 (Giữ nguyên)
         SpawnIndividualSplitEnemy(originalSlotIndex, templateToSpawn, newHP);
+        if (secondSlotIndex != -1) { SpawnIndividualSplitEnemy(secondSlotIndex, templateToSpawn, newHP); }
 
-        // 7. Spawn Quái 2 (vào slot thứ 2, NẾU tìm thấy)
-        if (secondSlotIndex != -1)
-        {
-            Debug.Log($"[BATTLE] Spawning quái tách ra ở slot {secondSlotIndex} với {newHP} HP");
-            SpawnIndividualSplitEnemy(secondSlotIndex, templateToSpawn, newHP);
-        }
-        else
-        {
-            Debug.LogWarning("[BATTLE] Không tìm thấy slot trống thứ 2, chỉ tách ra 1 quái mới.");
-        }
+        Debug.Log($"[BATTLE] SplitRoutine finished spawning.");
+        // --- KHÔNG GỌI ENEMY TURN HAY XỬ LÝ CUỐI LƯỢT ---
     }
 
     /// <summary>
@@ -1328,7 +1716,7 @@ public class BattleManager : MonoBehaviour
         // ✅ GỌI HÀM APPLY MỚI
         // Ghi rõ "isSplitChild: true" để nó không thêm SplitBehavior
         // Note: SetupEnemyStatusEffectDisplay is already called inside ApplyEnemyData
-        ApplyEnemyData(enemyGO, finalStats, template, true);
+        ApplyEnemyData(enemyGO, finalStats, template, true, false);
 
         // GHI ĐÈ HP VỀ 50%
         var ch = enemyGO.GetComponent<Character>();
@@ -1479,7 +1867,8 @@ public class BattleManager : MonoBehaviour
                 if (selectedEnemyIndex == i)
                 {
                     selectedEnemyIndex = -1;
-                    RefreshSelectionVisual();
+                    //RefreshSelectionVisual();
+                    HideSelectionVisual();
 
                     if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false);
                     if (enemyInfoPanel != null) enemyInfoPanel.HidePanel();

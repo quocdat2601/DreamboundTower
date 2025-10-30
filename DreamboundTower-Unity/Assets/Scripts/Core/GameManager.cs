@@ -337,6 +337,26 @@ public class GameManager : MonoBehaviour
             // Thêm dòng log này để biết nếu playerStatusUI bị null
             Debug.LogError("LỖI: playerStatusUI trong GameManager đang bị null!");
         }
+        if (AudioManager.Instance != null)
+        {
+            // Kiểm tra tên scene để quyết định nhạc
+            if (scene.name.StartsWith("Zone")) // Nếu là scene Map (Zone1, Zone2...)
+            {
+                AudioManager.Instance.PlayRandomMapMusic();
+            }
+            else if (scene.name == "BattleScene") // <<-- THAY "BattleScene" bằng tên scene Combat của bạn
+            {
+                AudioManager.Instance.PlayRandomCombatMusic();
+            }
+            // else if (scene.name == "MainMenu")
+            // {
+            //     AudioManager.Instance.PlayMainMenuMusic(); // Nếu bạn có hàm/nhạc riêng cho Menu
+            // }
+            else // Các scene khác (Event, Shop, Rest...) có thể dùng nhạc Map
+            {
+                AudioManager.Instance.PlayRandomMapMusic(); // Hoặc tạo list nhạc riêng
+            }
+        }
     }
 
     // ✅ CÁC HÀM GIAO TIẾP VỚI UI SỬ DỤNG THAM CHIẾU TRỰC TIẾP

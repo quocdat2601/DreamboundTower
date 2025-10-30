@@ -15,24 +15,31 @@ MonoBehaviour:
   id: celestial_radiant_shield
   displayName: Radiant Shield
   icon: {fileID: 7104247893010565702, guid: 13d61c823632aae4fb2a2aa5f3876252, type: 3}
-  descriptionTemplate: Apply a shield that absorbs {shield_amount} damage (15% MaxHP)
-    for 2 turns. The shield reflects 20% of physical damage back to the attacker.
+  descriptionTemplate: Apply a shield that absorbs {shield_value} {shield_scaling}
+    damage for {duration} turns. The shield reflects {reflect_percent}% of physical
+    damage back to the attacker.
   resource: 1
   cost: 8
+  cooldown: 5
+  target: 2
+  vfxPrefab: {fileID: 5069109496326652748, guid: 1dc8f411814e34e43ae04f7847269877, type: 3}
   baseDamage: 0
   scalingStat: 6
   scalingPercent: 0
-  cooldown: 5
-  target: 2
   isMagicDamage: 0
+  hitCount: 1
   healAmount: 0
   healPercent: 0
   lifesteal: 0
   lifestealPercent: 0
+  healScalingStat: 6
+  healScalingPercent: 0
   shieldAmount: 0
   shieldPercent: 0.15
   shieldDuration: 2
   reflectPercent: 0.2
+  shieldScalingStat: 3
+  shieldScalingPercent: 0.15
   statusEffectsToApply: []
   statusEffectsToRemove: []
   statusEffectDuration: 0
@@ -43,3 +50,6 @@ MonoBehaviour:
   removeOneDebuff: 0
   healingEffectivenessBonus: 0
   healingEffectivenessDuration: 0
+  recoilDamagePercent: 0
+  stunChance: 0
+  bonusDamageToStunned: 0

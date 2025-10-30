@@ -73,11 +73,15 @@ public class SkillData : BaseSkillSO
     [Tooltip("Percentage of damage dealt that heals the caster")]
     [Range(0f, 1f)]
     public float lifestealPercent = 0f;
-
+    [Tooltip("Stat used for heal scaling (e.g., INT)")]
+    public StatType healScalingStat = StatType.None; // Chọn None nếu không scale
+    [Tooltip("Percentage multiplier for heal scaling (e.g., 0.5 for 50%)")]
+    [Range(0f, 3f)] // Giới hạn hợp lý
+    public float healScalingPercent = 0f;
     #endregion
 
     #region Shield Effects
-    
+
     [Header("Shield Effects")]
     [Tooltip("Fixed amount of shield")]
     public int shieldAmount = 0;
@@ -92,11 +96,15 @@ public class SkillData : BaseSkillSO
     [Tooltip("Percentage of damage reflected back to attacker")]
     [Range(0f, 1f)]
     public float reflectPercent = 0f;
-
+    [Tooltip("Stat used for shield scaling (e.g., MaxHP)")]
+    public StatType shieldScalingStat = StatType.None; // Chọn None nếu không scale
+    [Tooltip("Percentage multiplier for shield scaling (e.g., 0.15 for 15%)")]
+    [Range(0f, 2f)] // Giới hạn hợp lý
+    public float shieldScalingPercent = 0f;
     #endregion
 
     #region Status Effects
-    
+
     [Header("Status Effects")]
     [Tooltip("List of status effects to apply")]
     public List<string> statusEffectsToApply = new List<string>();

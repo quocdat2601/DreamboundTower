@@ -64,11 +64,18 @@ public class PlayerHUDController : MonoBehaviour
         ClearSkillIcons();
         if (playerSkills == null || skillIconContainer == null) return;
 
+        // --- LẤY PLAYER CHARACTER MỘT LẦN ---
+        Character playerCharacterRef = null;
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            playerCharacterRef = GameManager.Instance.playerInstance.GetComponent<Character>();
+        }
+        // --- KẾT THÚC LẤY ---
+
         List<BaseSkillSO> allSkills = new List<BaseSkillSO>();
         allSkills.AddRange(playerSkills.passiveSkills);
         allSkills.AddRange(playerSkills.activeSkills);
-
-        var sortedSkills = allSkills.OrderByDescending(skill => skill is PassiveSkillData);
+        var sortedSkills = allSkills.OrderByDescending(skill => skill is PassiveSkillData); // Sửa lại tên class Passive nếu khác
 
         foreach (var skillSO in sortedSkills)
         {
@@ -78,51 +85,50 @@ public class PlayerHUDController : MonoBehaviour
             SkillIconUI iconUI = iconGO.GetComponent<SkillIconUI>();
             if (iconUI != null)
             {
-                iconUI.Setup(skillSO);
+                iconUI.Setup(skillSO); // Setup icon như cũ
 
-                // ✅ GÁN DỮ LIỆU CHO TOOLTIP TRIGGER
-                // Chỉ cần gán data, không cần lo về listener ở đây
                 TooltipTrigger trigger = iconGO.GetComponent<TooltipTrigger>();
                 if (trigger != null)
                 {
-                    trigger.dataToShow = skillSO;
-                    trigger.OnSkillHoverEnter.AddListener((skill, rect) => {
+                    trigger.dataToShow = skillSO; // Gán data cho trigger
 
-                        StatBlock statsToDisplay = new StatBlock(); // Tạo một StatBlock rỗng làm phương án dự phòng
+                    // --- SỬA LẠI ADDLISTENER ---
+                    // Xóa listener cũ (nếu có) để tránh gọi nhiều lần
+                    trigger.OnSkillHoverEnter.RemoveAllListeners();
+                    trigger.OnHoverExit.RemoveAllListeners(); // Xóa cả listener Exit cũ
 
-                        // Cố gắng lấy chỉ số "live" từ người chơi hiện tại
-                        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+                    // Thêm listener mới với lambda nhận 3 tham số
+                    trigger.OnSkillHoverEnter.AddListener((skill, caster, rect) => {
+                        // Kiểm tra xem TooltipManager có tồn tại không
+                        if (TooltipManager.Instance != null)
                         {
-                            Character playerCharacter = GameManager.Instance.playerInstance.GetComponent<Character>();
-                            if (playerCharacter != null)
-                            {
-                                // Điền dữ liệu thực tế vào StatBlock
-                                statsToDisplay = new StatBlock
-                                {
-                                    HP = playerCharacter.maxHP,
-                                    MANA = playerCharacter.mana,
-                                    STR = playerCharacter.attackPower,
-                                    DEF = playerCharacter.defense,
-                                    INT = playerCharacter.intelligence,
-                                    AGI = playerCharacter.agility
-                                };
-                            }
+                            // Gọi ShowSkillTooltip với 3 tham số nhận được từ Event
+                            TooltipManager.Instance.ShowSkillTooltip(skill, caster, rect);
                         }
-                        // Gọi TooltipManager với dữ liệu chính xác (hoặc dữ liệu rỗng nếu không tìm thấy người chơi)
-                        TooltipManager.Instance.ShowSkillTooltip(skill, statsToDisplay);
                     });
+                    // --- KẾT THÚC SỬA ---
 
-                    trigger.OnHoverExit.AddListener(TooltipManager.Instance.HideAllTooltips);
+                    // Gán lại listener cho Exit
+                    trigger.OnHoverExit.AddListener(() => {
+                        if (TooltipManager.Instance != null) TooltipManager.Instance.HideAllTooltips();
+                    });
                 }
             }
         }
     }
 
-    private void ClearSkillIcons()
+    void ClearSkillIcons()
     {
         if (skillIconContainer == null) return;
         foreach (Transform child in skillIconContainer)
         {
+            // Quan trọng: Phải Remove listener trước khi Destroy để tránh lỗi
+            TooltipTrigger trigger = child.GetComponent<TooltipTrigger>();
+            if (trigger != null)
+            {
+                trigger.OnSkillHoverEnter.RemoveAllListeners();
+                trigger.OnHoverExit.RemoveAllListeners();
+            }
             Destroy(child.gameObject);
         }
     }

@@ -17,7 +17,8 @@ namespace Presets
 		Enrage = 1 << 16,
 		Bony = 1 << 17,
 		Thornmail = 1 << 18,
-        Regenerator = 1 << 19
+        Regenerator = 1 << 19,
+        Summoner = 1 << 20
 
     }
 
@@ -28,7 +29,11 @@ namespace Presets
         public EnemyKind kind;
         public EnemyGimmick gimmick;
 
-		[Header("Combat Details")]
+        [Header("Summoner Gimmick (Nếu có)")]
+        [Tooltip("Danh sách các loại quái vật mà kẻ địch này có thể triệu hồi.")]
+        public List<EnemyTemplateSO> summonableEnemies;
+
+        [Header("Combat Details")]
 		[Tooltip("Lượng mana quái vật hồi lại vào đầu mỗi lượt của nó.")]
 		public int manaRegenPerTurnn;
 

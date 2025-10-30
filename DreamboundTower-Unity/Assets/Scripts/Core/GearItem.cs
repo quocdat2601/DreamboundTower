@@ -18,8 +18,7 @@ public class GearItem : ScriptableObject
     public string itemName;
     public GearType gearType;
     public Sprite icon;
-    public WeaponScalingType scalingType;
-
+    
     [Header("Description")]
     [TextArea(3, 5)]
     public string description;
@@ -36,6 +35,9 @@ public class GearItem : ScriptableObject
     public int manaBonus;
     public int agiBonus;
 
+    [Header("Weapon Scaling (Weapons only)")]
+    [Tooltip("How this weapon scales damage (STR, INT, or Hybrid)")]
+    public WeaponScalingType scalingType = WeaponScalingType.STR;
 
     [Header("Effects & Modifiers")]
     [Tooltip("Danh sách tất cả các hiệu ứng mà vật phẩm này mang lại.")]

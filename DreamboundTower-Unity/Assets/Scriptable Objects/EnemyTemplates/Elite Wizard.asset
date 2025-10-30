@@ -13,13 +13,15 @@ MonoBehaviour:
   m_Name: Elite Wizard
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
   kind: 1
-  gimmick: -1
+  gimmick: 1048577
+  summonableEnemies:
+  - {fileID: 11400000, guid: d28eb5e22e1cf9c47ad4491f5336b0e7, type: 2}
   manaRegenPerTurnn: 0
   skills: []
   sprites:
   - {fileID: 735992723534926870, guid: 1961bf6498a502642a95e15f1dad69cd, type: 3}
   baseStatsAtFloor1:
-    HP: 5
+    HP: 10
     STR: 6
     DEF: 2
     MANA: 2

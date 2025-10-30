@@ -1,8 +1,10 @@
-﻿using UnityEngine;
-using TMPro;
-using System.Text;
+﻿using Assets.Scripts.Data;
 using Presets; // Cần thiết để nhận biết BaseSkillSO và GearItem
+using System.Text;
+using TMPro;
+using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class TooltipManager : MonoBehaviour
 {
@@ -14,6 +16,7 @@ public class TooltipManager : MonoBehaviour
     public TextMeshProUGUI itemHeaderCostText;
     public Transform statContainer; // Kéo panel "Main" có Grid Layout vào đây
     public GameObject statTextPrefab; // Kéo prefab TextMeshPro cho chỉ số vào đây
+    public GameObject itemDescriptionGO;
     public TextMeshProUGUI itemDescriptionText;
     private RectTransform itemTooltipRect;
 
@@ -47,9 +50,19 @@ public class TooltipManager : MonoBehaviour
 
     private void Update()
     {
-
         if (activeTooltipRect == null || !activeTooltipRect.gameObject.activeSelf) return; // Chỉ chạy nếu có tooltip đang hiển thị
-
+        
+        // Update tooltip position to follow cursor
+        PositionTooltipAtCursor();
+    }
+    
+    /// <summary>
+    /// Positions the active tooltip at the cursor position with boundary detection
+    /// </summary>
+    private void PositionTooltipAtCursor()
+    {
+        if (activeTooltipRect == null || !activeTooltipRect.gameObject.activeSelf) return;
+        
         if (Mouse.current == null) return;
 
         Vector2 mousePosition = Mouse.current.position.ReadValue();
@@ -74,33 +87,36 @@ public class TooltipManager : MonoBehaviour
         Vector2 targetLocalPosition = localPoint;
         Vector2 pivot = Vector2.zero; // Mặc định hiển thị về phía trên bên phải (pivot 0,0)
 
-        // ✅ LOGIC ĐIỀU CHỈNH VỊ TRÍ
+        // ✅ LOGIC ĐIỀU CHỈNH VỊ TRÍ - Reduced offset for closer positioning
+        float offsetX = 5f; // Small offset to avoid cursor blocking tooltip
+        float offsetY = 5f;
+        
         // 1. Kiểm tra nếu tooltip tràn ra ngoài rìa phải màn hình
-        if (localPoint.x + tooltipSize.x > canvasRect.rect.width / 2) // canvasRect.rect.width / 2 là cạnh phải của canvas
+        if (localPoint.x + tooltipSize.x + offsetX > canvasRect.rect.width / 2) // canvasRect.rect.width / 2 là cạnh phải của canvas
         {
             // Nếu tràn, dịch tooltip sang trái (pivot 1,0)
-            targetLocalPosition.x = localPoint.x; // Không cần offset x ban đầu
+            targetLocalPosition.x = localPoint.x - offsetX; // Position to the left of cursor
             pivot.x = 1; // Pivot sang phải để neo tooltip vào chuột
         }
         else
         {
-            // Nếu không tràn, dịch tooltip sang phải (pivot 0,0) với offset
-            targetLocalPosition.x = localPoint.x + 15f; // Offset 15f giống bạn đã dùng
+            // Nếu không tràn, dịch tooltip sang phải (pivot 0,0) với offset nhỏ
+            targetLocalPosition.x = localPoint.x + offsetX; // Small offset to the right
             pivot.x = 0;
         }
 
         // 2. Kiểm tra nếu tooltip tràn ra ngoài rìa trên màn hình
         // Lưu ý: localPoint.y sẽ âm nếu chuột ở nửa dưới Canvas
-        if (localPoint.y + tooltipSize.y > canvasRect.rect.height / 2) // canvasRect.rect.height / 2 là cạnh trên của canvas
+        if (localPoint.y + tooltipSize.y + offsetY > canvasRect.rect.height / 2) // canvasRect.rect.height / 2 là cạnh trên của canvas
         {
             // Nếu tràn, dịch tooltip xuống dưới (pivot 0,1)
-            targetLocalPosition.y = localPoint.y - 15f; // Offset 15f giống bạn đã dùng, nhưng dịch xuống
+            targetLocalPosition.y = localPoint.y - offsetY; // Position below cursor
             pivot.y = 1; // Pivot lên trên để neo tooltip vào chuột
         }
         else
         {
             // Nếu không tràn, dịch tooltip lên trên (pivot 0,0)
-            targetLocalPosition.y = localPoint.y + 15f; // Offset 15f giống bạn đã dùng
+            targetLocalPosition.y = localPoint.y + offsetY; // Small offset above cursor
             pivot.y = 0;
         }
 
@@ -113,60 +129,194 @@ public class TooltipManager : MonoBehaviour
 
     public void ShowItemTooltip(GearItem item)
     {
+        // Kiểm tra null ban đầu (giữ nguyên)
         if (item == null || itemTooltipPanel == null) return;
 
+        // Ẩn tooltip khác và set active (giữ nguyên)
         HideAllTooltips();
         activeTooltipRect = itemTooltipRect;
-        // Cập nhật Header
-        itemHeaderNameText.text = item.itemName;
-        itemHeaderCostText.text = item.basePrice.ToString();
 
-        // Dọn dẹp và tạo các dòng chỉ số mới
+        // Cập nhật Header (giữ nguyên)
+        if (itemHeaderNameText) itemHeaderNameText.text = item.itemName;
+        if (itemHeaderCostText) itemHeaderCostText.text = item.basePrice.ToString(); // Thêm .ToString() nếu basePrice là số
+
+        // Dọn dẹp và tạo các dòng chỉ số mới (giữ nguyên)
         PopulateStats(item);
 
-        // Cập nhật mô tả
-        if (!string.IsNullOrEmpty(item.description))
+        // --- SỬA LOGIC ẨN/HIỆN DESCRIPTION ---
+        if (itemDescriptionGO != null) // Kiểm tra GameObject cha
         {
-            itemDescriptionText.gameObject.SetActive(true);
-            itemDescriptionText.text = item.description;
+            // Kiểm tra xem description có rỗng hay null không
+            if (string.IsNullOrEmpty(item.description))
+            {
+                // Nếu rỗng -> Ẩn GameObject CHA ("ItemDescription")
+                itemDescriptionGO.SetActive(false);
+                if (itemDescriptionText != null) itemDescriptionText.text = ""; // Xóa text cũ (an toàn)
+            }
+            else
+            {
+                // Nếu có nội dung -> Hiện GameObject CHA
+                itemDescriptionGO.SetActive(true);
+                // Gán Text vào component con
+                if (itemDescriptionText != null) itemDescriptionText.text = item.description;
+            }
+        }
+        // --- KẾT THÚC SỬA ---
+
+        // Hiện Panel chính
+        itemTooltipPanel.SetActive(true);
+
+        // QUAN TRỌNG: Buộc tính toán lại layout NGAY LẬP TỨC
+        if (itemTooltipRect != null)
+        {
+            // Phải gọi sau khi đã SetActive và điền hết data
+            LayoutRebuilder.ForceRebuildLayoutImmediate(itemTooltipRect);
+            
+            // Position tooltip after layout rebuild (size might have changed)
+            PositionTooltipAtCursor();
         }
         else
         {
-            itemDescriptionText.gameObject.SetActive(false);
+            // Position tooltip immediately at cursor if no layout rebuild needed
+            PositionTooltipAtCursor();
         }
-
-        itemTooltipPanel.SetActive(true);
     }
 
     // Hàm này sẽ được gọi từ BattleUIManager sau khi refactor
-    public void ShowSkillTooltip(BaseSkillSO skill, StatBlock characterStats)
+    // Trong TooltipManager.cs
+
+    // Thêm tham số Character caster
+    public void ShowSkillTooltip(BaseSkillSO skill, Character caster, RectTransform sourceRect = null) // Thêm caster
     {
-        if (skill == null || skillTooltipPanel == null) return;
+        // ... (Code kiểm tra null ban đầu) ...
+        if (skill == null || skillTooltipPanel == null || caster == null) // Thêm kiểm tra caster
+        {
+            HideAllTooltips(); // Ẩn đi nếu thiếu thông tin
+            return;
+        }
 
         HideAllTooltips();
-        activeTooltipRect = itemTooltipRect;
-        skillTooltipPanel.SetActive(true);
+        activeTooltipRect = skillTooltipRect;
 
+        // ... (Code hiển thị tên skill, icon, cost, cooldown giữ nguyên) ...
         if (tooltipSkillName) tooltipSkillName.text = skill.displayName;
+        
+        // Position tooltip immediately at cursor
+        PositionTooltipAtCursor();
 
-        if (skill is SkillData activeSkill)
+        // --- XỬ LÝ DESCRIPTION ĐỘNG ---
+        if (tooltipDescription != null)
         {
-            // Sử dụng TooltipFormatter với characterStats được truyền vào
-            if (tooltipDescription) tooltipDescription.text = $"<b>ACTIVE:</b> {TooltipFormatter.GenerateDescription(activeSkill, characterStats)}";
+            // Gọi hàm helper mới để xây dựng mô tả
+            tooltipDescription.text = BuildSkillDescription(skill, caster);
+        }
+        // --- KẾT THÚC XỬ LÝ ---
 
-            if (tooltipManaCostBar) tooltipManaCostBar.SetActive(true);
-            if (tooltipCooldownBar) tooltipCooldownBar.SetActive(true);
-            if (tooltipManaCostValue) tooltipManaCostValue.text = activeSkill.cost.ToString();
-            if (tooltipCooldownValue) tooltipCooldownValue.text = activeSkill.cooldown.ToString();
-        }
-        else if (skill is PassiveSkillData passiveSkill)
+        skillTooltipPanel.SetActive(true);
+        if (skillTooltipRect != null) LayoutRebuilder.ForceRebuildLayoutImmediate(skillTooltipRect);
+
+        // Cập nhật vị trí (Nếu bạn dùng sourceRect)
+        // if (sourceRect != null && activeTooltipRect != null) { /* ... code update position ... */ }
+    }// Thêm hàm mới này vào TooltipManager.cs
+
+    private string BuildSkillDescription(BaseSkillSO baseSkill, Character caster)
+    {
+        // Lấy template gốc
+        string description = baseSkill.descriptionTemplate;
+        if (string.IsNullOrEmpty(description)) return ""; // Trả về rỗng nếu không có template
+
+        // Ép kiểu sang SkillData để lấy thông tin chi tiết (nếu là skill chủ động)
+        if (baseSkill is SkillData skillData)
         {
-            if (tooltipDescription) tooltipDescription.text = $"<b>PASSIVE:</b> {passiveSkill.descriptionTemplate}";
-            if (tooltipManaCostBar) tooltipManaCostBar.SetActive(false);
-            if (tooltipCooldownBar) tooltipCooldownBar.SetActive(false);
+            // --- Tính toán các giá trị ---
+
+            // Sát thương
+            if (skillData.baseDamage > 0 || skillData.scalingPercent > 0)
+            {
+                int scalingValue = GetStatValue(caster, skillData.scalingStat);
+                int scaledAmount = Mathf.RoundToInt(scalingValue * skillData.scalingPercent);
+                int totalDamage = skillData.baseDamage + scaledAmount;
+                string scalingInfo = $"(+{skillData.scalingPercent * 100f:F0}% {skillData.scalingStat} (+{scaledAmount}))"; // Ví dụ: (+15% INT (+15))
+                string damageTypeStr = skillData.isMagicDamage ? "phép" : "vật lý"; // Lấy loại sát thương
+
+                description = description.Replace("{damage}", totalDamage.ToString());
+                description = description.Replace("{scaling_info}", scalingInfo);
+                description = description.Replace("{damage_type}", damageTypeStr); // Thêm placeholder này nếu cần
+            }
+
+            // Khiên (Shield)
+            if (skillData.shieldAmount > 0 || skillData.shieldScalingPercent > 0)
+            {
+                int shieldScalingValue = GetStatValue(caster, skillData.shieldScalingStat); // Ví dụ: MaxHP
+                int scaledShieldAmount = Mathf.RoundToInt(shieldScalingValue * skillData.shieldScalingPercent);
+                int totalShield = skillData.shieldAmount + scaledShieldAmount;
+                string shieldScalingInfo = $"({skillData.shieldScalingPercent * 100f:F0}% {skillData.shieldScalingStat})"; // Ví dụ: (15% MaxHP)
+
+                description = description.Replace("{shield_value}", totalShield.ToString());
+                description = description.Replace("{shield_scaling}", shieldScalingInfo);
+            }
+
+            // Thời gian hiệu lực (Duration)
+            if (skillData.shieldDuration > 0) // Dùng buffDuration nếu có
+            {
+                description = description.Replace("{duration}", skillData.shieldDuration.ToString());
+            }
+            else if (skillData.statusEffectDuration > 0) // Hoặc dùng duration riêng cho shield nếu có
+            {
+                description = description.Replace("{duration}", skillData.statusEffectDuration.ToString());
+            }
+            // (Thêm else if cho shield duration riêng nếu cần)
+
+
+            // Phản đòn (Reflect)
+            if (skillData.reflectPercent > 0) // Giả sử reflectPercent trong SkillData là dạng 0-1
+            {
+                description = description.Replace("{reflect_percent}", (skillData.reflectPercent * 100f).ToString("F0")); // Hiển thị dạng %
+            }
+
+            // Hồi máu (Heal)
+            if (skillData.healAmount > 0 || skillData.healScalingPercent > 0)
+            {
+                int healScalingValue = GetStatValue(caster, skillData.healScalingStat);
+                int scaledHealAmount = Mathf.RoundToInt(healScalingValue * skillData.healScalingPercent);
+                int totalHeal = skillData.healAmount + scaledHealAmount;
+                // (Thêm placeholder {heal_scaling} nếu cần)
+
+                description = description.Replace("{heal_amount}", totalHeal.ToString());
+            }
+
+            // Chi phí (Cost) - Có thể làm động nếu cost thay đổi theo hiệu ứng
+            description = description.Replace("{cost}", skillData.cost.ToString());
+
+
+            // --- Thêm các phần thay thế khác cho các hiệu ứng bạn có ---
+            // Ví dụ: Stun chance, Burn intensity,...
+            if (skillData.stunChance > 0) description = description.Replace("{stun_chance}", (skillData.stunChance * 100f).ToString("F0"));
+            // ...
+
         }
+        // (Có thể thêm else if (baseSkill is PassiveSkillSO) để xử lý tooltip passive)
+
+        // Trả về chuỗi mô tả đã được thay thế
+        return description;
     }
 
+    // Hàm helper để lấy giá trị chỉ số từ Character dựa trên Enum StatType
+    private int GetStatValue(Character character, StatType stat)
+    {
+        if (character == null) return 0;
+        switch (stat)
+        {
+            case StatType.STR: return character.attackPower;
+            case StatType.DEF: return character.defense;
+            case StatType.INT: return character.intelligence;
+            case StatType.MANA: return character.mana; // Max MANA
+            case StatType.AGI: return character.agility;
+            case StatType.HP: return character.maxHP; // Max HP
+                                                      // Thêm các case khác nếu StatType của bạn có nhiều hơn
+            default: return 0;
+        }
+    }
     public void HideAllTooltips()
     {
         if (itemTooltipPanel != null) itemTooltipPanel.SetActive(false);

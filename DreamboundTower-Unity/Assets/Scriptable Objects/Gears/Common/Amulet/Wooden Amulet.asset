@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Wooden Amulet
   gearType: 5
   icon: {fileID: 2467636936390047285, guid: 091fc23b07ca43545870772f2ab43ebf, type: 3}
-  description: 
+  description: just a wooden amulet hehe
   rarity: 0
   basePrice: 35
   attackBonus: 0
@@ -24,4 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 30
   agiBonus: 0
+  scalingType: 1
   modifiers: []

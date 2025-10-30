@@ -15,6 +15,7 @@ MonoBehaviour:
   itemName: Amulet of Steadfast
   gearType: 5
   icon: {fileID: -6443260801566020215, guid: be57ef36716cad14eac4382657ac0b2c, type: 3}
+  description: 
   rarity: 3
   basePrice: 120
   attackBonus: 0
@@ -23,3 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  scalingType: 1
+  modifiers: []
