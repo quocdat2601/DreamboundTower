@@ -1,29 +1,24 @@
 ﻿using Presets;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq; // Cần thiết để lọc danh sách item
-using TMPro;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class ShopManager : MonoBehaviour
 {
     [Header("Debug & Override")]
-    [Tooltip("Nếu được chọn, sẽ sử dụng 'Debug Floor' thay vì tầng hiện tại của người chơi.")]
     public bool useOverrideFloor = false;
-    [Tooltip("Tầng giả lập để test tỷ lệ rớt đồ của shop.")]
-    [Range(1, 100)]
-    public int debugFloor = 1;
+    [Range(1, 100)] public int debugFloor = 1;
 
     [Header("Shop Configuration")]
     public List<ShopTierConfigSO> allShopTiers;
     public int numberOfItemsToSell = 6;
 
     [Header("UI References")]
-    [Tooltip("Kéo Panel chứa các item (có Horizontal/Grid Layout Group) vào đây.")]
     public Transform stallPanelContainer;
-    [Tooltip("Kéo Prefab của một slot item vào đây.")]
     public GameObject itemSlotPrefab;
     public Button leaveButton;
 
@@ -34,66 +29,86 @@ public class ShopManager : MonoBehaviour
     private RunData currentRunData;
     void Start()
     {
-        // Bắt đầu coroutine để thiết lập shop
         StartCoroutine(SetupShop());
     }
 
     private IEnumerator SetupShop()
     {
-        // --- CƠ CHẾ FALLBACK ĐƯỢC CHUYỂN VÀO COROUTINE ---
         if (GameManager.Instance == null)
         {
-            Debug.LogWarning("Không tìm thấy GameManager! Đang tạo một GameManager tạm thời để test...");
             GameObject gameManagerPrefab = Resources.Load<GameObject>("GameManager");
-            if (gameManagerPrefab != null)
+            if (gameManagerPrefab == null) { yield break; }
+            Instantiate(gameManagerPrefab);
+            yield return null; // wait for Awake
+        }
+
+        // Try to use in-memory run data first
+        currentRunData = GameManager.Instance.currentRunData;
+        if (currentRunData == null)
+        {
+            // Attempt to load saved run when coming from map
+            currentRunData = RunSaveService.LoadRun();
+            if (currentRunData != null)
             {
-                Instantiate(gameManagerPrefab);
-
-                // ĐỢI 1 FRAME ĐỂ AWAKE() CỦA GAMEMANAGER CHẠY
-                yield return null;
-
-                // --- LOGIC TẠO DỮ LIỆU GIẢ LẬP ĐƯỢC CHUYỂN VÀO ĐÂY ---
-                Debug.Log("GameManager tạm thời đã được tạo. Bắt đầu tạo dữ liệu giả lập...");
+                GameManager.Instance.currentRunData = currentRunData;
+                // Ensure player exists for inventory refs
+                GameManager.Instance.InitializePlayerCharacter();
+            }
+            else
+            {
+                // Final fallback: debug bootstrap for standalone ShopScene testing
                 currentRunData = new RunData();
                 currentRunData.playerData.gold = 9999;
-                currentRunData.playerData.steadfastDurability = 3; // Thêm fallback cho Steadfast Heart
-
+                currentRunData.playerData.steadfastDurability = 3;
                 if (fallbackRace != null && fallbackClass != null)
                 {
                     currentRunData.playerData.selectedRaceId = fallbackRace.id;
                     currentRunData.playerData.selectedClassId = fallbackClass.id;
                 }
-
                 GameManager.Instance.currentRunData = currentRunData;
-                // ✅ BÁO HIỆU RẰNG ĐÂY LÀ CHẾ ĐỘ DEBUG
                 GameManager.Instance.isDebugRun = true;
-                // YÊU CẦU GAMEMANAGER TẠO RA MỘT PLAYERINSTANCE TẠM THỜI
                 GameManager.Instance.InitializePlayerCharacter();
             }
-            else
-            {
-                Debug.LogError("Không tìm thấy prefab 'GameManager' trong thư mục 'Resources'!");
-                yield break; // Dừng coroutine nếu có lỗi
-            }
         }
-        else
-        {
-            // Nếu đã có GameManager, lấy dữ liệu như bình thường
-            currentRunData = GameManager.Instance.currentRunData;
-        }
-        // ------------------------------------
-
-        // Các logic còn lại của hàm Start giờ nằm ở đây
         leaveButton.onClick.AddListener(OnLeave);
         UpdatePlayerGoldUI();
-
-        // Cập nhật cả UI Steadfast Heart
         if (GameManager.Instance.playerStatusUI != null)
         {
             GameManager.Instance.playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
         }
 
+        // Bind Inventory/Equipment UI to the actual player's components
+        SyncInventoryAndEquipmentUI();
+
         GenerateAndDisplayItems();
+    }
+
+    private void SyncInventoryAndEquipmentUI()
+    {
+        if (GameManager.Instance == null || GameManager.Instance.playerInstance == null) return;
+        var playerInv = GameManager.Instance.playerInstance.GetComponent<Inventory>();
+        var playerEquip = GameManager.Instance.playerInstance.GetComponent<Equipment>();
+
+        var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
+        foreach (var ui in inventoryUIs)
+        {
+            if (playerInv != null && ui.inventory != playerInv)
+            {
+                ui.UpdateInventoryReference(playerInv);
+            }
+            if (playerEquip != null && ui.equipment != playerEquip)
+            {
+                ui.equipment = playerEquip;
+                ui.ForceRefreshEquipmentUI();
+            }
+            ui.ForceRefreshUI();
+        }
+
+        var dragDropSystem = FindFirstObjectByType<DragDropSystem>();
+        if (dragDropSystem != null && playerInv != null)
+        {
+            dragDropSystem.UpdateInventoryReference(playerInv);
+        }
     }
 
     private void GenerateAndDisplayItems()
@@ -101,28 +116,20 @@ public class ShopManager : MonoBehaviour
         foreach (Transform child in stallPanelContainer) { Destroy(child.gameObject); }
 
         int floorToUse = useOverrideFloor ? debugFloor : GetCurrentAbsoluteFloor();
-        Debug.Log($"<color=orange>[SHOP] Đang tạo shop cho tầng: {floorToUse}</color>");
 
         ShopTierConfigSO currentTier = GetShopTierForFloor(floorToUse);
-        if (currentTier == null)
-        {
-            Debug.LogError($"Không tìm thấy Shop Tier nào cho tầng {floorToUse}!");
-            return;
-        }
+        if (currentTier == null) { return; }
 
         for (int i = 0; i < numberOfItemsToSell; i++)
         {
             ItemRarity selectedRarity = GetRandomRarityBasedOnWeight(currentTier.rarityWeights);
-            Debug.Log($"[SHOP] Slot {i + 1}: Tỷ lệ roll ra -> <color=cyan>{selectedRarity}</color>");
 
             List<GearItem> availableItems = GameManager.Instance.allItems
                 .Where(item => item.rarity == selectedRarity)
                 .ToList();
 
-            // Nếu không tìm thấy item ở độ hiếm đã roll, hãy thử tìm item Common
             if (availableItems.Count == 0 && selectedRarity != ItemRarity.Common)
             {
-                Debug.LogWarning($"Không tìm thấy item {selectedRarity}, thử lại với Common.");
                 availableItems = GameManager.Instance.allItems
                     .Where(item => item.rarity == ItemRarity.Common)
                     .ToList();
@@ -133,50 +140,135 @@ public class ShopManager : MonoBehaviour
                 GearItem itemToDisplay = availableItems[Random.Range(0, availableItems.Count)];
                 CreateItemSlot(itemToDisplay);
             }
-            else
-            {
-                Debug.LogWarning($"Không tìm thấy item nào có độ hiếm {selectedRarity} để bán.");
-            }
+            else { }
         }
     }
 
     private void CreateItemSlot(GearItem item)
     {
         GameObject slotGO = Instantiate(itemSlotPrefab, stallPanelContainer);
+        // Đảm bảo slot có Button + Graphic để nhận raycast
         Button slotButton = slotGO.GetComponent<Button>();
+        if (slotButton == null)
+        {
+            slotButton = slotGO.AddComponent<Button>();
+        }
+        Image rootImage = slotGO.GetComponent<Image>();
+        if (rootImage == null)
+        {
+            rootImage = slotGO.AddComponent<Image>();
+            // Transparent but raycastable
+            var c = rootImage.color; c.a = 0.001f; rootImage.color = c;
+        }
+        rootImage.raycastTarget = true;
         Image itemIcon = slotGO.transform.Find("ItemIcon").GetComponent<Image>();
         itemIcon.sprite = item.icon;
+        // Đảm bảo icon nhận raycast (đây thường là topmost hit)
+        itemIcon.raycastTarget = true;
 
-        // --- KẾT NỐI HỆ THỐNG TOOLTIP MỚI ---
+        // Kết nối Tooltip (nếu có)
         TooltipTrigger trigger = slotGO.GetComponent<TooltipTrigger>();
         if (trigger != null)
         {
             trigger.dataToShow = item;
-            // Kết nối các sự kiện của trigger với TooltipManager
             trigger.OnItemHoverEnter.AddListener(TooltipManager.Instance.ShowItemTooltip);
             trigger.OnHoverExit.AddListener(TooltipManager.Instance.HideAllTooltips);
         }
-        // ------------------------------------
 
-        slotButton.onClick.AddListener(() => PurchaseItem(item, slotButton));
+        // Vô hiệu hóa mọi DraggableItem/DropZone trong slot vì shop chỉ cần click mua
+        var draggables = slotGO.GetComponentsInChildren<MonoBehaviour>(true);
+        foreach (var mb in draggables)
+        {
+            if (mb == null) continue;
+            var type = mb.GetType().Name;
+            if (type == "DraggableItem" || type == "DropZone")
+            {
+                mb.enabled = false;
+            }
+        }
+
+        // Gắn handler click độc lập với Button để đảm bảo nhận sự kiện (trên root)
+        var clickable = slotGO.GetComponent<ShopItemClickHandler>();
+        if (clickable == null) clickable = slotGO.AddComponent<ShopItemClickHandler>();
+        clickable.manager = this;
+        clickable.item = item;
+        clickable.button = slotButton;
+        clickable.slotRoot = slotGO;
+
+        // Đồng thời gắn handler trực tiếp lên ItemIcon (vì nó là đối tượng được raycast)
+        var iconClickable = itemIcon.gameObject.GetComponent<ShopItemClickHandler>();
+        if (iconClickable == null) iconClickable = itemIcon.gameObject.AddComponent<ShopItemClickHandler>();
+        iconClickable.manager = this;
+        iconClickable.item = item;
+        iconClickable.button = slotButton;
+        iconClickable.slotRoot = slotGO;
+
+        // Cho phép button con (nếu prefab có) cũng gọi mua
+        var childButton = slotGO.GetComponentInChildren<Button>(true);
+        if (childButton != null)
+        {
+            childButton.onClick.AddListener(() => PurchaseItem(item, childButton, slotGO));
+        }
     }
 
-    private void PurchaseItem(GearItem item, Button slotButton)
+    // Helper đảm bảo nhận click kể cả khi Button bị chặn bởi component khác
+    private class ShopItemClickHandler : MonoBehaviour, IPointerClickHandler
     {
-        if (currentRunData.playerData.gold >= item.basePrice)
+        public ShopManager manager;
+        public GearItem item;
+        public Button button;
+        public GameObject slotRoot;
+
+        public void OnPointerClick(PointerEventData eventData)
         {
-            currentRunData.playerData.gold -= item.basePrice;
-            UpdatePlayerGoldUI();
-
-            Debug.Log($"Đã mua {item.itemName}! Item sẽ được thêm vào inventory sau.");
-            // Tương lai: Inventory.Instance.AddItem(item);
-
-            slotButton.interactable = false;
-            // (Tùy chọn) Hiển thị overlay "Đã bán"
+            if (manager == null || item == null) return;
+            manager.PurchaseItem(item, button != null ? button : GetComponent<Button>(), slotRoot != null ? slotRoot : gameObject);
         }
-        else
+    }
+
+    private void PurchaseItem(GearItem item, Button slotButton, GameObject slotRoot)
+    {
+        if (currentRunData.playerData.gold < item.basePrice) return;
+
+        currentRunData.playerData.gold -= item.basePrice;
+        if (currentRunData.playerData.gold < 0) currentRunData.playerData.gold = 0;
+        UpdatePlayerGoldUI();
+
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
         {
-            Debug.Log("Không đủ vàng!");
+            var inventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
+            if (inventory != null)
+            {
+                inventory.AddItem(item);
+            }
+        }
+
+        // Disable slot interactions and clear visuals so it cannot be bought again
+        if (slotRoot != null)
+        {
+            foreach (var btn in slotRoot.GetComponentsInChildren<Button>(true))
+            {
+                btn.interactable = false;
+            }
+            foreach (var h in slotRoot.GetComponentsInChildren<ShopItemClickHandler>(true))
+            {
+                h.enabled = false;
+            }
+            foreach (var trig in slotRoot.GetComponentsInChildren<EventTrigger>(true))
+            {
+                trig.enabled = false;
+            }
+            var iconTf = slotRoot.transform.Find("ItemIcon");
+            if (iconTf != null)
+            {
+                var img = iconTf.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.sprite = null;
+                    var c = img.color; c.a = 0f; img.color = c;
+                }
+                iconTf.gameObject.SetActive(false);
+            }
         }
     }
 

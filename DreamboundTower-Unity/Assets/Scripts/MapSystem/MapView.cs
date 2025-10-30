@@ -230,12 +230,19 @@ namespace Map
 
             // set all lines that are a part of the path to visited color:
             // if we have not started moving on the map yet, leave everything as is:
-            if (mapManager.CurrentMap.path.Count == 0)
+            if (mapManager.CurrentMap.path == null || mapManager.CurrentMap.path.Count == 0)
                 return;
 
             // in any case, we mark outgoing connections from the final node with visible/attainable color:
             Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
             Node currentNode = mapManager.CurrentMap.GetNode(currentPoint);
+
+            // Safety: if currentNode is null (e.g., corrupted path like (-1,-1)), bail out gracefully
+            if (currentNode == null)
+            {
+                Debug.LogWarning($"[MapView] SetLineColors: current node not found at {currentPoint}. Skipping line coloring.");
+                return;
+            }
 
             foreach (Vector2Int point in currentNode.outgoing)
             {

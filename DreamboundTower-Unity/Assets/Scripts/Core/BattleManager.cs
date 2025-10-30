@@ -1860,6 +1860,37 @@ public class BattleManager : MonoBehaviour
                 // Wait for death animation to complete (1 second) before destroying
                 yield return new WaitForSeconds(1.1f); // Đợi animation chạy xong
 
+                // --- TEST ONLY: Thưởng vàng khi quái chết ---
+                try
+                {
+                    if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+                    {
+                        int goldGain = 5; // mặc định
+                        var template = enemyTemplates[i];
+                        if (template != null)
+                        {
+                            // Thưởng cao hơn cho Elite/Boss (giá trị tạm để test)
+                            switch (template.kind)
+                            {
+                                case Presets.EnemyKind.Elite:
+                                    goldGain = 15;
+                                    break;
+                                case Presets.EnemyKind.Boss:
+                                    goldGain = 40;
+                                    break;
+                                default:
+                                    goldGain = 5;
+                                    break;
+                            }
+                        }
+
+                        GameManager.Instance.currentRunData.playerData.gold += goldGain;
+                        GameManager.Instance.UpdatePlayerGoldUI(GameManager.Instance.currentRunData.playerData.gold);
+                        Debug.Log($"[BATTLE][TEST] Awarded {goldGain} gold for killing {deadCharacter.name}. Total: {GameManager.Instance.currentRunData.playerData.gold}");
+                    }
+                }
+                catch { }
+
                 // Destroy the enemy GameObject
                 Destroy(enemyInstances[i]);
                 Debug.Log($"[BATTLE] Destroyed enemy {i}");

@@ -302,7 +302,8 @@ public class GameManager : MonoBehaviour
 
         if (playerInstance != null)
         {
-            playerInstance.SetActive(scene.name == "MainGame");
+            bool shouldBeActive = scene.name == "MainGame" || scene.name == "ShopScene" || scene.name == "RestScene" || scene.name == "EventScene" || scene.name == "MysteryScene" || scene.name.StartsWith("Zone");
+            playerInstance.SetActive(shouldBeActive);
         }
 
         if (playerStatusUI != null)
@@ -693,12 +694,21 @@ public class GameManager : MonoBehaviour
         character.currentHP = currentRunData.playerData.currentHP;
         character.currentMana = currentRunData.playerData.currentMana;
         character.UpdateHPUI();
+
+        // Cập nhật UI vàng ban đầu sau khi load dữ liệu run
+        UpdatePlayerGoldUI(currentRunData.playerData.gold);
     }
     public void UpdatePlayerGoldUI(int amount)
     {
+        // Clamp gold to be non-negative for the current run
+        int clamped = amount < 0 ? 0 : amount;
+        if (currentRunData != null)
+        {
+            currentRunData.playerData.gold = clamped;
+        }
         if (playerStatusUI != null)
         {
-            playerStatusUI.UpdateGold(amount);
+            playerStatusUI.UpdateGold(clamped);
         }
     }
 }
