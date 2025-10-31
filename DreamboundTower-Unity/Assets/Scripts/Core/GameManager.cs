@@ -594,6 +594,14 @@ public class GameManager : MonoBehaviour
         // vì Initialize cần dữ liệu Race/Class được chọn ở scene tiếp theo.
         // Logic khởi tạo HP sẽ được chuyển vào sau khi chọn nhân vật xong.
 
+        ////TEST
+        //if (currentRunData.currentRunEventFlags == null)
+        //{
+        //    currentRunData.currentRunEventFlags = new System.Collections.Generic.HashSet<string>();
+        //}
+        //currentRunData.currentRunEventFlags.Add("RIVAL_HOSTILE");
+        //Debug.LogWarning("--- TEST HACK: Đã thêm cờ RIVAL_HOSTILE vào currentRunEventFlags! ---");
+
         if (playerInstance != null)
         {
             Destroy(playerInstance);

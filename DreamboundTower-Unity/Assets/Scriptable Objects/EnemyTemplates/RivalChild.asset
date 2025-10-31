@@ -10,27 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Mimic
+  m_Name: RivalChild
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
-  kind: 1
-  gimmick: 0
+  kind: 0
+  gimmick: 131076
   isUniqueOrEventOnly: 1
   summonableEnemies: []
   manaRegenPerTurnn: 0
   skills: []
   sprites:
-  - {fileID: -6128539358149561950, guid: 083e65419c9a47d41869436f6b21ffff, type: 3}
-  - {fileID: -6251451809504726511, guid: abef7c52290373841a6900370bedd6cd, type: 3}
+  - {fileID: -1324305832228196888, guid: 28f58474863458049a3affe99a4985bd, type: 3}
   baseStatsAtFloor1:
-    HP: 4
-    STR: 6
-    DEF: 2
-    MANA: 2
-    INT: 2
-    AGI: 0
-  hpMultiplier: 3
-  strMultiplier: 1.6
-  defMultiplier: 1.6
+    HP: 5
+    STR: 5
+    DEF: 5
+    MANA: 5
+    INT: 5
+    AGI: 5
+  hpMultiplier: 1
+  strMultiplier: 1
+  defMultiplier: 1
   baseRate: 0.012
   endlessAfterFloor: 100
   endlessBonus: 0.002

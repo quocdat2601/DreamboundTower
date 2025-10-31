@@ -5,6 +5,10 @@ using TMPro;
 using UnityEngine.EventSystems;
 using System.Collections;
 using System.Collections.Generic;
+using Presets;
+
+using UnityEngine.SceneManagement;
+
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -50,6 +54,8 @@ public class ScriptReader : MonoBehaviour
     private Coroutine textAnimationCoroutine;
     private string currentText = ""; // Full text being animated
     private bool isAnimating = false; // Currently showing text animation
+
+    private EventSceneManager eventManager;
 
     // Initialize story and display first line.
     void Start()
@@ -418,56 +424,67 @@ public class ScriptReader : MonoBehaviour
 
     public void GainItem(string itemName)
     {
-        // Find the actual GearItem from GameManager
-        GearItem item = null;
-        if (GameManager.Instance != null && GameManager.Instance.allItems != null)
+        Debug.Log($"THỰC THI: Cố gắng nhận Item '{itemName}'!");
+
+        // 1. Lấy GameManager và Inventory của Player
+        GameManager gm = GameManager.Instance;
+        Inventory playerInventory = null;
+
+        if (gm != null && gm.playerInstance != null)
         {
-            item = GameManager.Instance.GetItemByID(itemName);
-            if (item == null)
-            {
-                // Try finding by itemName field instead of name
-                item = GameManager.Instance.allItems.Find(i => i.itemName == itemName);
-            }
+            playerInventory = gm.playerInstance.GetComponent<Inventory>();
         }
 
-        if (item == null)
+        // Kiểm tra lỗi nếu không tìm thấy
+        if (gm == null)
         {
-            Debug.LogWarning($"GainItem: Could not find item '{itemName}' in GameManager.allItems!");
+            Debug.LogError($"ScriptReader.GainItem: Không tìm thấy GameManager Instance!");
+            return;
+        }
+        if (playerInventory == null)
+        {
+            Debug.LogError($"ScriptReader.GainItem: Không tìm thấy component Inventory trên Player!");
             return;
         }
 
-        // Add to PlayerData list for persistence
-        if (!data.inventoryItemIds.Contains(itemName))
+        // 2. Tìm đối tượng GearItem từ tên (sử dụng hàm trong GameManager)
+        GearItem itemToAdd = gm.GetItemByID(itemName);
+        
+        // Fallback: Try finding by itemName field if GetItemByID fails
+        if (itemToAdd == null && gm.allItems != null)
+        {
+            itemToAdd = gm.allItems.Find(i => i.itemName == itemName);
+        }
+
+        if (itemToAdd == null)
+        {
+            Debug.LogError($"ScriptReader.GainItem: Không tìm thấy GearItem nào có tên '{itemName}' trong database của GameManager!");
+            return;
+        }
+
+        // 3. Thêm item vào PlayerData list for persistence (kept from HEAD)
+        if (data != null && !data.inventoryItemIds.Contains(itemName))
         {
             data.inventoryItemIds.Add(itemName);
         }
 
-        // Add to actual Inventory component so it appears in UI
-        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        // 4. Thêm item vào Inventory component so it appears in UI
+        bool addedSuccessfully = playerInventory.AddItem(itemToAdd);
+
+        // Xử lý kết quả
+        if (addedSuccessfully)
         {
-            var inventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
-            if (inventory != null)
-            {
-                bool success = inventory.AddItem(item);
-                if (success)
-                {
-                    Debug.Log($"THỰC THI: Nhận Item '{itemName}' và đã thêm vào Inventory!");
-                }
-                else
-                {
-                    Debug.LogWarning($"GainItem: Inventory is full! Could not add '{itemName}'");
-                }
-            }
-            else
-            {
-                Debug.LogWarning($"GainItem: Player instance does not have Inventory component!");
-            }
+            Debug.Log($"THỰC THI: Đã thêm Item '{itemToAdd.itemName}' vào Inventory!");
+        }
+        else
+        {
+            Debug.LogWarning($"ScriptReader.GainItem: Inventory đầy! Không thể thêm '{itemName}'.");
         }
     }
 
     public void GainRelic(string relicName)
     {
-        // Relics are treated the same as items
+        // Relics are treated the same as items - reuse GainItem logic
         GainItem(relicName);
     }
 
@@ -817,11 +834,63 @@ public class ScriptReader : MonoBehaviour
 
     public void StartCombat(string combatType)
     {
-        Debug.LogError($"CHƯA KẾT NỐI: BẮT ĐẦU TRẬN CHIẾN '{combatType}'!");
-        // (Logic này nên được xử lý bởi EventSceneManager gọi GameManager)
+        // Kiểm tra xem eventManager đã được gán chưa
+        if (eventManager == null)
+        {
+            Debug.LogError("ScriptReader.StartCombat: Tham chiếu đến EventSceneManager bị null!");
+            return;
+        }
+
+        EnemyTemplateSO combatTemplate = null;
+
+        // Kiểm tra combatType
+        if (combatType == "RivalChild" || combatType == "ELITE") //do trong inky đặt tên là ELITE
+        {
+            combatTemplate = eventManager.rivalChildTemplate;
+        }
+        // (Thêm else if cho các combat đặc biệt khác nếu cần)
+
+        if (combatTemplate == null)
+        {
+            Debug.LogError($"ScriptReader.StartCombat: Không tìm thấy EnemyTemplateSO cho combatType '{combatType}'!");
+            return;
+        }
+
+        // --- BẮT ĐẦU LOGIC CHUẨN BỊ COMBAT (Giống Mimic) ---
+
+        // 1. Lấy RunData
+        if (GameManager.Instance == null || GameManager.Instance.currentRunData == null)
+        {
+            Debug.LogError("ScriptReader.StartCombat: GameManager hoặc RunData bị null!");
+            return;
+        }
+        var runData = GameManager.Instance.currentRunData;
+        var mapData = runData.mapData;
+
+        // 2. Set Dữ liệu Pending Enemy
+        // Đây là bước quan trọng nhất
+        mapData.pendingEnemyArchetypeId = combatTemplate.name; // Sẽ là "RivalChild"
+        mapData.pendingEnemyKind = (int)combatTemplate.kind;     // Loại (ví dụ: Normal)
+
+        // Lấy Tầng hiện tại (đã được MapPlayerTracker lưu khi vào Event)
+        int currentFloor = mapData.pendingEnemyFloor;
+        if (currentFloor <= 0) currentFloor = 1; // Fallback nếu = 0
+        mapData.pendingEnemyFloor = currentFloor;
+
+        // 3. Đảm bảo Dữ liệu Pending Node vẫn còn (để quay về)
+        // (MapPlayerTracker đã set cái này khi tải EventScene, không cần set lại)
+        if (mapData.pendingNodePoint.x == -1)
+        {
+            Debug.LogWarning("ScriptReader.StartCombat: pendingNodePoint không được set! Có thể lỗi khi quay về Map.");
+        }
+
+        // 4. Lưu game và Chuyển Scene
+        RunSaveService.SaveRun(runData);
+        Debug.Log($"[ScriptReader] Bắt đầu trận chiến đặc biệt: {combatTemplate.name}. Quay về Map sau khi xong.");
+        SceneManager.LoadScene("MainGame"); // Tên Scene Combat của bạn
     }
 
-    public int GetPlayerSTR()
+public int GetPlayerSTR()
     {
         // Ưu tiên 1: Đọc từ Override Stats nếu bật
         if (GameManager.Instance != null && GameManager.Instance.overridePlayerStats)
@@ -993,7 +1062,13 @@ public class ScriptReader : MonoBehaviour
         textSpeed = speed;
     }
     #endregion
-
+    /// <summary>
+    /// Nhận tham chiếu từ EventSceneManager để truy cập các template đặc biệt
+    /// </summary>
+    public void SetEventManagerReference(EventSceneManager manager)
+    {
+        this.eventManager = manager;
+    }
     private void HandleTags(List<string> tags)
     {
         foreach (string tag in tags)

@@ -1,14 +1,14 @@
 EXTERNAL GainItem(itemName)
 EXTERNAL HealHP(amount, type)
 
-An old cloak hangs on a stand; it smells like your mother’s kitchen.
+A faded, old cloak hangs on a wooden stand. It smells faintly, inexplicably, like your mother’s kitchen on a rainy day.
 
 * [Wear it.]
     ~ GainItem("Arcanum Robe")
-    You don the cloak. It turns into an Arcanum Robe and warms your spirit.
+    You pull the cloak over your shoulders. It shimmers and reforms into a fine [Arcanum Robe], the comforting scent lingering within its threads.
     -> END
 
-* [Smell it.]
+* [Just smell it.]
     ~ HealHP(100, "PERCENT")
-    Home floods back. You’re fully restored. (Heal 100% HP)
+    You close your eyes and inhale the scent of home. The feeling of safety and comfort is so profound, it washes away all your wounds. (Heal 100% HP)
     -> END

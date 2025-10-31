@@ -29,6 +29,9 @@ namespace Presets
         public EnemyKind kind;
         public EnemyGimmick gimmick;
 
+        [Tooltip("Nếu được tick, quái vật này sẽ KHÔNG được chọn ngẫu nhiên trong các trận chiến thường. Chỉ xuất hiện nếu được gọi tên cụ thể (ví dụ: Event, Summon).")]
+        public bool isUniqueOrEventOnly = false;
+
         [Header("Summoner Gimmick (Nếu có)")]
         [Tooltip("Danh sách các loại quái vật mà kẻ địch này có thể triệu hồi.")]
         public List<EnemyTemplateSO> summonableEnemies;
