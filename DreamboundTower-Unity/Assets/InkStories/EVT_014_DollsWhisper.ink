@@ -6,6 +6,10 @@ EXTERNAL RemoveFlag(flagName)
 EXTERNAL AddDebuff(debuffName, duration)
 EXTERNAL Name(charName)
 EXTERNAL ClearName()
+EXTERNAL HasGold(amount)
+
+VAR has_enough_gold = false
+~ has_enough_gold = HasGold(30)
 
 #Name Doll
 'I know a secret... if you feed me.'
@@ -18,7 +22,7 @@ EXTERNAL ClearName()
     You feel a sharp pain as it feeds on your essence, but your mind clears. (+2 INT)
     -> END
 
-* [Feed it 30 Gold.]
+* [Feed it 30 Gold (30g).]
     ~ GainGold(-30)
     ~ GainStat("STR", 2)
     ~ SetFlag("FED_DOLL")

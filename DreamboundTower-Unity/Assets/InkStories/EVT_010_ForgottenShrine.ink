@@ -5,12 +5,15 @@ EXTERNAL LoseHP(amount, type)
 EXTERNAL GainItem(itemName)
 EXTERNAL SetFlag(flagName)
 EXTERNAL GetRace()
+EXTERNAL HasGold(amount)
 
 VAR player_race = ""
+VAR has_enough_gold = false
 ~ player_race = GetRace()
+~ has_enough_gold = HasGold(20)
 
 A dusty altar to a goddess of light awaits an offering.
-* [Offer 20 gold.]
+* [Offer 20 gold (20g).]
 	~ GainGold(-20)
 	~ GainStat("DEF", 1)
 	~ GainRelic("Charm of Purity")

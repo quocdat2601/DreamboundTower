@@ -1,4 +1,4 @@
-EXTERNAL GainRandomStat(amount)
+EXTERNAL GainRandomStat(numStats, amountPerStat)
 EXTERNAL AddDebuff(debuffName, duration)
 EXTERNAL GainItem(itemName)
 EXTERNAL GetSTR()
@@ -7,7 +7,7 @@ VAR player_str = 0
 A tall mirror shows a darker you.
 
 * [Touch the mirror.]
-    ~ GainRandomStat(2)
+    ~ GainRandomStat(2, 2)
     ~ AddDebuff("HEAL_MINUS_10", 3)
     // Văn bản mô tả kết quả của Touch the mirror
     You touch the glass. +2 random stats; Healing received -10% for 3 fights.

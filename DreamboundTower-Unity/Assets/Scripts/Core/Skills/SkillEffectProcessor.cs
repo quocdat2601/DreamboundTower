@@ -302,7 +302,8 @@ public static class SkillEffectProcessor
         int recoilDamage = Mathf.RoundToInt(caster.maxHP * skillData.recoilDamagePercent);
         Debug.Log($"[SKILL EFFECT] Applying recoil damage: {recoilDamage} HP ({skillData.recoilDamagePercent * 100f}% MaxHP) to {caster.name}");
         
-        caster.TakeDamage(recoilDamage, caster);
+        // Recoil damage is self-damage and cannot be dodged (bypassDodge = true)
+        caster.TakeDamage(recoilDamage, caster, DamageType.Physical, false, bypassDodge: true);
     }
     
     #endregion

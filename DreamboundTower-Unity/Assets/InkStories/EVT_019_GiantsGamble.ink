@@ -3,14 +3,17 @@ EXTERNAL LoseHP(amount, type)
 EXTERNAL GainRelic(relicName)
 EXTERNAL Name(charName)
 EXTERNAL ClearName()
+EXTERNAL HasGold(amount)
 
 VAR roll = 0
+VAR has_enough_gold = false
+~ has_enough_gold = HasGold(50)
 
 #Name Giant
 'Gamble?'
 #End
 
-* [Gamble 50 Gold.]
+* [Gamble 50 Gold (50g).]
     ~ GainGold(-50)
     ~ roll = RANDOM(1, 100)
     

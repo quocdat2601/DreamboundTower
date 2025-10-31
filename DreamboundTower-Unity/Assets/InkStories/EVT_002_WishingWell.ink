@@ -3,16 +3,19 @@ EXTERNAL GainItem(itemName)
 EXTERNAL HealHP(amount, type)
 EXTERNAL LoseHP(amount, type)
 EXTERNAL GetINT()
+EXTERNAL HasGold(amount)
 VAR player_int = 0
+VAR has_enough_gold = false
 
 An ancient stone well hums with forgotten wishes.
 ~ player_int = GetINT()
+~ has_enough_gold = HasGold(20)
 
-* [Throw in a coin.]
-~ GainGold(-20) 
- ~ GainItem("Silver Ring")
- You toss 20 gold. A Silver Ring rises from the water!
- -> END
+* [Throw in a coin (20g).]
+	~ GainGold(-20) 
+	~ GainItem("Silver Ring")
+	You toss 20 gold. A Silver Ring rises from the water!
+	-> END
 
 * [Drink from the well.]
  ~ HealHP(25, "PERCENT")

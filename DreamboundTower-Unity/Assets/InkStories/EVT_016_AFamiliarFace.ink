@@ -1,11 +1,14 @@
 EXTERNAL GainGold(amount)
 EXTERNAL SetFlag(flagName)
 EXTERNAL GetSTR()
+EXTERNAL HasGold(amount)
 VAR player_str = 0
+VAR has_enough_gold = false
 
 You feel a chill in the air, the kind you get when you've done something wrong. A dark corner reveals another child, huddled and shivering. They look startled to see you—their reflection, perhaps.
 
 ~ player_str = GetSTR()
+~ has_enough_gold = HasGold(15)
 
 * [Offer some Gold (15g).]
     ~ GainGold(-15)

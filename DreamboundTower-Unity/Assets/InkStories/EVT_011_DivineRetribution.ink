@@ -3,6 +3,10 @@ EXTERNAL GainGold(amount)
 EXTERNAL GainStat(statName, amount)
 EXTERNAL ModifySteadfast(amount)
 EXTERNAL LoseHP(amount, type)
+EXTERNAL HasGold(amount)
+
+VAR has_enough_gold = false
+~ has_enough_gold = HasGold(50)
 
 A blazing spirit confronts your sacrilege.
 
