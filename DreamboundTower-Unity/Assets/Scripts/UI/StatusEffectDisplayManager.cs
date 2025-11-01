@@ -37,6 +37,32 @@ public class StatusEffectDisplayManager : MonoBehaviour
         {
             AutoSetTargetCharacter();
         }
+        
+        // Ensure icon container has proper spacing
+        EnsureContainerSpacing();
+    }
+    
+    /// <summary>
+    /// Ensures the icon container has a HorizontalLayoutGroup with proper spacing
+    /// </summary>
+    private void EnsureContainerSpacing()
+    {
+        if (iconContainer == null) return;
+        
+        // Get or add HorizontalLayoutGroup
+        UnityEngine.UI.HorizontalLayoutGroup layoutGroup = iconContainer.GetComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        if (layoutGroup == null)
+        {
+            layoutGroup = iconContainer.gameObject.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        }
+        
+        // Configure spacing and layout
+        layoutGroup.spacing = 10; // Spacing between icons
+        layoutGroup.childControlWidth = false;
+        layoutGroup.childControlHeight = false;
+        layoutGroup.childForceExpandWidth = false;
+        layoutGroup.childForceExpandHeight = false;
+        layoutGroup.padding = new RectOffset(5, 5, 5, 5);
     }
     
     void Update()

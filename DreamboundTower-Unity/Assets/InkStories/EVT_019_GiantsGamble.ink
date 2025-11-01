@@ -3,15 +3,18 @@ EXTERNAL LoseHP(amount, type)
 EXTERNAL GainRelic(relicName)
 EXTERNAL Name(charName)
 EXTERNAL ClearName()
+EXTERNAL HasGold(amount)
 
 VAR roll = 0
+VAR has_enough_gold = false
+~ has_enough_gold = HasGold(50)
 
 A sleeping stone giant, the size of a hill, cracks open one massive, mossy eye as you approach.
 #Name Giant
 'Gamble?' it rumbles, its voice shaking the floor. It points to a small pile of gold and a glowing relic.
 #End
 
-* [Gamble 50 Gold.]
+* [Gamble 50 Gold (50g).]
     ~ GainGold(-50)
     ~ roll = RANDOM(1, 100)
     { roll <= 50:

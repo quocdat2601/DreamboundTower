@@ -338,6 +338,16 @@ public class GameManager : MonoBehaviour
             // Thêm dòng log này để biết nếu playerStatusUI bị null
             Debug.LogError("LỖI: playerStatusUI trong GameManager đang bị null!");
         }
+        // Load player state (inventory, equipment) from RunData when entering gameplay scenes
+        if (playerInstance != null && currentRunData != null)
+        {
+            if (scene.name == "EventScene" || scene.name == "ShopScene" || scene.name == "RestScene" || scene.name == "MysteryScene" || scene.name == "BattleScene" || scene.name == "MainGame" || scene.name.StartsWith("Zone"))
+            {
+                LoadStateFromRunData();
+                Debug.Log($"[GameManager] Loaded player state from RunData for scene: {scene.name}");
+            }
+        }
+        
         if (AudioManager.Instance != null)
         {
             // Kiểm tra tên scene để quyết định nhạc
@@ -435,24 +445,65 @@ public class GameManager : MonoBehaviour
             if (overridePlayerStats)
             {
                 // Dùng chỉ số override
-                playerCharacter.baseMaxHP = customPlayerStats.HP * HP_UNIT;
-                playerCharacter.baseAttackPower = customPlayerStats.STR;
-                playerCharacter.baseDefense = customPlayerStats.DEF;
-                playerCharacter.baseMana = customPlayerStats.MANA * MANA_UNIT;
-                playerCharacter.baseIntelligence = customPlayerStats.INT;
-                playerCharacter.baseAgility = customPlayerStats.AGI;
+                
+                // Initialize PlayerData.currentStats to override stats if uninitialized (all zeros)
+                if (currentRunData.playerData.currentStats.STR == 0 && currentRunData.playerData.currentStats.DEF == 0 && 
+                     currentRunData.playerData.currentStats.INT == 0 && currentRunData.playerData.currentStats.MANA == 0 && 
+                     currentRunData.playerData.currentStats.AGI == 0)
+                {
+                    currentRunData.playerData.currentStats = new StatBlock
+                    {
+                        HP = customPlayerStats.HP,
+                        STR = customPlayerStats.STR,
+                        DEF = customPlayerStats.DEF,
+                        INT = customPlayerStats.INT,
+                        MANA = customPlayerStats.MANA,
+                        AGI = customPlayerStats.AGI
+                    };
+                    Debug.Log("[GameManager] Initialized PlayerData.currentStats from override stats.");
+                }
+                
+                // Set Character base stats from PlayerData.currentStats (includes permanent gains from events)
+                StatBlock playerStats = currentRunData.playerData.currentStats;
+                playerCharacter.baseMaxHP = playerStats.HP * HP_UNIT;
+                playerCharacter.baseAttackPower = playerStats.STR;
+                playerCharacter.baseDefense = playerStats.DEF;
+                playerCharacter.baseMana = playerStats.MANA * MANA_UNIT;
+                playerCharacter.baseIntelligence = playerStats.INT;
+                playerCharacter.baseAgility = playerStats.AGI;
                 Debug.LogWarning("[GameManager] ĐÃ SỬ DỤNG CHỈ SỐ OVERRIDE ĐỂ TẠO NHÂN VẬT!");
             }
             else
             {
                 // 3.1. GÁN "GIẤY KHAI SINH" (BASE STATS) TỪ RACE SO
                 StatBlock baseStats = raceData.baseStats;
-                playerCharacter.baseMaxHP = baseStats.HP * HP_UNIT;
-                playerCharacter.baseAttackPower = baseStats.STR;
-                playerCharacter.baseDefense = baseStats.DEF;
-                playerCharacter.baseMana = baseStats.MANA * MANA_UNIT;
-                playerCharacter.baseIntelligence = baseStats.INT;
-                playerCharacter.baseAgility = baseStats.AGI;
+                
+                // Initialize PlayerData.currentStats to race stats if uninitialized (all zeros)
+                if (currentRunData.playerData.currentStats.STR == 0 && currentRunData.playerData.currentStats.DEF == 0 && 
+                     currentRunData.playerData.currentStats.INT == 0 && currentRunData.playerData.currentStats.MANA == 0 && 
+                     currentRunData.playerData.currentStats.AGI == 0)
+                {
+                    // First time: initialize from race
+                    currentRunData.playerData.currentStats = new StatBlock
+                    {
+                        HP = baseStats.HP,
+                        STR = baseStats.STR,
+                        DEF = baseStats.DEF,
+                        INT = baseStats.INT,
+                        MANA = baseStats.MANA,
+                        AGI = baseStats.AGI
+                    };
+                    Debug.Log("[GameManager] Initialized PlayerData.currentStats from race stats.");
+                }
+                
+                // Set Character base stats from PlayerData.currentStats (includes permanent gains from events)
+                StatBlock playerStats = currentRunData.playerData.currentStats;
+                playerCharacter.baseMaxHP = playerStats.HP * HP_UNIT;
+                playerCharacter.baseAttackPower = playerStats.STR;
+                playerCharacter.baseDefense = playerStats.DEF;
+                playerCharacter.baseMana = playerStats.MANA * MANA_UNIT;
+                playerCharacter.baseIntelligence = playerStats.INT;
+                playerCharacter.baseAgility = playerStats.AGI;
             }
             // 3.2. RESET CHỈ SỐ THỰC CHIẾN VỀ TRẠNG THÁI GỐC
             playerCharacter.ResetToBaseStats();
@@ -688,8 +739,76 @@ public class GameManager : MonoBehaviour
         }
         equipment.OnEquipmentChanged?.Invoke();
 
-        // Sau khi tải trang bị, yêu cầu tính toán lại chỉ số
-        equipment.ApplyGearStats();
+        // Sync base stats from PlayerData.currentStats (includes race base + permanent gains from events)
+        // This ensures that stat gains from events (via GainStat) are reflected in the Character component
+        var playerStats = currentRunData.playerData.currentStats;
+        var raceData = GetRaceByID(currentRunData.playerData.selectedRaceId);
+        
+        if (raceData != null)
+        {
+            var raceStats = raceData.baseStats;
+            
+            // Check if playerStats is initialized (not all zeros)
+            bool isPlayerStatsInitialized = !(playerStats.STR == 0 && playerStats.DEF == 0 && 
+                                               playerStats.INT == 0 && playerStats.MANA == 0 && 
+                                               playerStats.AGI == 0);
+            
+            if (isPlayerStatsInitialized)
+            {
+                // Set Character base stats directly from PlayerData.currentStats (which already includes race + gains)
+                character.baseMaxHP = playerStats.HP * HP_UNIT;
+                character.baseAttackPower = playerStats.STR;
+                character.baseDefense = playerStats.DEF;
+                character.baseMana = playerStats.MANA * MANA_UNIT;
+                character.baseIntelligence = playerStats.INT;
+                character.baseAgility = playerStats.AGI;
+            }
+            else
+            {
+                // Fallback: if currentStats is uninitialized, use race stats
+                character.baseMaxHP = raceStats.HP * HP_UNIT;
+                character.baseAttackPower = raceStats.STR;
+                character.baseDefense = raceStats.DEF;
+                character.baseMana = raceStats.MANA * MANA_UNIT;
+                character.baseIntelligence = raceStats.INT;
+                character.baseAgility = raceStats.AGI;
+            }
+            
+            // IMPORTANT: Get active status effects BEFORE resetting stats
+            List<StatusEffect> activeEffects = new List<StatusEffect>();
+            if (StatusEffectManager.Instance != null)
+            {
+                activeEffects = StatusEffectManager.Instance.GetActiveEffects(character);
+            }
+            
+            // Apply gear stats (this calls ResetToBaseStats internally, then applies gear bonuses)
+            // This resets stats to base, so status effects are temporarily removed
+            equipment.ApplyGearStats();
+            
+            // IMPORTANT: Reapply status effects AFTER gear stats are applied
+            // This ensures debuffs/buffs are applied on top of gear bonuses
+            if (StatusEffectManager.Instance != null && activeEffects.Count > 0)
+            {
+                foreach (var effect in activeEffects)
+                {
+                    // Reapply the effect to restore its stat modifications
+                    effect.OnApply(character);
+                }
+                Debug.Log($"[LoadStateFromRunData] Reapplied {activeEffects.Count} status effects after resetting stats and applying gear.");
+                
+                // Update stats UI to show the reapplied effects
+                var statsUIManager = FindFirstObjectByType<PlayerInfoUIManager>();
+                if (statsUIManager != null && statsUIManager.statsPanel != null && statsUIManager.statsPanel.activeSelf)
+                {
+                    statsUIManager.UpdateStatsDisplay();
+                }
+            }
+        }
+        else
+        {
+            // If no race data, still need to apply gear stats
+            equipment.ApplyGearStats();
+        }
 
         // Tải HP/Mana và cập nhật UI
         character.currentHP = currentRunData.playerData.currentHP;

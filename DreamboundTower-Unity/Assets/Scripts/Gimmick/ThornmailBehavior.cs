@@ -45,7 +45,8 @@ public class ThornmailBehavior : MonoBehaviour
 
                 // Bắt người chơi nhận sát thương
                 // Gửi "null" làm attacker để tránh vòng lặp phản đòn vô hạn
-                attacker.TakeDamage(recoilDamage, null);
+                // Reflected damage cannot be dodged (bypassDodge = true)
+                attacker.TakeDamage(recoilDamage, null, DamageType.Physical, false, bypassDodge: true);
             }
         }
     }

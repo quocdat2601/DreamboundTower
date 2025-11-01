@@ -28,8 +28,6 @@ namespace Map
         {
             if (Locked) return;
 
-            // Debug.Log("Selected node: " + mapNode.Node.point);
-
             if (mapManager.CurrentMap.path.Count == 0)
             {
                 // player has not selected the node yet, he can select any of the nodes with y = 0
@@ -52,14 +50,8 @@ namespace Map
 
         private void SendPlayerToNode(MapNode mapNode)
         {
-            //Locked = lockAfterSelecting;
             if (Locked) return;
             Locked = true;
-
-            // TEMPORARY: For testing map progression, treat all nodes the same
-            // For non-combat nodes, mark as completed immediately
-            // if (mapNode.Node.nodeType != NodeType.MinorEnemy)
-            // {
             mapManager.CurrentMap.path.Add(mapNode.Node.point);
             // sync currentFloor with selected node's layer (y + 1)
             int floorInZone = mapNode.Node.point.y + 1;
@@ -168,9 +160,14 @@ namespace Map
             {
                 Debug.LogWarning("Event Pool cạn! Đang tái tạo...");
                 foreach (var evt in GameManager.Instance.allEvents) { eventPool.Add(evt.eventID); }
+                Debug.Log($"Đã tái tạo pool với {eventPool.Count} events từ {GameManager.Instance.allEvents.Count} total events.");
             }
 
+            Debug.Log($"[Event Selection] Current Zone: {runData.mapData.currentZone}, Region: {currentRegion}, Pool size: {eventPool.Count}, Player flags: [{string.Join(", ", playerFlags)}]");
+
             // Bắt đầu lọc
+            int skippedRegion = 0;
+            int skippedFlag = 0;
             foreach (string eventId in eventPool)
             {
                 EventDataSO eventData = GameManager.Instance.allEvents.Find(e => e.eventID == eventId);
@@ -185,11 +182,45 @@ namespace Map
                     // Kiểm tra Prerequisite Flag
                     bool flagMatch = string.IsNullOrEmpty(eventData.prerequisiteFlag) || playerFlags.Contains(eventData.prerequisiteFlag);
 
-                    if (regionMatch && flagMatch)
+                    if (!regionMatch)
+                    {
+                        skippedRegion++;
+                    }
+                    else if (!flagMatch)
+                    {
+                        skippedFlag++;
+                    }
+                    else if (regionMatch && flagMatch)
                     {
                         validEvents.Add(eventData);
                     }
                 }
+            }
+
+            Debug.Log($"[Event Selection] Found {validEvents.Count} valid events. Skipped {skippedRegion} (region), {skippedFlag} (flag).");
+
+            // FALLBACK: Nếu không tìm thấy event nào hợp lệ, thử lại với region matching nhẹ hơn (bỏ qua flag requirement)
+            if (validEvents.Count == 0 && eventPool.Count > 0)
+            {
+                Debug.LogWarning("[Event Selection] Không tìm thấy event nào hợp lệ với flag requirement. Thử lại chỉ với region matching...");
+                validEvents.Clear();
+                foreach (string eventId in eventPool)
+                {
+                    EventDataSO eventData = GameManager.Instance.allEvents.Find(e => e.eventID == eventId);
+                    if (eventData != null)
+                    {
+                        bool regionMatch = eventData.region == EventRegion.Any || eventData.region == currentRegion ||
+                                           (currentRegion == EventRegion.Early && eventData.region == EventRegion.EarlyMid) ||
+                                           (currentRegion == EventRegion.Mid && (eventData.region == EventRegion.EarlyMid || eventData.region == EventRegion.MidLate)) ||
+                                           (currentRegion == EventRegion.Late && eventData.region == EventRegion.MidLate);
+                        
+                        if (regionMatch)
+                        {
+                            validEvents.Add(eventData);
+                        }
+                    }
+                }
+                Debug.Log($"[Event Selection] Fallback: Tìm thấy {validEvents.Count} events chỉ với region matching.");
             }
 
             // 2. Chọn ngẫu nhiên từ danh sách hợp lệ
@@ -218,7 +249,7 @@ namespace Map
             }
             else
             {
-                Debug.LogWarning("Không tìm thấy Event nào hợp lệ! Node này sẽ không làm gì cả. Mở khóa Player.");
+                Debug.LogWarning($"[Event Selection] Không tìm thấy Event nào hợp lệ! Zone: {runData.mapData.currentZone}, Region: {currentRegion}, Pool size: {eventPool.Count}, Total events: {GameManager.Instance.allEvents.Count}. Node này sẽ không làm gì cả. Mở khóa Player.");
                 // Mở khóa để người chơi đi tiếp
                 Locked = false;
             }

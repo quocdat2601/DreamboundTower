@@ -6,6 +6,10 @@ EXTERNAL RemoveFlag(flagName)
 EXTERNAL AddDebuff(debuffName, duration)
 EXTERNAL Name(charName)
 EXTERNAL ClearName()
+EXTERNAL HasGold(amount)
+
+VAR has_enough_gold = false
+~ has_enough_gold = HasGold(30)
 
 The porcelain doll appears before you again, its head tilted slightly.
 #Name Doll
@@ -19,7 +23,7 @@ The porcelain doll appears before you again, its head tilted slightly.
     You offer your arm. It "drinks" from your vitality. The pain is sharp but quick, leaving your mind feeling clearer, sharper. (-15 HP, +2 INT, Flag set: FED_DOLL)
     -> END
 
-* [Feed it 30 Gold.]
+* [Feed it 30 Gold (30g).]
     ~ GainGold(-30)
     ~ GainStat("STR", 2)
     ~ SetFlag("FED_DOLL")

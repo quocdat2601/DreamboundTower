@@ -184,25 +184,22 @@ public class BattleManager : MonoBehaviour
     }
     void Update()
     {
-        // Check for debug key presses if the battle is not busy
-        // Removed busy check - players can now use multiple actions per turn
+        // Debug keys (Editor only)
+        #if UNITY_EDITOR
+        if (Keyboard.current == null) return;
 
-        // Make sure a keyboard is connected before trying to read from it
-        if (Keyboard.current == null) return;
-
-        // Press 'Q' to instantly win the battle
-        if (Keyboard.current.qKey.wasPressedThisFrame)
+        if (Keyboard.current.qKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Victory (Q key pressed).");
             StartCoroutine(VictoryRoutine());
         }
 
-        // Press 'E' to instantly lose the battle
-        if (Keyboard.current.eKey.wasPressedThisFrame)
+        if (Keyboard.current.eKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Defeat (E key pressed).");
             StartCoroutine(DefeatRoutine());
         }
+        #endif
     }
     #endregion
 
@@ -609,12 +606,12 @@ public class BattleManager : MonoBehaviour
         
         // Configure horizontal layout for icons
         var layoutGroup = statusEffectContainer.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
-        layoutGroup.spacing = 8;
-        layoutGroup.childControlWidth = true;
-        layoutGroup.childControlHeight = true;
+        layoutGroup.spacing = 10; // Spacing between icons (increased from 8 for better visibility)
+        layoutGroup.childControlWidth = false;
+        layoutGroup.childControlHeight = false;
         layoutGroup.childForceExpandWidth = false;
         layoutGroup.childForceExpandHeight = false;
-        layoutGroup.padding = new RectOffset(4, 4, 4, 4);
+        layoutGroup.padding = new RectOffset(5, 5, 5, 5);
         
         // Auto-size container to fit content
         var sizeFitter = statusEffectContainer.AddComponent<UnityEngine.UI.ContentSizeFitter>();
@@ -1290,11 +1287,21 @@ public class BattleManager : MonoBehaviour
             if (playerCharacter != null)
             {
                 runData.playerData.currentHP = playerCharacter.currentHP;
-                // runData.playerData.currentMana = playerCharacter.currentMana;
-            }
+                // runData.playerData.currentMana = playerCharacter.currentMana;
+                
+                // Decrement event-based status effect durations per battle node (not per turn)
+                if (StatusEffectManager.Instance != null)
+                {
+                    StatusEffectManager.Instance.DecrementEventBasedEffectsPerBattleNode(playerCharacter);
+                    Debug.Log("[BATTLE] Event-based status effect durations decremented per battle node.");
+                }
+            }
 
-            // Lưu lại toàn bộ RunData
-            RunSaveService.SaveRun(runData);
+            // IMPORTANT: Save player state (inventory, equipment) to RunData before saving to file
+            GameManager.Instance.SavePlayerStateToRunData();
+
+            // Lưu lại toàn bộ RunData
+            RunSaveService.SaveRun(runData);
             Debug.Log("[SAVE SYSTEM] Node completed. Pending status cleared. Game saved.");
         }
 

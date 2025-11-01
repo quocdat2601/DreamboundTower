@@ -3,6 +3,10 @@ EXTERNAL GainGold(amount)
 EXTERNAL GainStat(statName, amount)
 EXTERNAL ModifySteadfast(amount)
 EXTERNAL LoseHP(amount, type)
+EXTERNAL HasGold(amount)
+
+VAR has_enough_gold = false
+~ has_enough_gold = HasGold(50)
 
 The air crackles with energy. A blinding light coalesces into an angelic apparition, its face a mask of cold fury. It points a fiery sword directly at you.
 'Your sacrilege at the shrine ends here,' it booms. 'Face divine retribution!'

@@ -85,7 +85,7 @@ public class PlayerInfoUIManager : MonoBehaviour
     }
     private const int HP_UNIT = 10;
     private const int MANA_UNIT = 5;
-    private void UpdateStatsDisplay()
+    public void UpdateStatsDisplay()
     {
         // Kiểm tra xem đã tìm thấy playerCharacter chưa
         if (playerCharacter == null)
@@ -110,9 +110,24 @@ public class PlayerInfoUIManager : MonoBehaviour
             int baseHPStat = Mathf.RoundToInt((float)playerCharacter.baseMaxHP / HP_UNIT);
             hpStatText.text = $"HP: {baseHPStat}"; // Hiển thị chỉ số HP gốc
         }
-        if (strStatText != null) strStatText.text = $"STR: {playerCharacter.attackPower}";
-        if (defStatText != null) defStatText.text = $"DEF: {playerCharacter.defense}";
-        if (intStatText != null) intStatText.text = $"INT: {playerCharacter.intelligence}";
+        if (strStatText != null)
+        {
+            int baseStr = playerCharacter.baseAttackPower;
+            int deltaStr = playerCharacter.attackPower - baseStr;
+            strStatText.text = deltaStr != 0 ? $"STR: {baseStr} {(deltaStr > 0 ? "+" : "")} {deltaStr}".Replace("  ", " ") : $"STR: {baseStr}";
+        }
+        if (defStatText != null)
+        {
+            int baseDef = playerCharacter.baseDefense;
+            int deltaDef = playerCharacter.defense - baseDef;
+            defStatText.text = deltaDef != 0 ? $"DEF: {baseDef} {(deltaDef > 0 ? "+" : "")} {deltaDef}".Replace("  ", " ") : $"DEF: {baseDef}";
+        }
+        if (intStatText != null)
+        {
+            int baseInt = playerCharacter.baseIntelligence;
+            int deltaInt = playerCharacter.intelligence - baseInt;
+            intStatText.text = deltaInt != 0 ? $"INT: {baseInt} {(deltaInt > 0 ? "+" : "")} {deltaInt}".Replace("  ", " ") : $"INT: {baseInt}";
+        }
         if (manaStatText != null)
         {
             // Lấy baseMana và chia cho MANA_UNIT để ra chỉ số gốc

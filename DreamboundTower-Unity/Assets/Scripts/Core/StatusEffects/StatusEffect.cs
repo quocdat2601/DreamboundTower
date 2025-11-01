@@ -38,8 +38,9 @@ namespace StatusEffects
     public EffectTiming timing;
     public bool isStackable;
     public bool isNegative;
+    public bool isEventBased; // If true, duration decrements per battle node; if false, per turn
     
-    public StatusEffect(string name, int duration, int intensity, EffectTiming timing, bool stackable = false, bool negative = false)
+    public StatusEffect(string name, int duration, int intensity, EffectTiming timing, bool stackable = false, bool negative = false, bool eventBased = false)
     {
         this.effectName = name;
         this.duration = duration;
@@ -47,6 +48,7 @@ namespace StatusEffects
         this.timing = timing;
         this.isStackable = stackable;
         this.isNegative = negative;
+        this.isEventBased = eventBased;
     }
     
     /// <summary>
@@ -134,7 +136,8 @@ public class BurnEffect : StatusEffect
             {
                 CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, Color.red);
             }
-            target.TakeDamage(intensity, null); // No attacker for DoT
+            // Status effects like burn cannot be dodged (bypassDodge = true)
+            target.TakeDamage(intensity, null, DamageType.Physical, false, bypassDodge: true);
         }
     }
 }
@@ -144,7 +147,7 @@ public class BurnEffect : StatusEffect
 /// </summary>
 public class PoisonEffect : StatusEffect
 {
-    public PoisonEffect(int damagePerTurn, int duration) : base("Poison", duration, damagePerTurn, EffectTiming.EndOfTurn, false, true)
+    public PoisonEffect(int damagePerTurn, int duration, bool eventBased = false) : base("Poison", duration, damagePerTurn, EffectTiming.EndOfTurn, false, true, eventBased)
     {
     }
     
@@ -157,7 +160,8 @@ public class PoisonEffect : StatusEffect
             {
                 CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, Color.magenta);
             }
-            target.TakeDamage(intensity, null); // No attacker for DoT
+            // Status effects like poison cannot be dodged (bypassDodge = true)
+            target.TakeDamage(intensity, null, DamageType.Physical, false, bypassDodge: true);
         }
     }
 }
@@ -167,7 +171,7 @@ public class PoisonEffect : StatusEffect
 /// </summary>
 public class HealBonusEffect : StatusEffect
 {
-    public HealBonusEffect(int bonusPercent, int duration) : base("Heal Bonus", duration, bonusPercent, EffectTiming.EndOfTurn, false, false)
+    public HealBonusEffect(int bonusPercent, int duration, bool eventBased = false) : base("Heal Bonus", duration, bonusPercent, EffectTiming.EndOfTurn, false, false, eventBased)
     {
     }
     
@@ -189,4 +193,49 @@ public class PounceEffect : StatusEffect
     public override void OnTick(Character target) { }
     public override void OnRemove(Character target) { }
 }
+
+    /// <summary>
+    /// Generic stat modifier effect that applies additive changes to core stats
+    /// </summary>
+    public class StatModifierEffect : StatusEffect
+    {
+        public int deltaSTR;
+        public int deltaDEF;
+        public int deltaINT;
+        public int deltaAGI;
+        public int deltaMANA;
+
+        public StatModifierEffect(string name, int duration, int dStr = 0, int dDef = 0, int dInt = 0, int dAgi = 0, int dMana = 0, bool negative = false, bool eventBased = false)
+            : base(name, duration, 0, EffectTiming.EndOfTurn, false, negative, eventBased)
+        {
+            deltaSTR = dStr;
+            deltaDEF = dDef;
+            deltaINT = dInt;
+            deltaAGI = dAgi;
+            deltaMANA = dMana;
+        }
+
+        public override void OnApply(Character target)
+        {
+            if (target == null) return;
+            target.attackPower += deltaSTR;
+            target.defense += deltaDEF;
+            target.intelligence += deltaINT;
+            target.agility += deltaAGI;
+            target.mana += deltaMANA;
+            target.UpdateDerivedStats(); // Update dodge chance if AGI changed
+        }
+
+        public override void OnRemove(Character target)
+        {
+            if (target == null) return;
+            target.attackPower -= deltaSTR;
+            target.defense -= deltaDEF;
+            target.intelligence -= deltaINT;
+            target.agility -= deltaAGI;
+            target.mana -= deltaMANA;
+            target.UpdateDerivedStats(); // Update dodge chance if AGI changed
+            // Clamp not below base handled elsewhere, this is temporary effect
+        }
+    }
 }

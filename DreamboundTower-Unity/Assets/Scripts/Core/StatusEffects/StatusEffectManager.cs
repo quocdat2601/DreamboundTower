@@ -156,6 +156,62 @@ public class StatusEffectManager : MonoBehaviour
         return new List<StatusEffect>(activeEffects[target]);
     }
     
+    /// <summary>
+    /// Returns total heal bonus percent from all HealBonusEffect on target (can be negative)
+    /// </summary>
+    public int GetHealBonusPercent(Character target)
+    {
+        if (target == null || !activeEffects.ContainsKey(target)) return 0;
+        int total = 0;
+        foreach (var effect in activeEffects[target])
+        {
+            var healBonus = effect as StatusEffects.HealBonusEffect;
+            if (healBonus != null)
+            {
+                total += healBonus.intensity;
+            }
+        }
+        return total;
+    }
+    
+    /// <summary>
+    /// Decrements duration for event-based status effects on a character (called at end of battle node)
+    /// Only affects effects marked as isEventBased=true
+    /// </summary>
+    public void DecrementEventBasedEffectsPerBattleNode(Character target)
+    {
+        if (target == null || !activeEffects.ContainsKey(target)) return;
+        
+        var effectsToRemove = new List<StatusEffect>();
+        
+        foreach (var effect in activeEffects[target])
+        {
+            // Only decrement event-based effects
+            if (effect.isEventBased)
+            {
+                effect.duration--;
+                
+                if (effect.duration <= 0)
+                {
+                    effectsToRemove.Add(effect);
+                }
+            }
+        }
+        
+        // Remove expired event-based effects
+        foreach (var effect in effectsToRemove)
+        {
+            effect.OnRemove(target);
+            activeEffects[target].Remove(effect);
+        }
+        
+        // Clean up empty character entries
+        if (activeEffects[target].Count == 0)
+        {
+            charactersWithEffects.Remove(target);
+        }
+    }
+    
     #endregion
     
     #region Private Methods
@@ -174,11 +230,16 @@ public class StatusEffectManager : MonoBehaviour
             if (effect.timing == timing)
             {
                 effect.OnTick(character);
-                effect.duration--;
-                
-                if (effect.duration <= 0)
+                // Only decrement duration for non-event-based effects (combat effects)
+                // Event-based effects decrement per battle node, not per turn
+                if (!effect.isEventBased)
                 {
-                    effectsToRemove.Add(effect);
+                    effect.duration--;
+                    
+                    if (effect.duration <= 0)
+                    {
+                        effectsToRemove.Add(effect);
+                    }
                 }
             }
         }

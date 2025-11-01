@@ -1,4 +1,5 @@
-﻿using Presets;
+using Presets;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI; // Cần cho Image
@@ -27,7 +28,7 @@ public class EventSceneManager : MonoBehaviour
         // CHECK 1: Are we in Debug Mode?
         if (debugEventToLoad != null)
         {
-            Debug.LogWarning("--- RUNNING EVENT SCENE IN DEBUG MODE ---");
+            Debug.LogWarning($"--- RUNNING EVENT SCENE IN DEBUG MODE --- Loading: {debugEventToLoad.eventID}");
             eventToLoad = debugEventToLoad;
         }
         else // CHECK 2: Try getting the event from GameManager (Normal Mode)
@@ -39,6 +40,7 @@ public class EventSceneManager : MonoBehaviour
 
                 if (!string.IsNullOrEmpty(eventIDToLoad))
                 {
+                    Debug.Log($"[EVENT] Loading event from pendingEventID: {eventIDToLoad}");
                     // Find the event data in GameManager's list
                     eventToLoad = GameManager.Instance.allEvents.Find(e => e.eventID == eventIDToLoad);
 
@@ -48,6 +50,7 @@ public class EventSceneManager : MonoBehaviour
                         FinishEvent(true); // Add 'true' to skip saving
                         return;
                     }
+                    Debug.Log($"[EVENT] Successfully loaded event: {eventToLoad.eventID}");
                 }
             }
         }
@@ -93,14 +96,22 @@ public class EventSceneManager : MonoBehaviour
     {
         Debug.Log("Event kết thúc!");
 
+        // Declare sceneToReturnTo at the start so it's accessible in all branches
+        string sceneToReturnTo = $"Zone{GameManager.Instance?.currentRunData?.mapData?.currentZone ?? 1}"; // Default fallback
+
         // --- XỬ LÝ KHI KẾT THÚC BÌNH THƯỜNG (KHÔNG SKIP) ---
         if (!skipSaveAndPlayerUpdate && GameManager.Instance != null && GameManager.Instance.currentRunData != null)
         {
             var runData = GameManager.Instance.currentRunData;
             var mapData = runData.mapData;
 
+            // IMPORTANT: Save player state (inventory, equipment, HP, Mana) to RunData before saving to file
+            GameManager.Instance.SavePlayerStateToRunData();
+            
+            // Status effects persist - they are stored in StatusEffectManager by Character reference
+            // and will continue to work on the map as long as the Character instance persists
             // 1. LẤY ĐÚNG TÊN SCENE MAP ĐỂ QUAY VỀ (TỪ Pending State)
-            string sceneToReturnTo = mapData.pendingNodeSceneName;
+            sceneToReturnTo = mapData.pendingNodeSceneName;
             Vector2Int completedNodePoint = mapData.pendingNodePoint; // Lưu lại điểm node đã xong
 
             // Kiểm tra an toàn nếu tên scene bị rỗng (dù không nên xảy ra)
@@ -133,10 +144,13 @@ public class EventSceneManager : MonoBehaviour
             if (GameManager.Instance.playerInstance != null)
             {
                 var playerCharacter = GameManager.Instance.playerInstance.GetComponent<Character>();
-                if (playerCharacter != null)
+                if (playerCharacter != null && StatusEffectManager.Instance != null)
                 {
-                    runData.playerData.currentHP = playerCharacter.currentHP;
-                    runData.playerData.currentMana = playerCharacter.currentMana;
+                    var activeEffects = StatusEffectManager.Instance.GetActiveEffects(playerCharacter);
+                    if (activeEffects.Count > 0)
+                    {
+                        Debug.Log($"[EVENT] Player has {activeEffects.Count} active status effects that will persist: {string.Join(", ", activeEffects.Select(e => e.effectName))}");
+                    }
                 }
             }
 
@@ -149,19 +163,30 @@ public class EventSceneManager : MonoBehaviour
 
             // 7. TẢI SCENE MAP
             SceneManager.LoadScene(sceneToReturnTo);
-            // --- KẾT THÚC XỬ LÝ BÌNH THƯỜNG ---
+            return; // Exit early after loading scene
         }
         // --- XỬ LÝ KHI SKIP HOẶC LỖI GAMEMANAGER ---
         else if (skipSaveAndPlayerUpdate)
         {
-            Debug.LogWarning("Bỏ qua việc lưu và quay về Map (Debug Mode hoặc lỗi Event ID).");
-            // Không làm gì thêm, để Scene Event đứng yên cho debug
-            // scriptReader?.ShowMessage("DEBUG EVENT FINISHED."); // Ví dụ hiển thị thông báo
+            // Even in debug mode, still try to return to map if we have pending node info
+            if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+            {
+                var mapData = GameManager.Instance.currentRunData.mapData;
+                if (!string.IsNullOrEmpty(mapData.pendingNodeSceneName))
+                {
+                    sceneToReturnTo = mapData.pendingNodeSceneName;
+                    Debug.LogWarning($"[DEBUG MODE] Still returning to map: {sceneToReturnTo}");
+                    SceneManager.LoadScene(sceneToReturnTo);
+                    return;
+                }
+            }
+            Debug.LogWarning("Bỏ qua việc lưu game và cập nhật player (Debug Mode hoặc lỗi GameManager). Quay về Zone mặc định.");
+            SceneManager.LoadScene(sceneToReturnTo);
         }
         else // Trường hợp GameManager bị null khi không skip
         {
-            Debug.LogError("Lỗi GameManager hoặc RunData bị null khi kết thúc Event! Không thể lưu. KHÔNG chuyển scene.");
-            // Ở lại Scene Event để tránh lỗi nặng hơn
+            Debug.LogError("Lỗi GameManager hoặc RunData bị null khi kết thúc Event! Không thể lưu. Quay về Zone mặc định.");
+            SceneManager.LoadScene(sceneToReturnTo);
         }
     }
 }

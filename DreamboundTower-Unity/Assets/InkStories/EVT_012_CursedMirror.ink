@@ -1,4 +1,4 @@
-EXTERNAL GainRandomStat(amount)
+EXTERNAL GainRandomStat(numStats, amountPerStat)
 EXTERNAL AddDebuff(debuffName, duration)
 EXTERNAL GainItem(itemName)
 EXTERNAL GetSTR()
@@ -8,7 +8,7 @@ VAR player_str = 0
 You find another tall mirror, this one framed in tarnished, coiling silver. Your reflection is clear, but it isn't you. It's darker, colder... and it's smiling.
 
 * [Touch the mirror.]
-    ~ GainRandomStat(2)
+    ~ GainRandomStat(2, 2)
     ~ AddDebuff("HEAL_MINUS_10", 3)
     You reach out. Your reflection's hand meets yours at the glass. A jolt of cold power flows into you, but you feel a creeping, parasitic sickness. (+2 Random Stats; Curse: Healing received -10% for 3 fights)
     -> END

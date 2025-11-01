@@ -221,7 +221,6 @@ public class Character : MonoBehaviour
         if (physicalBase > 0)
         {
             isPhysicalCrit = CheckCritical();
-            //AudioManager.Instance?.PlayCriticalHitSFX(); // set tạm để test coi đúng không
             if (isPhysicalCrit)
             {
                 Debug.Log($"[CRITICAL] {name} Physical attack will CRIT!");
@@ -304,19 +303,16 @@ public class Character : MonoBehaviour
         // 5. Xử lý Lifesteal (Ví dụ: Chỉ tính trên phần sát thương vật lý)
         if (hitConnected && lifestealPercent > 0f)
         {
-            int totalDamageDealtForLifesteal = finalPhysicalDamage; // Chỉ tính phần vật lý
-                                                                    // Hoặc: int totalDamageDealtForLifesteal = finalPhysicalDamage + finalMagicDamage; // Nếu muốn tính cả hai
-
+            int totalDamageDealtForLifesteal = finalPhysicalDamage; // Only count physical damage
             int healAmount = Mathf.RoundToInt(totalDamageDealtForLifesteal * lifestealPercent);
-            if (healAmount > 0) // Chỉ hồi máu nếu lifesteal > 0
+            if (healAmount > 0)
             {
                 RestoreHealth(healAmount);
-                // Debug.Log($"[PASSIVE] Lifesteal: {healAmount} HP restored from {totalDamageDealtForLifesteal} physical damage");
             }
         }
-        // (Code Conditional Lifesteal giữ nguyên nếu có)
+        
         var conditionalManager = GetComponent<ConditionalPassiveManager>();
-        if (conditionalManager != null && hitConnected) // Chỉ apply nếu đánh trúng
+        if (conditionalManager != null && hitConnected)
         {
             // Truyền tổng sát thương gây ra (trước khi trừ DEF) vào hàm conditional lifesteal
             conditionalManager.ApplyConditionalLifesteal(finalPhysicalDamage + finalMagicDamage);
@@ -337,16 +333,13 @@ public class Character : MonoBehaviour
         {
             equippedWeapon = equipment.equipmentSlots[3]; // Đã sửa thành slot 3
         }
-        // Debug.Log($"[CalculateAttackDamage] Weapon in slot 3: {(equippedWeapon != null ? equippedWeapon.itemName : "None")}"); // Giữ log này
 
         if (equippedWeapon != null && equippedWeapon.gearType == GearType.Weapon)
         {
-            // Debug.Log($"[CalculateAttackDamage] Reading scalingType from {equippedWeapon.itemName}: {equippedWeapon.scalingType}"); // Giữ log này
             scaling = equippedWeapon.scalingType;
         }
         else
         {
-            // Debug.Log($"[CalculateAttackDamage] No weapon or not a weapon. Defaulting to STR."); // Giữ log này
             scaling = WeaponScalingType.STR;
         }
 
@@ -421,11 +414,9 @@ public class Character : MonoBehaviour
         float roll = UnityEngine.Random.Range(0f, 1f);
         bool dodged = roll < dodgeChance;
         
-        Debug.Log($"[DODGE CHECK] {name}: Roll={roll:F2}, DodgeChance={dodgeChance:F2}, Result={(dodged ? "MISSED" : "HIT")}");
-        
         if (dodged)
         {
-            Debug.Log($"[PASSIVE] {name} dodged! Roll: {roll:F2} < {dodgeChance:F2}");
+            Debug.Log($"[DODGE] {name} dodged! Roll: {roll:F2} < {dodgeChance:F2}");
         }
         
         return dodged;
@@ -485,30 +476,33 @@ public class Character : MonoBehaviour
     
 
     // ✅ Hàm TakeDamage nhận tham số "attacker", "damageType", và "isCritical"
-    public void TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false)
+    public void TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false, bool bypassDodge = false)
     {
         if (isInvincible)
         {
             Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương.");
            return;
         }
-        // Check for dodge first
-        bool dodged = CheckDodge();
-        
-        if (dodged)
+        // Check for dodge first (unless bypassed for status effects like DOT or reflected damage)
+        if (!bypassDodge)
         {
-            // Play miss animation
-            PlayMissAnimation();
-            PlayDodgeAnimation();
-            AudioManager.Instance?.PlayMissSFX();
-            // Show "MISS" text
-            if (CombatEffectManager.Instance != null)
-            {
-                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
-                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
-            }
+            bool dodged = CheckDodge();
             
-            return; // Attack missed, no damage taken
+            if (dodged)
+            {
+                // Play miss animation
+                PlayMissAnimation();
+                PlayDodgeAnimation();
+                AudioManager.Instance?.PlayMissSFX();
+                // Show "MISS" text
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                    CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
+                }
+                
+                return; // Attack missed, no damage taken
+            }
         }
         
         // Apply conditional damage reduction first if ConditionalPassiveManager exists
@@ -627,9 +621,17 @@ public class Character : MonoBehaviour
     #region Health Management
     public void Heal(int amount)
     {
-        currentHP += amount;
+        int finalAmount = amount;
+        // Apply heal bonus/malus from status effects if available
+        int bonusPercent = StatusEffectManager.Instance != null ? StatusEffectManager.Instance.GetHealBonusPercent(this) : 0;
+        if (bonusPercent != 0)
+        {
+            finalAmount = Mathf.RoundToInt(amount * (1f + bonusPercent / 100f));
+        }
+        currentHP += finalAmount;
         if (currentHP > maxHP) currentHP = maxHP;
         OnHealthChanged?.Invoke(currentHP, maxHP);
+        UpdateHPUI(); // Ensure UI updates
     }
 
     public void HealPercent(int percent)
@@ -648,6 +650,7 @@ public class Character : MonoBehaviour
         currentHP += healAmount;
         if (currentHP > maxHP) currentHP = maxHP;
         OnHealthChanged?.Invoke(currentHP, maxHP);
+        UpdateHPUI(); // Ensure UI updates
     }
 
     public void RestoreHealth(int amount)
@@ -659,7 +662,8 @@ public class Character : MonoBehaviour
     public void TakeDamagePercent(int percent)
     {
         int amountToDamage = Mathf.RoundToInt(maxHP * (percent / 100f));
-        TakeDamage(amountToDamage, null);
+        // Percentage damage is typically from events/narrative and cannot be dodged (bypassDodge = true)
+        TakeDamage(amountToDamage, null, DamageType.Physical, false, bypassDodge: true);
     }
 
     void Die()
@@ -678,12 +682,15 @@ public class Character : MonoBehaviour
         currentMana += amount;
         if (currentMana > mana) currentMana = mana;
         OnManaChanged?.Invoke(currentMana, mana);
+        UpdateManaUI(); // Ensure UI updates
     }
 
     public void UseMana(int amount)
     {
         currentMana -= amount;
+        if (currentMana < 0) currentMana = 0;
         OnManaChanged?.Invoke(currentMana, mana);
+        UpdateManaUI(); // Ensure UI updates
     }
 
     public void RestoreManaPercent(int percent)
@@ -800,7 +807,8 @@ public class Character : MonoBehaviour
             if (reflectPercent > 0 && attacker != null)
             {
                 reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
-                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical);
+                // Reflected damage cannot be dodged (bypassDodge = true)
+                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical, false, bypassDodge: true);
             }
         }
 
