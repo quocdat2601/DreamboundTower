@@ -70,6 +70,10 @@ public class Character : MonoBehaviour
     public bool isInvincible = false;
     private Equipment equipment;
 
+    [HideInInspector]
+    [Tooltip("Nếu true, nhân vật này không thể bị người chơi hoặc quái vật khác chọn làm mục tiêu.")]
+    public bool isUntargetable = false;
+
     /// <summary>
     /// Tracks if the last damage received was magical (for color differentiation)
     /// </summary>

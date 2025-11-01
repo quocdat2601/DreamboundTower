@@ -558,6 +558,20 @@ public class BattleManager : MonoBehaviour
                 Debug.LogWarning($"[BATTLE] {template.name} có gimmick Summoner nhưng danh sách summonableEnemies rỗng!");
             }
         }
+        // Gimmick: HordeSummoner (F90/F100)
+        // (Cũng dùng cờ allowSummonerGimmick)
+        if (allowSummonerGimmick && !isSplitChild && (template.gimmick & EnemyGimmick.HordeSummoner) != 0)
+        {
+            enemyGO.AddComponent<HordeSummonerBehavior>();
+            Debug.Log($"[BATTLE] Đã gán HordeSummonerBehavior cho {enemyGO.name}");
+        }
+
+        // Gimmick: Pillar (Quái được triệu hồi)
+        if ((template.gimmick & EnemyGimmick.Pillar) != 0)
+        {
+            enemyGO.AddComponent<PillarBehavior>();
+            Debug.Log($"[BATTLE] Đã gán PillarBehavior cho {enemyGO.name}");
+        }
         // Set up status effect display for enemy
         SetupEnemyStatusEffectDisplay(enemyGO);
     }
@@ -790,6 +804,12 @@ public class BattleManager : MonoBehaviour
         
         if (enemyInstances == null || index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return;
 
+        Character targetChar = enemyInstances[index].GetComponent<Character>();
+        if (targetChar != null && targetChar.isUntargetable)
+        {
+            Debug.LogWarning($"[BATTLE] Cannot select {targetChar.name} - target is untargetable.");
+            return; // Exit the function, do not select
+        }
 
         // If a skill is selected, check if it needs an enemy target
         if (selectedSkill != null)
@@ -1187,7 +1207,11 @@ public class BattleManager : MonoBehaviour
 
             var enemyChar = enemyGO.GetComponent<Character>();
             if (enemyChar == null || playerCharacter == null) continue; // Bỏ qua nếu không lấy được Character
-
+            if (enemyChar.isUntargetable)
+            {
+                Debug.Log($"<color=cyan>[BATTLE] {enemyChar.name}'s turn is skipped (Untargetable/Frozen).</color>");
+                continue; // Skip to the next enemy
+            }
             // --- ✅ THÔNG BÁO LƯỢT HIỆN TẠI CHO ENEMY NÀY ---
             // Gửi message "OnNewTurnStarted" đến CHỈ enemy hiện tại
             // Dùng SendMessage thay vì NotifyCharactersOfNewTurn để tránh spam các enemy khác
@@ -1195,24 +1219,34 @@ public class BattleManager : MonoBehaviour
             // --- KẾT THÚC THÔNG BÁO ---
 
             bool enemyActed = false; // Cờ đánh dấu
-
-            // --- KIỂM TRA SUMMONER ---
-            SummonerBehavior summoner = enemyGO.GetComponent<SummonerBehavior>();
-            // Hàm TryConsumeSummonIntent() sẽ đọc cờ wantsToSummon (được set bởi OnNewTurnStarted vừa gọi)
-            if (summoner != null && summoner.TryConsumeSummonIntent())
+             // KIỂM TRA PILLAR (Ưu tiên cao nhất)
+            PillarBehavior pillar = enemyGO.GetComponent<PillarBehavior>();
+            if (pillar != null)
             {
-                Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Đang thử triệu hồi (Turn {currentTurn})...</color>"); // Thêm log Turn
-                bool summonSuccess = AttemptSummon(enemyChar, summoner.GetSummonableEnemies());
+                pillar.HandleTurn(); // Pillar tự xử lý lượt (summon)
+                enemyActed = true; // Pillar đã hành động (dù chỉ là đếm cooldown)
+                yield return new WaitForSeconds(attackDelay); // Chờ một chút sau lượt Pillar
+            }
+            // KIỂM TRA SUMMONER (Nếu không phải Pillar)
+            if (!enemyActed)
+            {
+                SummonerBehavior summoner = enemyGO.GetComponent<SummonerBehavior>();
+                if (summoner != null && summoner.TryConsumeSummonIntent()) // Hỏi xem có muốn Summon (F50/F60) không
+                {
+                    Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Đang thử triệu hồi (Turn {currentTurn})...</color>");
+                    // Dùng hàm AttemptSummon CŨ (Bạn nói đã thêm ở bước trước)
+                    bool summonSuccess = AttemptSummon(enemyChar, summoner.GetSummonableEnemies());
 
-                if (summonSuccess)
-                {
-                    Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Triệu hồi thành công!</color>");
-                    enemyActed = true;
-                    yield return new WaitForSeconds(attackDelay); // Chờ sau khi summon
-                }
-                else
-                {
-                    Debug.Log($"<color=orange>[{enemyChar.name}] SUMMONER: Triệu hồi thất bại (Turn {currentTurn}). Sẽ tấn công.</color>"); // Thêm log Turn
+                    if (summonSuccess)
+                    {
+                        Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Triệu hồi thành công!</color>");
+                        enemyActed = true;
+                        yield return new WaitForSeconds(attackDelay);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"<color=orange>[{enemyChar.name}] SUMMONER: Triệu hồi thất bại (Turn {currentTurn}). Sẽ tấn công.</color>");
+                    }
                 }
             }
             if (!enemyActed)
@@ -1533,7 +1567,7 @@ public class BattleManager : MonoBehaviour
     /// <summary>
     /// Spawn một quái vật được triệu hồi vào slot cụ thể.
     /// </summary>
-    private void SpawnIndividualSummonedEnemy(int slotIndex, EnemyTemplateSO template)
+    private void SpawnIndividualSummonedEnemy(int slotIndex, EnemyTemplateSO template, int? floorOverride = null)
     {
         if (slotIndex < 0 || slotIndex >= enemySlots.Length || template == null)
         {
@@ -1552,7 +1586,8 @@ public class BattleManager : MonoBehaviour
         slot.gameObject.SetActive(true);
 
         // Lấy tầng hiện tại (để quái mới có chỉ số đúng)
-        int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+        //int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+        int absoluteFloor = floorOverride ?? (overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1));
 
         // Tạo GameObject
         var enemyGO = Instantiate(enemyPrefab, slot, false);
@@ -1567,11 +1602,9 @@ public class BattleManager : MonoBehaviour
         // QUAN TRỌNG: KHÔNG truyền isSplitChild = true, để nó có thể tự add gimmick nếu cần
         // Tuy nhiên, ApplyEnemyData nên có kiểm tra để không add SummonerBehavior nếu template có cờ Summoner,
         // tránh triệu hồi đệ quy vô hạn. Cần sửa ApplyEnemyData một chút.
-        ApplyEnemyData(enemyGO, finalStats, template, false, false); // <<< Sẽ sửa ApplyEnemyData ở bước sau
+        ApplyEnemyData(enemyGO, finalStats, template, false, false);
 
-        // Hồi đầy máu (ApplyEnemyData đã làm)
         var ch = enemyGO.GetComponent<Character>();
-        // if (ch != null) { ch.currentHP = ch.maxHP; ch.UpdateHPUI(); } // Không cần nếu ApplyEnemyData đã hồi
 
         // Đăng ký quái mới vào mảng quản lý
         enemyInstances[slotIndex] = enemyGO;
@@ -1756,6 +1789,111 @@ public class BattleManager : MonoBehaviour
             int idx = slotIndex;
             btn.onClick.AddListener(() => SelectEnemy(idx));
         }
+    }
+
+    /// <summary>
+    /// (HÀM MỚI) Được gọi bởi HordeSummonerBehavior (F90/F100) khi HP < 50%.
+    /// </summary>
+    public void AttemptSpawnPillar(Character mainBoss)
+    {
+        // 1. Tìm slot trống
+        int emptySlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] == null)
+            {
+                emptySlotIndex = i;
+                break;
+            }
+        }
+
+        if (emptySlotIndex == -1)
+        {
+            Debug.LogError($"[{mainBoss.name}] HordeSummoner: Không còn slot trống để spawn Pillar!");
+            // (Nếu không spawn được Pillar, Boss sẽ không bị đóng băng vĩnh viễn?
+            // Cần xem xét logic BreakFreeze() nếu spawn lỗi)
+            // Tạm thời: gọi BreakFreeze() ngay lập tức để Boss không bị kẹt
+            mainBoss.GetComponent<HordeSummonerBehavior>()?.BreakFreeze(); // Tự mở khóa
+            return;
+        }
+
+        // 2. Tìm Template "Pillar"
+        // (Bạn PHẢI tạo 1 EnemyTemplateSO tên là "Pillar" và thêm Gimmick "Pillar" cho nó)
+        EnemyTemplateSO pillarTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Pillar");
+
+        if (pillarTemplate == null)
+        {
+            Debug.LogError($"[{mainBoss.name}] HordeSummoner: Không tìm thấy 'Pillar.asset' trong GameManager.allEnemyTemplates!");
+            mainBoss.GetComponent<HordeSummonerBehavior>()?.BreakFreeze(); // Tự mở khóa
+            return;
+        }
+
+        // 3. Spawn Pillar (dùng tầng hiện tại của Boss)
+        int currentFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+        SpawnIndividualSummonedEnemy(emptySlotIndex, pillarTemplate, currentFloor);
+
+        // 4. Lấy tham chiếu Pillar vừa spawn và Gán HP + Boss
+        GameObject pillarGO = enemyInstances[emptySlotIndex];
+        if (pillarGO != null)
+        {
+            Character pillarChar = pillarGO.GetComponent<Character>();
+            PillarBehavior pillarBehavior = pillarGO.GetComponent<PillarBehavior>();
+
+            if (pillarChar != null && pillarBehavior != null)
+            {
+                // Gán HP Pillar = HP Max của Boss
+                pillarChar.baseMaxHP = mainBoss.baseMaxHP; // Gán Base HP
+                pillarChar.ResetToBaseStats(); // Tính lại MaxHP
+                pillarChar.currentHP = pillarChar.maxHP; // Hồi đầy máu
+                pillarChar.UpdateHPUI();
+
+                // Gán tham chiếu Boss cho Pillar
+                pillarBehavior.Initialize(mainBoss);
+                Debug.Log($"[BATTLE] Pillar đã spawn với {pillarChar.maxHP} HP và kết nối với Boss.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// (HÀM MỚI) Được gọi bởi PillarBehavior để spawn Sub-Boss.
+    /// </summary>
+    /// <param name="floorStats">Tầng để tính stats (ví dụ: 80)</param>
+    public bool AttemptSpawnSubBoss(int floorStats)
+    {
+        // 1. Tìm slot trống
+        int emptySlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] == null)
+            {
+                emptySlotIndex = i;
+                break;
+            }
+        }
+        if (emptySlotIndex == -1) return false; // Thất bại (Pillar sẽ thử lại)
+
+        // 2. Lọc danh sách Boss phụ (Boss, không phải Unique, minFloor <= 80)
+        List<EnemyTemplateSO> availableSubBosses = GameManager.Instance.allEnemyTemplates
+            .Where(t => t != null &&
+                        t.kind == EnemyKind.Boss &&
+                        !t.isUniqueOrEventOnly &&
+                        t.minFloor <= floorStats)
+            .ToList();
+
+        if (availableSubBosses.Count == 0)
+        {
+            Debug.LogError($"[BATTLE] Pillar: Không tìm thấy Sub-Boss nào (Kind=Boss, minFloor<={floorStats}, !isUnique) để spawn!");
+            return false;
+        }
+
+        // 3. Chọn ngẫu nhiên 1 Boss
+        EnemyTemplateSO bossToSpawn = availableSubBosses[Random.Range(0, availableSubBosses.Count)];
+
+        // 4. Spawn Boss (dùng floorOverride)
+        SpawnIndividualSummonedEnemy(emptySlotIndex, bossToSpawn, floorStats);
+        Debug.Log($"[BATTLE] Pillar đã spawn {bossToSpawn.name} (Stats Tầng {floorStats}) vào slot {emptySlotIndex}.");
+
+        return true; // Thành công
     }
     #endregion
 

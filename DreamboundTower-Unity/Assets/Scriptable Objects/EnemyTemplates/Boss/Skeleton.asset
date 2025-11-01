@@ -10,23 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Spirit
+  m_Name: Skeleton
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
-  kind: 1
-  gimmick: 131077
-  isUniqueOrEventOnly: 1
+  kind: 2
+  gimmick: 5
+  isUniqueOrEventOnly: 0
+  minFloor: 10
   summonableEnemies: []
   manaRegenPerTurnn: 0
   skills: []
   sprites:
-  - {fileID: 5725872871977202542, guid: b5872bcb4a47767469a86bf605af3219, type: 3}
+  - {fileID: 7320638716566625714, guid: d3fd91f71426f43449a3ad24f7d76159, type: 3}
   baseStatsAtFloor1:
-    HP: 5
-    STR: 5
-    DEF: 5
+    HP: 40
+    STR: 20
+    DEF: 8
     MANA: 5
     INT: 5
-    AGI: 5
+    AGI: 0
   hpMultiplier: 1
   strMultiplier: 1
   defMultiplier: 1

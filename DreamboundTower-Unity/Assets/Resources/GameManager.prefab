@@ -919,11 +919,11 @@ MonoBehaviour:
   overridePlayerStats: 1
   customPlayerStats:
     HP: 100
-    STR: 25
-    DEF: 25
-    MANA: 25
-    INT: 25
-    AGI: 10000
+    STR: 100
+    DEF: 100
+    MANA: 100
+    INT: 100
+    AGI: 100
   playerStatusUI: {fileID: 8162182589963775198}
   playerPrefab: {fileID: 5219465382312568686, guid: a27e2eb3858100042940cd56a1935089, type: 3}
   allRaces:
@@ -961,6 +961,16 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a074866f8349fb44f954a32dd4543f3a, type: 2}
   - {fileID: 11400000, guid: e118c58e7daddfe45950087212db1bfa, type: 2}
   - {fileID: 11400000, guid: a96320899e94cc548b76b26eedb6b472, type: 2}
+  - {fileID: 11400000, guid: 71a9a62e214f9d34f8409e4b7a160d51, type: 2}
+  - {fileID: 11400000, guid: 547fd12589ff1b845a27e63c985b02ed, type: 2}
+  - {fileID: 11400000, guid: 91365b39598d40540be8ff649f89de33, type: 2}
+  - {fileID: 11400000, guid: b65962580c0405643a9f758d06cd6036, type: 2}
+  - {fileID: 11400000, guid: a5b1f0d55535d19419cc4138c1b3a18b, type: 2}
+  - {fileID: 11400000, guid: f9af4e8321998b24881b137788605d91, type: 2}
+  - {fileID: 11400000, guid: 848a299e049deef459c434cfd0ca1cdb, type: 2}
+  - {fileID: 11400000, guid: 44e8b30f18c984d448eabd5629190e12, type: 2}
+  - {fileID: 11400000, guid: 1fec442ef70221c4bab0e6aabf4811ae, type: 2}
+  - {fileID: 11400000, guid: 1e16a6fdfd467404a86f9238f7e9081b, type: 2}
   allEvents:
   - {fileID: 11400000, guid: 0de8c6e442346da43b17f5118edc9046, type: 2}
   - {fileID: 11400000, guid: 80c3d02fabc851e41a802a4eef10ec9c, type: 2}

@@ -18,7 +18,9 @@ namespace Presets
 		Bony = 1 << 17,
 		Thornmail = 1 << 18,
         Regenerator = 1 << 19,
-        Summoner = 1 << 20
+        Summoner = 1 << 20,
+        HordeSummoner = 1 << 21, // For Boss (F90, F100)
+        Pillar = 1 << 22        // For the summoned Pillar
 
     }
 
