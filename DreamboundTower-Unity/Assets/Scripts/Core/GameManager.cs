@@ -1,5 +1,6 @@
 ﻿using Presets;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -703,7 +704,16 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < equipment.equipmentSlots.Length; i++)
         {
             GearItem item = equipment.equipmentSlots[i];
-            currentRunData.playerData.itemIds.Add(item != null ? item.name : "");
+            string itemNameToSave = item != null ? item.name : "";
+            currentRunData.playerData.itemIds.Add(itemNameToSave);
+            if (item != null)
+            {
+                Debug.Log($"[SAVE EQUIPMENT] Slot {i} ({equipment.GetGearTypeFromSlot(i)}): Saving '{item.name}' (itemName: '{item.itemName}')");
+            }
+            else
+            {
+                Debug.Log($"[SAVE EQUIPMENT] Slot {i} ({equipment.GetGearTypeFromSlot(i)}): Empty slot, saving empty string");
+            }
         }
 
         RunSaveService.SaveRun(currentRunData);
@@ -728,13 +738,81 @@ public class GameManager : MonoBehaviour
         inventory.OnInventoryChanged?.Invoke();
 
         // Tải Equipment
+        Debug.Log($"[LOAD EQUIPMENT] Starting equipment load. itemIds.Count = {currentRunData.playerData.itemIds.Count}, equipmentSlots.Length = {equipment.equipmentSlots.Length}");
         for (int i = 0; i < equipment.equipmentSlots.Length; i++)
         {
+            GearType expectedSlotType = equipment.GetGearTypeFromSlot(i);
             // Thêm kiểm tra an toàn
             if (i < currentRunData.playerData.itemIds.Count)
             {
                 string itemId = currentRunData.playerData.itemIds[i];
-                equipment.equipmentSlots[i] = string.IsNullOrEmpty(itemId) ? null : GetItemByID(itemId);
+                Debug.Log($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): itemId = '{itemId}'");
+                if (string.IsNullOrEmpty(itemId))
+                {
+                    Debug.Log($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): Empty itemId, setting to null");
+                    equipment.equipmentSlots[i] = null;
+                }
+                else
+                {
+                    GearItem loadedItem = GetItemByID(itemId);
+                    // Fallback: Try finding by itemName if GetItemByID fails
+                    if (loadedItem == null && allItems != null)
+                    {
+                        Debug.Log($"[LOAD EQUIPMENT] Slot {i}: GetItemByID('{itemId}') returned null, trying itemName search in allItems (count: {allItems.Count})...");
+                        // Check if item exists in allItems but with different name
+                        var itemsMatchingItemName = allItems.Where(item => item.itemName == itemId).ToList();
+                        if (itemsMatchingItemName.Count > 0)
+                        {
+                            loadedItem = itemsMatchingItemName[0];
+                            Debug.Log($"[LOAD EQUIPMENT] Slot {i}: Found item by itemName: '{loadedItem.itemName}' (name: '{loadedItem.name}')");
+                        }
+                        else
+                        {
+                            // Check if item might be in allItems with a different name
+                            var itemsWithMatchingItemName = allItems.Where(item => item.itemName != null && item.itemName.Equals(itemId, System.StringComparison.OrdinalIgnoreCase)).ToList();
+                            if (itemsWithMatchingItemName.Count > 0)
+                            {
+                                loadedItem = itemsWithMatchingItemName[0];
+                                Debug.Log($"[LOAD EQUIPMENT] Slot {i}: Found item by case-insensitive itemName match: '{loadedItem.itemName}' (name: '{loadedItem.name}')");
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[LOAD EQUIPMENT] Slot {i}: Item '{itemId}' not found in allItems by name or itemName. Check if this item is in GameManager's allItems list.");
+                            }
+                        }
+                    }
+                    else if (loadedItem != null)
+                    {
+                        Debug.Log($"[LOAD EQUIPMENT] Slot {i}: Found item by name: '{loadedItem.name}' (itemName: '{loadedItem.itemName}')");
+                    }
+                    
+                    if (loadedItem == null)
+                    {
+                        Debug.LogWarning($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): Could not find item with ID '{itemId}'. Searched by name and itemName. Total items in allItems: {allItems?.Count ?? 0}");
+                        equipment.equipmentSlots[i] = null;
+                    }
+                    else
+                    {
+                        // Validate that the loaded item matches the slot type
+                        Debug.Log($"[LOAD EQUIPMENT] Slot {i}: Loaded item '{loadedItem.itemName}' has gearType {loadedItem.gearType}, expected {expectedSlotType}");
+                        if (loadedItem.gearType != expectedSlotType)
+                        {
+                            Debug.LogWarning($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): Item '{loadedItem.itemName}' (type: {loadedItem.gearType}) does not match slot type. Clearing slot.");
+                            equipment.equipmentSlots[i] = null;
+                        }
+                        else
+                        {
+                            equipment.equipmentSlots[i] = loadedItem;
+                            Debug.Log($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): Successfully loaded {loadedItem.itemName} into slot {i}");
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // If itemIds list is shorter than equipment slots, set remaining slots to null
+                Debug.Log($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): Index {i} is beyond itemIds.Count ({currentRunData.playerData.itemIds.Count}), setting to null");
+                equipment.equipmentSlots[i] = null;
             }
         }
         equipment.OnEquipmentChanged?.Invoke();

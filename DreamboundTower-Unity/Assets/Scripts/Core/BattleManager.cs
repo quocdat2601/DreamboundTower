@@ -78,6 +78,10 @@ public class BattleManager : MonoBehaviour
     [Header("Skill System")]
     public SkillManager skillManager;   // Reference to skill manager
     public PassiveSkillManager passiveSkillManager;   // Reference to passive skill manager
+    
+    [Header("Attack VFX")]
+    [Tooltip("Prefab containing visual effects (VFX) for normal attacks")]
+    public GameObject attackVFXPrefab;
 
     // runtime
     private GameObject playerInstance;
@@ -946,6 +950,8 @@ public class BattleManager : MonoBehaviour
         Vector3 originalPlayerPos = playerInstance.transform.position;
         // Characters now attack from their current position - no movement
 
+        // Spawn attack VFX at target position
+        SpawnAttackVFX(target);
 
         // --- KIỂM TRA SPLIT TRƯỚC KHI GÂY SÁT THƯƠNG ---
         // (Kiểm tra này có thể không cần thiết nếu SplitBehavior đáng tin cậy)
@@ -1024,6 +1030,9 @@ public class BattleManager : MonoBehaviour
         // 6. Xử lý cuối lượt chung (Logic gốc của bạn, chạy SAU EnemyTurn)
         if (StatusEffectManager.Instance != null) { StatusEffectManager.Instance.ProcessEndOfTurnEffects(); }
         if (skillManager != null) { skillManager.ReduceSkillCooldowns(); }
+        
+        // Process temporary modifiers from skills (buffs/debuffs)
+        ProcessTemporaryModifiers();
         currentTurn++;
         playerTurn = true; // Player nhận lại lượt cho turn KẾ TIẾP
         hasUsedExtraActionThisTurn = false; // Reset extra action flag for new turn
@@ -1212,6 +1221,14 @@ public class BattleManager : MonoBehaviour
                 Debug.Log($"<color=cyan>[BATTLE] {enemyChar.name}'s turn is skipped (Untargetable/Frozen).</color>");
                 continue; // Skip to the next enemy
             }
+
+            // ✅ Skip dead enemies - they shouldn't act during death animation
+            if (enemyChar.currentHP <= 0)
+            {
+                Debug.Log($"[BATTLE] Skipping dead enemy {enemyChar.name} in EnemyTurnRoutine");
+                continue;
+            }
+
             // --- ✅ THÔNG BÁO LƯỢT HIỆN TẠI CHO ENEMY NÀY ---
             // Gửi message "OnNewTurnStarted" đến CHỈ enemy hiện tại
             // Dùng SendMessage thay vì NotifyCharactersOfNewTurn để tránh spam các enemy khác
@@ -1253,6 +1270,10 @@ public class BattleManager : MonoBehaviour
             {
                 // Enemies now attack from their current position - no movement
                 AudioManager.Instance?.PlayAttackSFX();
+                
+                // Spawn attack VFX at player position
+                SpawnAttackVFX(playerCharacter);
+                
                 // --- Thực hiện đòn đánh của Enemy ---
                 enemyChar.Attack(playerCharacter); // Enemy tấn công Player
 
@@ -1330,6 +1351,25 @@ public class BattleManager : MonoBehaviour
                 {
                     StatusEffectManager.Instance.DecrementEventBasedEffectsPerBattleNode(playerCharacter);
                     Debug.Log("[BATTLE] Event-based status effect durations decremented per battle node.");
+                }
+                
+                // Clear temporary modifiers from skills (they don't persist between battles)
+                TemporaryModifierManager tempMods = playerCharacter.GetComponent<TemporaryModifierManager>();
+                if (tempMods != null)
+                {
+                    tempMods.ClearAllTemporaryModifiers();
+                    Debug.Log("[BATTLE] Cleared all temporary modifiers from player.");
+                }
+                
+                // Clear shields (they don't persist between battles)
+                if (StatusEffectManager.Instance != null)
+                {
+                    int shieldBefore = playerCharacter.CurrentShield;
+                    StatusEffectManager.Instance.RemoveEffect(playerCharacter, typeof(StatusEffects.ShieldEffect));
+                    if (shieldBefore > 0)
+                    {
+                        Debug.Log($"[BATTLE] Cleared {shieldBefore} shield from player at battle end.");
+                    }
                 }
             }
 
@@ -1465,6 +1505,44 @@ public class BattleManager : MonoBehaviour
         tracker.targetCharacter = target;
         
         Debug.Log($"[BATTLE] Spawned tracking VFX for {target.name}");
+    }
+    
+    /// <summary>
+    /// Spawns attack VFX at target position for normal attacks
+    /// Flips the VFX vertically so basic attack slashes downward instead of upward
+    /// </summary>
+    private void SpawnAttackVFX(Character target)
+    {
+        if (attackVFXPrefab == null || target == null) return;
+        
+        // Find canvas for VFX parent
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BATTLE] No Canvas found for attack VFX!");
+            return;
+        }
+        
+        // Spawn VFX at target position
+        Vector3 spawnPosition = GetCharacterUIPosition(target);
+        GameObject vfx = Instantiate(attackVFXPrefab, canvas.transform);
+        vfx.transform.position = spawnPosition;
+        
+        // Flip vertically by negating the Y scale (only for basic attack, so upward slash becomes downward slash)
+        RectTransform rectTransform = vfx.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            Vector3 currentScale = rectTransform.localScale;
+            rectTransform.localScale = new Vector3(currentScale.x, -currentScale.y, currentScale.z);
+        }
+        else
+        {
+            // Fallback to regular transform if no RectTransform
+            Vector3 currentScale = vfx.transform.localScale;
+            vfx.transform.localScale = new Vector3(currentScale.x, -currentScale.y, currentScale.z);
+        }
+        
+        Debug.Log($"[BATTLE] Spawned basic attack VFX (flipped downward) at {target.name} position");
     }
     
     /// <summary>
@@ -2092,6 +2170,43 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    #endregion
+    
+    /// <summary>
+    /// Processes temporary modifiers from skills for all characters
+    /// Called at the end of each turn to decrement duration and remove expired modifiers
+    /// </summary>
+    private void ProcessTemporaryModifiers()
+    {
+        // Process player's temporary modifiers
+        if (playerCharacter != null)
+        {
+            TemporaryModifierManager playerTempMods = playerCharacter.GetComponent<TemporaryModifierManager>();
+            if (playerTempMods != null)
+            {
+                playerTempMods.ProcessTemporaryModifiers();
+            }
+        }
+        
+        // Process enemy temporary modifiers
+        if (enemyInstances != null)
+        {
+            foreach (var enemyGO in enemyInstances)
+            {
+                if (enemyGO != null)
+                {
+                    Character enemyChar = enemyGO.GetComponent<Character>();
+                    if (enemyChar != null)
+                    {
+                        TemporaryModifierManager enemyTempMods = enemyChar.GetComponent<TemporaryModifierManager>();
+                        if (enemyTempMods != null)
+                        {
+                            enemyTempMods.ProcessTemporaryModifiers();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #endregion
 
 }
