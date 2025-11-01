@@ -32,6 +32,9 @@ namespace Presets
         [Tooltip("Nếu được tick, quái vật này sẽ KHÔNG được chọn ngẫu nhiên trong các trận chiến thường. Chỉ xuất hiện nếu được gọi tên cụ thể (ví dụ: Event, Summon).")]
         public bool isUniqueOrEventOnly = false;
 
+        [Tooltip("Tầng (floor) tối thiểu để quái vật này bắt đầu xuất hiện trong nhóm quái ngẫu nhiên.")]
+        public int minFloor = 1;
+
         [Header("Summoner Gimmick (Nếu có)")]
         [Tooltip("Danh sách các loại quái vật mà kẻ địch này có thể triệu hồi.")]
         public List<EnemyTemplateSO> summonableEnemies;

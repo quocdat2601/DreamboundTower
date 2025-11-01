@@ -14,6 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
   kind: 0
   gimmick: 0
+  isUniqueOrEventOnly: 0
+  minFloor: 20
+  summonableEnemies: []
+  manaRegenPerTurnn: 0
+  skills: []
   sprites:
   - {fileID: 391932375611520008, guid: c3b8d21ecdcad8747b56227803cc189f, type: 3}
   baseStatsAtFloor1:
