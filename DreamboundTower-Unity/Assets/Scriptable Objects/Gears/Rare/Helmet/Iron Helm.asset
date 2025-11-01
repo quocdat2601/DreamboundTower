@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Iron Helm
   gearType: 1
   icon: {fileID: 3573036208370857778, guid: e1c15e330e3fe594292669e08c51bb79, type: 3}
-  description: 
+  description: '5% physic resist '
   rarity: 2
   basePrice: 120
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: b6b982a67867b7948a586b6385e98a8c, type: 2}

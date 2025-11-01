@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Guardian Plate
   gearType: 2
   icon: {fileID: 5212361285862683794, guid: af10a4fde65980648bd92f150d32dde7, type: 3}
-  description: 
+  description: +15% reflect dmg
   rarity: 3
   basePrice: 550
   attackBonus: 15
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 9cbf874a31ab0bf4a824271c9422ee49, type: 2}

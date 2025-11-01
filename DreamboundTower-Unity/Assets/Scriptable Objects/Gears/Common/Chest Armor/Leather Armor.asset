@@ -15,6 +15,7 @@ MonoBehaviour:
   itemName: Leather Armor
   gearType: 2
   icon: {fileID: 972524890855885471, guid: cabafdc649f47cd45abf636f6ecd7fa5, type: 3}
+  description: nothing special hehe
   rarity: 0
   basePrice: 20
   attackBonus: 0
@@ -23,3 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  scalingType: 1
+  modifiers: []

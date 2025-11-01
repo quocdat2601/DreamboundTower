@@ -15,13 +15,17 @@ MonoBehaviour:
   itemName: Phantom Walkers
   gearType: 3
   icon: {fileID: -7424931954435175988, guid: de51d66136ddc75498c712c627d1cfc7, type: 3}
-  description: 
+  description: DodgeChance 6%, LifestealPercent 10%, DamageReduction 10%
   rarity: 4
   basePrice: 480
   attackBonus: 0
-  defenseBonus: 20
-  hpBonus: 200
+  defenseBonus: 50
+  hpBonus: 500
   intBonus: 0
   manaBonus: 0
   agiBonus: 40
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 304d3b420cab70e4c8969c6e0160e1ee, type: 2}
+  - {fileID: 11400000, guid: d9dcb503202b7624b9d7c5f6d2926d88, type: 2}
+  - {fileID: 11400000, guid: e2aba5d278c0c5c48b54f34a5e079fc6, type: 2}

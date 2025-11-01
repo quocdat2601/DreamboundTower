@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Crown of Eternity
   gearType: 1
   icon: {fileID: -4229948955489558425, guid: f098dd6b87ad4c244875dd99f665422f, type: 3}
-  description: 
+  description: +50%  crit rate, 10% lifesteal
   rarity: 4
   basePrice: 440
   attackBonus: 0
@@ -24,4 +24,7 @@ MonoBehaviour:
   intBonus: 50
   manaBonus: 100
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 0766d5c0e4d9ebf4f915edfe4f4f2bc2, type: 2}
+  - {fileID: 11400000, guid: d9dcb503202b7624b9d7c5f6d2926d88, type: 2}

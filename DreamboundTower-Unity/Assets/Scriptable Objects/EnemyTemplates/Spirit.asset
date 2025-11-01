@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
+  m_Name: Spirit
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
+  kind: 1
+  gimmick: 131077
+  isUniqueOrEventOnly: 1
+  summonableEnemies: []
+  manaRegenPerTurnn: 0
+  skills: []
+  sprites:
+  - {fileID: 5725872871977202542, guid: b5872bcb4a47767469a86bf605af3219, type: 3}
+  baseStatsAtFloor1:
+    HP: 5
+    STR: 5
+    DEF: 5
+    MANA: 5
+    INT: 5
+    AGI: 5
+  hpMultiplier: 1
+  strMultiplier: 1
+  defMultiplier: 1
+  baseRate: 0.012
+  endlessAfterFloor: 100
+  endlessBonus: 0.002

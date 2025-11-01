@@ -8,7 +8,7 @@ The air crackles with energy. A blinding light coalesces into an angelic apparit
 'Your sacrilege at the shrine ends here,' it booms. 'Face divine retribution!'
 
 * [Fight the apparition.]
-    ~ StartCombat("ELITE")
+    ~ StartCombat("Spirit")
     // (ON_WIN_... will be handled by BattleManager)
     The spirit lunges, its holy fire searing the air. You must defeat it to claim its power.
     -> END

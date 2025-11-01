@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Old Boots
   gearType: 4
   icon: {fileID: -5102879339431433853, guid: 3942d2125c0a1154482c41e14ce40269, type: 3}
-  description: 
+  description: just an old boots
   rarity: 0
   basePrice: 12
   attackBonus: 0
@@ -24,4 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 4
+  scalingType: 1
   modifiers: []

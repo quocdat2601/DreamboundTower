@@ -15,11 +15,15 @@ MonoBehaviour:
   itemName: Silver Ring
   gearType: 6
   icon: {fileID: -2776054502440808164, guid: 300e67f4892565a4b88f6677e55de3f8, type: 3}
+  description: deal more 5 physical damage (str)
   rarity: 2
   basePrice: 35
-  attackBonus: 0
+  attackBonus: 10
   defenseBonus: 0
   hpBonus: 0
-  intBonus: 10
+  intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: af391475dc21f904f95d3c0ee90f55ae, type: 2}

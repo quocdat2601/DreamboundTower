@@ -15,14 +15,14 @@ MonoBehaviour:
   itemName: Amulet of Steadfast
   gearType: 5
   icon: {fileID: -6443260801566020215, guid: be57ef36716cad14eac4382657ac0b2c, type: 3}
-  description: 
+  description: just alot of stats bonus
   rarity: 3
   basePrice: 120
-  attackBonus: 0
-  defenseBonus: 5
-  hpBonus: 0
-  intBonus: 0
-  manaBonus: 0
-  agiBonus: 0
+  attackBonus: 50
+  defenseBonus: 50
+  hpBonus: 50
+  intBonus: 50
+  manaBonus: 50
+  agiBonus: 50
   scalingType: 1
   modifiers: []

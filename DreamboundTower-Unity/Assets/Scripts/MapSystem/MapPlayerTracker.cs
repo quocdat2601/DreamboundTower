@@ -224,14 +224,14 @@ namespace Map
             }
         }
 
-        //private void SelectAndLoadEvent(MapNode mapNode) test specific event
+        //private void SelectAndLoadEvent(MapNode mapNode)
         //{
         //    var runData = GameManager.Instance.currentRunData;
         //    var mapData = runData.mapData;
 
         //    // --- ✅ HACK ĐỂ TEST EVENT 17 ---
         //    // (Bỏ qua logic chọn event ngẫu nhiên của bạn)
-        //    string eventID = "EVT_017"; // << ID CỦA "Rival's Return"
+        //    string eventID = "EVT_011"; // << ID CỦA "Rival's Return"
         //    Debug.LogWarning($"--- TEST HACK: Ép chạy Event ID: {eventID} ---");
         //    // -------------------------
 

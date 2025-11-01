@@ -18,12 +18,13 @@ public class EventSceneManager : MonoBehaviour
     [Header("Special Combat")]
     [Tooltip("Kéo file EnemyTemplateSO của RivalChild (RivalChild.asset) vào đây")]
     public EnemyTemplateSO rivalChildTemplate;
+    [Tooltip("Kéo file EnemyTemplateSO của Spirit (Spirit.asset) vào đây")]
+    public EnemyTemplateSO spiritTemplate;
     void Start()
     {
         EventDataSO eventToLoad = null;
 
         // CHECK 1: Are we in Debug Mode?
-        //comment to test in walkthrough
         if (debugEventToLoad != null)
         {
             Debug.LogWarning("--- RUNNING EVENT SCENE IN DEBUG MODE ---");

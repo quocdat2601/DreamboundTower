@@ -15,6 +15,7 @@ MonoBehaviour:
   itemName: Arcanum Robe
   gearType: 2
   icon: {fileID: 3134763797266659634, guid: 0f9c87da62ca88e49b59c3643f980afc, type: 3}
+  description: nothing special hehe
   rarity: 0
   basePrice: 30
   attackBonus: 5
@@ -23,3 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  scalingType: 1
+  modifiers: []

@@ -15,7 +15,9 @@ MonoBehaviour:
   itemName: Heart of the Archmage
   gearType: 5
   icon: {fileID: -5572269279992391383, guid: bbe04959bb2648f46932d980fefb1260, type: 3}
-  description: 
+  description: '100% crit chance and 100% magic damage bonus
+
+'
   rarity: 4
   basePrice: 375
   attackBonus: 0
@@ -24,4 +26,7 @@ MonoBehaviour:
   intBonus: 25
   manaBonus: 100
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 2fe10bf8ad0a8bd45ac11460ec40414f, type: 2}
+  - {fileID: 11400000, guid: 4bbf7909b2cd4ad4985606da592e539b, type: 2}

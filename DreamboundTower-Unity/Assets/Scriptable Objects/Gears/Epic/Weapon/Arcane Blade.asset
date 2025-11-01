@@ -15,8 +15,7 @@ MonoBehaviour:
   itemName: Arcane Blade
   gearType: 0
   icon: {fileID: 21300000, guid: e6062d191cee53f42b9927b7e5376428, type: 3}
-  scalingType: 3
-  description: 
+  description: +10% spell dmg, 10% lifesteel
   rarity: 3
   basePrice: 165
   attackBonus: 25
@@ -25,4 +24,7 @@ MonoBehaviour:
   intBonus: 20
   manaBonus: 40
   agiBonus: 0
-  modifiers: []
+  scalingType: 3
+  modifiers:
+  - {fileID: 11400000, guid: 7f2fb9752926f104c9b6f4d701ecb74f, type: 2}
+  - {fileID: 11400000, guid: d9dcb503202b7624b9d7c5f6d2926d88, type: 2}

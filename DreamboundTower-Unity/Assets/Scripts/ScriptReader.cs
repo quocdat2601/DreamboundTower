@@ -623,6 +623,10 @@ public class ScriptReader : MonoBehaviour
         {
             combatTemplate = eventManager.rivalChildTemplate;
         }
+        else if (combatType == "Spirit")
+        {
+            combatTemplate = eventManager.spiritTemplate;
+        }
         // (Thêm else if cho các combat đặc biệt khác nếu cần)
 
         if (combatTemplate == null)

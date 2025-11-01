@@ -549,6 +549,7 @@ public class GameManager : MonoBehaviour
         //    currentRunData.currentRunEventFlags = new System.Collections.Generic.HashSet<string>();
         //}
         //currentRunData.currentRunEventFlags.Add("RIVAL_HOSTILE");
+        //currentRunData.currentRunEventFlags.Add("SHRINE_DESECRATED");
         //Debug.LogWarning("--- TEST HACK: Đã thêm cờ RIVAL_HOSTILE vào currentRunEventFlags! ---");
 
         if (playerInstance != null)

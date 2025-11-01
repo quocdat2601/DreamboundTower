@@ -15,8 +15,7 @@ MonoBehaviour:
   itemName: Silverclaw Dagger
   gearType: 0
   icon: {fileID: 2182994084055932133, guid: d341c15c8d0a1fe47a22a695462d7010, type: 3}
-  scalingType: 1
-  description: 
+  description: +15% crit chance, 10% proc bleed in 2 turns
   rarity: 1
   basePrice: 20
   attackBonus: 7
@@ -25,4 +24,7 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 10
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 70618a30727274247b7b60c5f4fcfacf, type: 2}
+  - {fileID: 11400000, guid: c286dad07573e5c46837999891c33e87, type: 2}

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Sapphire Pendant
   gearType: 5
   icon: {fileID: -7295162521306494483, guid: fe62f7178ad9fba4c967c321cbc984da, type: 3}
-  description: 
+  description: 15% crit chance
   rarity: 2
   basePrice: 35
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 10
   manaBonus: 70
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 70618a30727274247b7b60c5f4fcfacf, type: 2}

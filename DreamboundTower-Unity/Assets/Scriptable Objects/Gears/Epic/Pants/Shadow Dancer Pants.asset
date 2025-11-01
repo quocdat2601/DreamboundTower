@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Shadow Dancer
   gearType: 3
   icon: {fileID: 5129539233098610804, guid: 9918f2c6d29d72543b6f47f9c028bd1f, type: 3}
-  description: 
+  description: dmg reduct 10%, NonBossDamageReduction 20%
   rarity: 3
   basePrice: 115
   attackBonus: 0
@@ -24,4 +24,7 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 25
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: e2aba5d278c0c5c48b54f34a5e079fc6, type: 2}
+  - {fileID: 11400000, guid: 49ea369042b1c7d4582def9a481eb349, type: 2}

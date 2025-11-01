@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Duskwoven Robe
   gearType: 2
   icon: {fileID: 3926095386875515789, guid: ad7028ce6b6f04b4d9b7aa85950e787f, type: 3}
-  description: 
+  description: nothing lol
   rarity: 1
   basePrice: 200
   attackBonus: 0
@@ -24,4 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  scalingType: 1
   modifiers: []

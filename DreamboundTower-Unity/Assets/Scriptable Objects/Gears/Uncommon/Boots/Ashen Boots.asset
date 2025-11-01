@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Ashen Boots
   gearType: 4
   icon: {fileID: 413694169998646791, guid: 1323d24425006b945b269c5f225e39ce, type: 3}
-  description: 
+  description: nothing lol
   rarity: 1
   basePrice: 52
   attackBonus: 0
@@ -24,4 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 8
+  scalingType: 1
   modifiers: []

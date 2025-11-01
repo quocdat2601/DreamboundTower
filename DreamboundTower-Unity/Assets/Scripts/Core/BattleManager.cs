@@ -338,7 +338,7 @@ public class BattleManager : MonoBehaviour
         // --- 2. KIỂM TRA MIMIC (SAU KHI ĐÃ CÓ archetypeId) ---
         // Tên file SO của bạn phải là "Mimic"
         //bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
-        bool isSpecialEncounter = (archetypeId == "Mimic" || archetypeId == "RivalChild");
+        bool isSpecialEncounter = (archetypeId == "Mimic" || archetypeId == "RivalChild" || archetypeId == "Spirit" );
 
         // --- 3. TÍNH TOÁN SỐ LƯỢNG KẺ ĐỊCH ---
         int enemyCount = 1;

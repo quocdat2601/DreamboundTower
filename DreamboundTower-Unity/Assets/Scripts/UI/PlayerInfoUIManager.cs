@@ -29,6 +29,8 @@ public class PlayerInfoUIManager : MonoBehaviour
     public TextMeshProUGUI manaStatText;
     [Tooltip("Text hiển thị AGI")]
     public TextMeshProUGUI agiStatText;
+    [Tooltip("Text hiển thị Crit")]
+    public TextMeshProUGUI critStatText;
     // (Thêm các Text khác nếu bạn muốn hiển thị thêm chỉ số)
 
     // Tham chiếu đến Character của người chơi (sẽ lấy trong Start)
@@ -96,6 +98,7 @@ public class PlayerInfoUIManager : MonoBehaviour
             intStatText.text = "INT: --";
             manaStatText.text = "MANA: --";
             agiStatText.text = "AGI: --";
+            critStatText.text = "CR: --";
             return;
         }
 
@@ -117,6 +120,7 @@ public class PlayerInfoUIManager : MonoBehaviour
             manaStatText.text = $"MANA: {baseManaStat}"; // Hiển thị chỉ số MANA gốc
         }
         if (agiStatText != null) agiStatText.text = $"AGI: {playerCharacter.agility}";
+        if (critStatText != null) critStatText.text = $"CR: {playerCharacter.criticalChance}";
 
         // (Nếu bạn có thêm Text cho các chỉ số khác, cập nhật chúng ở đây)
         Debug.Log("Stats Panel Updated!"); // Thêm log để biết hàm đã chạy

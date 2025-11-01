@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Silverclaw Dagger
   gearType: 6
   icon: {fileID: 2182994084055932133, guid: d341c15c8d0a1fe47a22a695462d7010, type: 3}
-  description: 
+  description: ManaRegenPercent + 5%
   rarity: 1
   basePrice: 120
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 8d1bfa7a770fbe349827296e0dbd3b98, type: 2}

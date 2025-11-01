@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Shadowstep Boots
   gearType: 4
   icon: {fileID: 2790703522335407642, guid: 56d7fee5fd8d45540b24629e4ef261f1, type: 3}
-  description: 
+  description: 6% dodge chance
   rarity: 2
   basePrice: 145
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 15
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 304d3b420cab70e4c8969c6e0160e1ee, type: 2}
