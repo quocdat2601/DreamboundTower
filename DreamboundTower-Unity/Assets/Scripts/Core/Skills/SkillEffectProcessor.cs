@@ -97,37 +97,30 @@ public static class SkillEffectProcessor
             {
                 int magicDamage = caster.CalculateMagicDamage(totalDamage); // Tính bonus phép
 
-                // Gọi hàm mới với DamageType.Magic
-                // (Lưu ý: TakeDamageWithShield giờ trả về int là sát thương phản lại, không phải sát thương gây ra)
-                target.TakeDamageWithShield(magicDamage, caster, DamageType.Magic);
-
-                // Ước tính sát thương gây ra (Cần cách chính xác hơn nếu muốn dùng cho lifesteal chính xác)
-                // Tạm thời lấy giá trị trước khi qua khiên/def
-                damageDealtThisHit = magicDamage;
+                // TakeDamageWithShield now returns actual damage dealt (after DEF/shield reduction)
+                damageDealtThisHit = target.TakeDamageWithShield(magicDamage, caster, DamageType.Magic);
             }
             else // Nếu skill là vật lý
             {
                 int physicalDamage = caster.CalculatePhysicalDamage(totalDamage, target); // Tính bonus vật lý
 
-                // Gọi hàm mới với DamageType.Physical
-                target.TakeDamageWithShield(physicalDamage, caster, DamageType.Physical);
-
-                // Ước tính sát thương gây ra
-                damageDealtThisHit = physicalDamage;
+                // TakeDamageWithShield now returns actual damage dealt (after DEF/shield reduction)
+                damageDealtThisHit = target.TakeDamageWithShield(physicalDamage, caster, DamageType.Physical);
             }
             // --- KẾT THÚC SỬA ---
 
-            totalDamageDealt += damageDealtThisHit; // Cộng dồn sát thương (ước tính)
+            totalDamageDealt += damageDealtThisHit; // Cộng dồn sát thương thực tế
 
-            // --- Xử lý Lifesteal (Dùng damageDealtThisHit) ---
+            // --- Xử lý Lifesteal (Dùng actual damage dealt) ---
             if (skillData.lifesteal && skillData.lifestealPercent > 0)
             {
-                // Tính lifesteal dựa trên sát thương ƯỚC TÍNH gây ra TRƯỚC KHI qua DEF/Shield của mục tiêu
-                // Để chính xác hơn, hàm TakeDamage/TakeDamageWithShield cần trả về lượng sát thương thực tế đã trừ
+                // Calculate lifesteal based on actual damage dealt (after DEF/shield reduction)
+                // This is now accurate since TakeDamageWithShield returns the actual damage dealt
                 int healAmount = Mathf.RoundToInt(damageDealtThisHit * skillData.lifestealPercent);
                 if (healAmount > 0) // Chỉ hồi máu nếu có giá trị
                 {
                     caster.RestoreHealth(healAmount);
+                    Debug.Log($"[SKILL LIFESTEAL] {caster.name} healed for {healAmount} HP from {damageDealtThisHit} actual damage ({skillData.lifestealPercent * 100f}%)");
                 }
             }
 
@@ -241,14 +234,38 @@ public static class SkillEffectProcessor
     #region Private Methods - Buff/Debuff Effects
     
     /// <summary>
-    /// Processes buff/debuff effects
-    /// Note: Stat modifiers are handled by PassiveSkillManager in BattleManager
+    /// Processes buff/debuff effects from skill stat modifiers
+    /// Applies temporary stat modifiers with duration tracking
     /// </summary>
     private static void ProcessBuffDebuffEffects(SkillData skillData, Character target)
     {
-        // Note: Stat modifiers are handled by PassiveSkillManager in BattleManager
-        // This method is kept for future implementation if needed
-        // For now, stat modifiers are applied through the passive skill system
+        if (skillData == null || target == null) return;
+        
+        // Skip if no stat modifiers or buff duration is 0
+        if (skillData.statModifiers == null || skillData.statModifiers.Count == 0) return;
+        
+        // If buffDuration is 0, modifiers are permanent for the battle (or until removed)
+        // If buffDuration > 0, modifiers are temporary and will expire after that many turns
+        int duration = skillData.buffDuration;
+        
+        // Get or create TemporaryModifierManager for the target character
+        TemporaryModifierManager tempModManager = TemporaryModifierManager.GetOrAdd(target);
+        if (tempModManager == null)
+        {
+            Debug.LogError("[SKILL EFFECT] Failed to get or create TemporaryModifierManager for target character!");
+            return;
+        }
+        
+        // Apply each stat modifier
+        foreach (var modifier in skillData.statModifiers)
+        {
+            if (modifier != null)
+            {
+                tempModManager.ApplyTemporaryModifier(modifier, duration);
+                
+                Debug.Log($"[SKILL EFFECT] Applied stat modifier {modifier.name} to {target.name} for {duration} turns (0 = permanent for battle)");
+            }
+        }
     }
     
     #endregion

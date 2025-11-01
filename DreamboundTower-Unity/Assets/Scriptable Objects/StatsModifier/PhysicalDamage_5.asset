@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: PhysicalDamage_5
   m_EditorClassIdentifier: Assembly-CSharp::StatModifierSO
   targetStat: 25
-  value: 0.05
-  type: 1
+  value: 5
+  type: 0
   duration: 0

@@ -176,11 +176,11 @@ public class PassiveSkillManager : MonoBehaviour
         // Apply modifier based on type
         switch (modifier.type)
         {
-            case ModifierType.StatBonus:
+            case ModifierType.Additive:
                 ApplyAdditiveModifier(modifier.targetStat, modifierValue);
                 break;
                 
-            case ModifierType.StatBonusPercent:
+            case ModifierType.Multiplicative:
                 ApplyMultiplicativeModifier(modifier.targetStat, modifierValue);
                 break;
         }
@@ -198,11 +198,11 @@ public class PassiveSkillManager : MonoBehaviour
         // Remove modifier based on type
         switch (modifier.type)
         {
-            case ModifierType.StatBonus:
+            case ModifierType.Additive:
                 ApplyAdditiveModifier(modifier.targetStat, modifierValue);
                 break;
                 
-            case ModifierType.StatBonusPercent:
+            case ModifierType.Multiplicative:
                 ApplyMultiplicativeModifier(modifier.targetStat, modifierValue);
                 break;
         }
@@ -293,6 +293,14 @@ public class PassiveSkillManager : MonoBehaviour
                 // Recalculate current stats
                 playerCharacter.ResetToBaseStats();
                 break;
+            case StatType.MagicDamageFlat:
+                // Add flat magic damage bonus (additive)
+                playerCharacter.magicDamageFlat += Mathf.RoundToInt(value);
+                break;
+            case StatType.PhysicalDamageFlat:
+                // Add flat physical damage bonus (additive)
+                playerCharacter.physicalDamageFlat += Mathf.RoundToInt(value);
+                break;
             default:
                 Debug.LogWarning($"[PASSIVE] Unhandled StatType in ApplyAdditiveModifier: {statType} ({(int)statType})");
                 break;
@@ -305,8 +313,10 @@ public class PassiveSkillManager : MonoBehaviour
     private void ApplyMultiplicativeModifier(StatType statType, float percentageValue)
     {
         // If the value is already a percentage (like 10 for 10%), use it directly
-        // If the value is a decimal (like 0.1 for 10%), multiply by 100
-        float actualPercentage = percentageValue < 1.0f ? percentageValue * 100.0f : percentageValue;
+        // If the value is a decimal (like 0.1 for 10% or 1.0 for 100%), multiply by 100
+        // Values <= 1.0 are treated as decimals (0.5 = 50%, 1.0 = 100%)
+        // Values > 1.0 are treated as percentages (10 = 10%, 100 = 100%)
+        float actualPercentage = percentageValue <= 1.0f ? percentageValue * 100.0f : percentageValue;
         float multiplier = 1.0f + (actualPercentage / 100.0f);
         
         switch (statType)
@@ -346,12 +356,29 @@ public class PassiveSkillManager : MonoBehaviour
                 playerCharacter.lifestealPercent += actualPercentage / 100f;
                 break;
             case StatType.DodgeChance:
-                // Add dodge chance (multiplicative)
-                playerCharacter.dodgeChance += actualPercentage / 100f;
+                // Add dodge chance bonus (multiplicative)
+                playerCharacter.dodgeBonusFromGearPassives += actualPercentage / 100f;
+                playerCharacter.UpdateDerivedStats(); // Recalculate total dodge
                 break;
             case StatType.DamageReduction:
                 // Add damage reduction (multiplicative)
                 playerCharacter.damageReduction += actualPercentage / 100f;
+                break;
+            case StatType.CritChance:
+                // Add critical chance (multiplicative)
+                playerCharacter.criticalChance += actualPercentage / 100f;
+                break;
+            case StatType.CritDamagePercent:
+                // Add critical damage multiplier (multiplicative)
+                // If value is 1.0 (100%), add 1.0x multiplier (total becomes 2.5x base 1.5x)
+                playerCharacter.critDamageMultiplier += actualPercentage / 100f;
+                break;
+            case StatType.ReflectDamagePercent:
+                // Add reflect damage percentage (multiplicative)
+                playerCharacter.gearReflectDamagePercent += actualPercentage / 100f;
+                break;
+            default:
+                Debug.LogWarning($"[PASSIVE] Unhandled StatType in ApplyMultiplicativeModifier: {statType} ({(int)statType})");
                 break;
         }
     }
