@@ -363,13 +363,15 @@ public class BattleManager : MonoBehaviour
         List<EnemyTemplateSO> availableEnemies = null;
         if (!isSpecialEncounter && !overrideUseCustomStats) // Chỉ cần lọc nếu không phải Mimic hoặc custom stats
         {
+            int currentFloor = absoluteFloor;
             availableEnemies = GameManager.Instance.allEnemyTemplates
-            .Where(template =>
-            template != null && // Kiểm tra null
-            template.kind == encounterKind && // Đúng loại (Normal/Elite/Boss)
-            !template.isUniqueOrEventOnly
-        )
-        .ToList();
+                        .Where(template =>
+                            template != null &&
+                            template.kind == encounterKind &&     // 1. Phải đúng loại (Normal/Elite)
+                            !template.isUniqueOrEventOnly &&    // 2. Không phải quái Event (như RivalChild)
+                            template.minFloor <= currentFloor   // 3. Tầng tối thiểu phải <= Tầng hiện tại
+                        )
+                        .ToList();
             if (availableEnemies.Count == 0)
             {
                 Debug.LogError($"[BATTLE] Không tìm thấy EnemyTemplateSO nào có Kind là '{encounterKind}'!");
