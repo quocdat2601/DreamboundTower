@@ -399,14 +399,19 @@ namespace Map
 
             int absoluteFloor;
 
-            if (mapManager.CurrentMap.path.Count > 0)
+            // KIỂM TRA LOGIC MỚI:
+            // Nếu path rỗng (vừa vào map mới), chúng ta phải hiển thị
+            // tầng bắt đầu của Zone HIỆN TẠI (ví dụ: 1, 11, 21, ..., 71).
+            if (mapManager.CurrentMap.path == null || mapManager.CurrentMap.path.Count == 0)
             {
-                Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
-                absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(currentPoint);
+                // Tính tầng bắt đầu dựa trên Zone của MapManager
+                absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + 1;
             }
             else
             {
-                absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + 1;
+                // Nếu đã đi, tính tầng dựa trên node cuối cùng trong path
+                Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
+                absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(currentPoint);
             }
 
             string floorText = string.Format(floorDisplayFormat, absoluteFloor);

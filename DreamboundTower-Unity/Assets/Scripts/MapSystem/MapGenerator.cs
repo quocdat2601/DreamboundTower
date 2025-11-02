@@ -339,7 +339,7 @@ namespace Map
 
             // Xác định vùng
             FloorRegion region;
-            if (absoluteFloor <= 20) region = FloorRegion.Early;
+            if (absoluteFloor <= 10) region = FloorRegion.Early;
             else if (absoluteFloor <= 60) region = FloorRegion.Mid;
             else region = FloorRegion.Late;
 
@@ -350,6 +350,7 @@ namespace Map
                 case FloorRegion.Early: // Tầng 1-20
                                         // GDD MỚI: Combat 55%, Event 20%, Rest 12%, Shop 8%, Mystery 5%
                     if (randomValue < 0.55f) return NodeType.MinorEnemy; // 55%
+                    if (randomValue < 0.55f) return NodeType.EliteEnemy; // 25%
                     if (randomValue < 0.75f) return NodeType.Event;     // 20% (0.75 - 0.55)
                     if (randomValue < 0.87f) return NodeType.RestSite;  // 12% (0.87 - 0.75)
                     if (randomValue < 0.95f) return NodeType.Store;     // 8% (0.95 - 0.87)

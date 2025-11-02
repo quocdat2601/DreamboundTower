@@ -288,7 +288,7 @@ namespace Map
         {
             if (mapNode == null || mapManager == null || GameManager.Instance == null) return;
 
-            // 1. Xác định "Cấp bậc" (Kind) cần tìm dựa trên loại node
+            // 1. Xác định "Cấp bậc" (Kind)
             Presets.EnemyKind requiredKind;
             switch (mapNode.Node.nodeType)
             {
@@ -302,17 +302,52 @@ namespace Map
                     requiredKind = Presets.EnemyKind.Boss;
                     break;
                 default:
-                    return; // Không phải node combat, không làm gì cả
+                    return; // Không phải node combat
             }
 
-            // 2. Lọc "Kho" quái vật trong GameManager để tìm các "Binh chủng" phù hợp
+            // 2. Lấy Tầng
             int absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(mapNode.Node.point);
             var runData = GameManager.Instance.currentRunData;
-            runData.mapData.pendingEnemyArchetypeId = "";
+
+            // --- ✅ BẮT ĐẦU LOGIC MỚI ---
+            string bossArchetypeId = ""; // Biến tạm để lưu ID boss
+
+            // 3. Nếu là BOSS, tìm ID cụ thể
+            if (requiredKind == Presets.EnemyKind.Boss)
+            {
+                MapConfig mapConfig = mapManager.config; // Lấy config từ MapManager
+
+                // Ưu tiên 1: Tìm trong BossFloorConfig (Tầng 10, 20, 30...)
+                if (mapConfig.bossFloorConfigs != null)
+                {
+                    var bossConfig = mapConfig.bossFloorConfigs.FirstOrDefault(bc => bc.floorNumber == absoluteFloor);
+                    if (bossConfig != null && !string.IsNullOrEmpty(bossConfig.enemyArchetypeID))
+                    {
+                        bossArchetypeId = bossConfig.enemyArchetypeID;
+                    }
+                }
+
+                // Ưu tiên 2: (Nếu không thấy ở trên) Tìm trong ZoneConfig
+                if (string.IsNullOrEmpty(bossArchetypeId) && mapConfig.zoneConfigs != null)
+                {
+                    int currentZone = mapManager.currentZone; // Lấy zone hiện tại
+                    var zoneConfig = mapConfig.zoneConfigs.FirstOrDefault(zc => zc.zoneNumber == currentZone);
+                    if (zoneConfig != null && !string.IsNullOrEmpty(zoneConfig.enemyArchetypeID))
+                    {
+                        bossArchetypeId = zoneConfig.enemyArchetypeID;
+                    }
+                }
+
+                Debug.Log($"[MAP] Boss Node clicked. Floor: {absoluteFloor}. Found ArchetypeID: '{bossArchetypeId}'");
+            }
+
+            // 4. Ghi dữ liệu vào RunData
+            runData.mapData.pendingEnemyArchetypeId = bossArchetypeId; // Ghi ID boss (hoặc "" nếu là quái thường)
             runData.mapData.pendingEnemyKind = (int)requiredKind;
             runData.mapData.pendingEnemyFloor = absoluteFloor;
+            // --- KẾT THÚC LOGIC MỚI ---
 
-            Debug.Log($"[MAP] Wrote pending combat encounter: kind={requiredKind}, floor={absoluteFloor}");
+            Debug.Log($"[MAP] Wrote pending combat encounter: ID='{bossArchetypeId}', kind={requiredKind}, floor={absoluteFloor}");
         }
 
         private void PlayWarningThatNodeCannotBeAccessed()

@@ -960,9 +960,17 @@ PrefabInstance:
       propertyPath: floorDisplayText
       value: 
       objectReference: {fileID: 1405962228}
+    - target: {fileID: 4462501714740186190, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: orientationOffset
+      value: -6
+      objectReference: {fileID: 0}
     - target: {fileID: 6173653652465991376, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
       propertyPath: m_Name
       value: MapObjects
+      objectReference: {fileID: 0}
+    - target: {fileID: 9124814956810944979, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: testZone
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 9124814956810944979, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
       propertyPath: currentZone
@@ -984,6 +992,10 @@ PrefabInstance:
       propertyPath: normalTemplate
       value: 
       objectReference: {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
+    - target: {fileID: 9124814956810944979, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: overrideZoneForTesting
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 5337413451386887161, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
     - {fileID: 5337413451174954175, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
