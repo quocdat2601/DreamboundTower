@@ -58,6 +58,27 @@ public class Inventory : MonoBehaviour
     }
     
     /// <summary>
+    /// Add item without triggering events (useful for bulk operations)
+    /// </summary>
+    public bool AddItemSilent(GearItem item)
+    {
+        // Ensure inventory is properly initialized
+        EnsureInitialized();
+        
+        // Find first empty slot
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i] == null)
+            {
+                items[i] = item;
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
     /// Ensure the inventory is properly initialized with empty slots
     /// </summary>
     void EnsureInitialized()

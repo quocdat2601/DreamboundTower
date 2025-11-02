@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using TMPro;
 
 public class ShopManager : MonoBehaviour
 {
@@ -329,6 +330,16 @@ public class ShopManager : MonoBehaviour
             return;
         }
 
+        // Hide tooltip IMMEDIATELY when purchase starts (before any other operations)
+        if (TooltipManager.Instance != null)
+        {
+            TooltipManager.Instance.HideAllTooltips();
+            if (TooltipManager.Instance.itemTooltipPanel != null)
+            {
+                TooltipManager.Instance.itemTooltipPanel.SetActive(false);
+            }
+        }
+        
         currentRunData.playerData.gold -= item.basePrice;
         if (currentRunData.playerData.gold < 0) currentRunData.playerData.gold = 0;
         UpdatePlayerGoldUI();
@@ -338,13 +349,104 @@ public class ShopManager : MonoBehaviour
             var inventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
             if (inventory != null)
             {
-                inventory.AddItem(item);
+                bool success = inventory.AddItem(item);
+                if (success)
+                {
+                    Debug.Log($"[SHOP] Successfully added {item.itemName} to inventory");
+                }
+                else
+                {
+                    Debug.LogWarning($"[SHOP] Failed to add {item.itemName} to inventory (inventory full?)");
+                }
+            }
+            else
+            {
+                Debug.LogError("[SHOP] Inventory component not found on player!");
             }
         }
+        else
+        {
+            Debug.LogError("[SHOP] GameManager or playerInstance is null! Cannot add item to inventory.");
+        }
 
-        // Disable slot interactions and clear visuals so it cannot be bought again
+        // Clear slot visuals and disable interactions so it cannot be bought again
         if (slotRoot != null)
         {
+            // Clear ItemIcon
+            var iconTf = slotRoot.transform.Find("ItemIcon");
+            if (iconTf != null)
+            {
+                var img = iconTf.GetComponent<Image>();
+                if (img != null)
+                {
+                    img.sprite = null;
+                    var c = img.color; c.a = 0f; img.color = c;
+                }
+                iconTf.gameObject.SetActive(false);
+            }
+            
+            // Immediately hide tooltip and disable tooltip trigger when item is purchased
+            var tooltipTrigger = slotRoot.GetComponent<TooltipTrigger>();
+            if (tooltipTrigger != null)
+            {
+                // Disable the trigger FIRST to prevent any hover events
+                tooltipTrigger.enabled = false;
+                
+                // Force exit event to ensure tooltip closes immediately
+                if (tooltipTrigger.OnHoverExit != null)
+                {
+                    tooltipTrigger.OnHoverExit.Invoke();
+                }
+                
+                // Clear all data and listeners
+                tooltipTrigger.dataToShow = null;
+                tooltipTrigger.OnItemHoverEnter.RemoveAllListeners();
+                tooltipTrigger.OnHoverExit.RemoveAllListeners();
+            }
+            
+            // Hide tooltip from TooltipManager (ensure it's hidden)
+            if (TooltipManager.Instance != null)
+            {
+                TooltipManager.Instance.HideAllTooltips();
+                
+                // Also directly deactivate tooltip panels as backup
+                if (TooltipManager.Instance.itemTooltipPanel != null)
+                {
+                    TooltipManager.Instance.itemTooltipPanel.SetActive(false);
+                }
+            }
+            
+            // Reset background color to default (clear rarity color)
+            var rootImage = slotRoot.GetComponent<Image>();
+            if (rootImage != null)
+            {
+                rootImage.color = Color.white;
+            }
+            
+            // Clear background child color if it exists
+            var bgTransform = slotRoot.transform.Find("Background");
+            if (bgTransform != null)
+            {
+                var bgImage = bgTransform.GetComponent<Image>();
+                if (bgImage != null)
+                {
+                    bgImage.color = Color.white;
+                }
+            }
+            
+            // Clear any text components that might show item name or price
+            var textComponents = slotRoot.GetComponentsInChildren<TextMeshProUGUI>(true);
+            foreach (var text in textComponents)
+            {
+                text.text = "";
+            }
+            var textComponentsLegacy = slotRoot.GetComponentsInChildren<UnityEngine.UI.Text>(true);
+            foreach (var text in textComponentsLegacy)
+            {
+                text.text = "";
+            }
+            
+            // Disable all interactions
             foreach (var btn in slotRoot.GetComponentsInChildren<Button>(true))
             {
                 btn.interactable = false;
@@ -356,17 +458,6 @@ public class ShopManager : MonoBehaviour
             foreach (var trig in slotRoot.GetComponentsInChildren<EventTrigger>(true))
             {
                 trig.enabled = false;
-            }
-            var iconTf = slotRoot.transform.Find("ItemIcon");
-            if (iconTf != null)
-            {
-                var img = iconTf.GetComponent<Image>();
-                if (img != null)
-                {
-                    img.sprite = null;
-                    var c = img.color; c.a = 0f; img.color = c;
-                }
-                iconTf.gameObject.SetActive(false);
             }
         }
     }
@@ -407,6 +498,9 @@ public class ShopManager : MonoBehaviour
 
                     // Force UI refresh
                     SyncInventoryAndEquipmentUI();
+                    
+                    // Update shop item affordability after getting gold
+                    UpdateShopItemAffordability();
                     return true;
                 }
             }
@@ -429,6 +523,9 @@ public class ShopManager : MonoBehaviour
 
                             // Force UI refresh
                             SyncInventoryAndEquipmentUI();
+                            
+                            // Update shop item affordability after getting gold
+                            UpdateShopItemAffordability();
                             return true;
                         }
                     }
@@ -448,6 +545,101 @@ public class ShopManager : MonoBehaviour
         if (GameManager.Instance != null && currentRunData != null)
         {
             GameManager.Instance.UpdatePlayerGoldUI(currentRunData.playerData.gold);
+        }
+    }
+    
+    /// <summary>
+    /// Update affordability state of all shop items based on current gold
+    /// </summary>
+    private void UpdateShopItemAffordability()
+    {
+        if (stallPanelContainer == null || currentRunData == null) return;
+        
+        foreach (Transform child in stallPanelContainer)
+        {
+            if (child == null) continue;
+            
+            // Get the item from TooltipTrigger or ShopItemClickHandler
+            TooltipTrigger trigger = child.GetComponent<TooltipTrigger>();
+            ShopItemClickHandler clickHandler = child.GetComponent<ShopItemClickHandler>();
+            
+            GearItem item = null;
+            if (trigger != null && trigger.dataToShow is GearItem triggerItem)
+            {
+                item = triggerItem;
+            }
+            else if (clickHandler != null && clickHandler.item != null)
+            {
+                item = clickHandler.item;
+            }
+            
+            if (item == null) continue;
+            
+            // Check if player can afford this item now
+            bool canAfford = currentRunData.playerData.gold >= item.basePrice;
+            
+            // Find ItemIcon and update its appearance
+            Transform itemIconTransform = child.Find("ItemIcon");
+            if (itemIconTransform != null)
+            {
+                Image itemIcon = itemIconTransform.GetComponent<Image>();
+                if (itemIcon != null)
+                {
+                    if (canAfford)
+                    {
+                        // Restore normal color
+                        itemIcon.color = Color.white;
+                    }
+                    else
+                    {
+                        // Darken the icon
+                        itemIcon.color = new Color(0.5f, 0.5f, 0.5f, 0.7f);
+                    }
+                }
+            }
+            
+            // Update button interactability
+            Button slotButton = child.GetComponent<Button>();
+            if (slotButton != null)
+            {
+                slotButton.interactable = canAfford;
+            }
+            
+            // Enable/disable ShopItemClickHandler based on affordability
+            if (canAfford)
+            {
+                // If item becomes affordable, ensure click handler exists
+                if (clickHandler == null)
+                {
+                    clickHandler = child.GetComponent<ShopItemClickHandler>();
+                    if (clickHandler == null)
+                    {
+                        clickHandler = child.gameObject.AddComponent<ShopItemClickHandler>();
+                    }
+                    clickHandler.manager = this;
+                    clickHandler.item = item;
+                    clickHandler.button = slotButton;
+                    clickHandler.slotRoot = child.gameObject;
+                }
+                clickHandler.enabled = true;
+            }
+            else
+            {
+                // If item becomes unaffordable, disable handler
+                if (clickHandler != null)
+                {
+                    clickHandler.enabled = false;
+                }
+            }
+            
+            // Enable/disable all buttons in children
+            foreach (var btn in child.GetComponentsInChildren<Button>(true))
+            {
+                if (btn != null)
+                {
+                    btn.interactable = canAfford;
+                }
+            }
         }
     }
 

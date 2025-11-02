@@ -122,52 +122,52 @@ public class LootManager : MonoBehaviour
             return;
         }
         
-        if (lootPickupPrefab == null)
-        {
-            return;
-        }
-        
         // Get random loot from the table
         List<LootTable.LootEntry> lootEntries = lootTable.GetRandomLoot(maxDrops);
         
-        foreach (var entry in lootEntries)
+        // Always add items directly to inventory (no ground spawning)
+        // Ensure we have the current scene's inventory reference
+        RefreshReferences();
+        
+        if (playerInventory != null)
         {
-            if (entry.item == null) continue;
+            bool anyItemAdded = false;
             
-            // Use the position passed from LootDrop (which already handles BattleArea positioning)
-            Vector3 spawnPos = position;
-            
-            // Add scatter if enabled
-            if (scatter)
+            foreach (var entry in lootEntries)
             {
-                Vector2 randomOffset = Random.insideUnitCircle * scatterRadius;
-                spawnPos += new Vector3(randomOffset.x, 0, randomOffset.y);
-            }
-            
-            // Spawn the loot pickup
-            GameObject lootObj = Instantiate(lootPickupPrefab, spawnPos, Quaternion.identity);
-            LootPickup pickup = lootObj.GetComponent<LootPickup>();
-            
-            if (pickup != null)
-            {
-                // Configure the pickup with real item data
-                pickup.SetupLoot(entry.item, entry.minQuantity, entry.maxQuantity, entry.rarity);
-                pickup.SetDespawnTime(lootDespawnTime);
+                if (entry.item == null) continue;
                 
-                // Set auto-collect delay if enabled globally
-                if (globalAutoCollectDelay > 0)
+                // Calculate quantity
+                int quantity = Random.Range(entry.minQuantity, entry.maxQuantity + 1);
+                if (quantity <= 0) quantity = 1;
+                
+                // Add items directly to inventory (silent mode to avoid UI errors)
+                // Collect all items silently first, then trigger a single UI update
+                for (int i = 0; i < quantity; i++)
                 {
-                    pickup.autoCollectDelay = globalAutoCollectDelay;
+                    try
+                    {
+                        // Use silent add to avoid triggering UI updates immediately
+                        bool success = playerInventory.AddItemSilent(entry.item);
+                        if (success)
+                        {
+                            anyItemAdded = true;
+                            Debug.Log($"[LOOT] Collected {entry.item.itemName} x{quantity}");
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[LOOT] Error adding item {entry.item.itemName} to inventory: {e.Message}");
+                        // Continue with next item even if this one fails
+                    }
                 }
-                
-                
-                // Add to active loot list
-                activeLoot.Add(pickup);
-                
             }
-            else
+            
+            // Trigger UI update once after all items are added
+            // Use coroutine to wait a frame for UI components to be ready
+            if (anyItemAdded)
             {
-                Destroy(lootObj);
+                StartCoroutine(DelayedInventoryUIUpdate());
             }
         }
     }
@@ -184,42 +184,34 @@ public class LootManager : MonoBehaviour
         // Always ensure we have the current scene's inventory reference
         RefreshReferences();
         
-        // Add to inventory
+        // Add to inventory (use silent mode to avoid UI errors after shop scene)
         if (playerInventory != null)
         {
+            bool anyItemAdded = false;
             for (int i = 0; i < loot.quantity; i++)
             {
-                bool success = playerInventory.AddItem(loot.item);
-                if (success)
+                try
                 {
-                    Debug.Log($"[LOOT] Collected {loot.item.itemName} x{loot.quantity}");
+                    // Use silent add to avoid triggering UI updates immediately
+                    bool success = playerInventory.AddItemSilent(loot.item);
+                    if (success)
+                    {
+                        anyItemAdded = true;
+                        Debug.Log($"[LOOT] Collected {loot.item.itemName} x{loot.quantity}");
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LOOT] Error adding item {loot.item.itemName} to inventory: {e.Message}");
+                    // Continue with next item even if this one fails
                 }
             }
             
-            // Force UI update by finding all inventory UI components
-            var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
-            foreach (var ui in inventoryUIs)
+            // Trigger UI update once after all items are added
+            if (anyItemAdded)
             {
-                // Make sure the UI is using the same inventory instance
-                if (ui.inventory != playerInventory)
-                {
-                    ui.UpdateInventoryReference(playerInventory);
-                }
-                else
-                {
-                    ui.ForceRefreshUI();
-                }
+                StartCoroutine(DelayedInventoryUIUpdate());
             }
-            
-            // Also update DragDropSystem inventory reference
-            var dragDropSystem = FindFirstObjectByType<DragDropSystem>();
-            if (dragDropSystem != null)
-            {
-                dragDropSystem.UpdateInventoryReference(playerInventory);
-            }
-            
-            // The inventory's OnInventoryChanged event should handle SimpleInventoryUI updates
-            // No need to manually call UpdateInventoryUI() since it's private
         }
         
         // Remove from active loot and destroy (with small delay to ensure UI updates)
@@ -301,6 +293,71 @@ public class LootManager : MonoBehaviour
                 Destroy(loot.gameObject);
         }
         activeLoot.Clear();
+    }
+    
+    /// <summary>
+    /// Delayed UI update to allow UI components to initialize after scene transitions
+    /// </summary>
+    private IEnumerator DelayedInventoryUIUpdate()
+    {
+        // Wait a frame to ensure UI components are ready
+        yield return new WaitForEndOfFrame();
+        
+        if (playerInventory == null) yield break;
+        
+        // Update UI references safely (with error handling)
+        try
+        {
+            var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
+            foreach (var ui in inventoryUIs)
+            {
+                if (ui == null) continue;
+                
+                try
+                {
+                    if (ui.inventory != playerInventory)
+                    {
+                        ui.UpdateInventoryReference(playerInventory);
+                    }
+                    else
+                    {
+                        ui.ForceRefreshUI();
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LOOT] Error updating inventory UI: {e.Message}");
+                    // Continue with next UI
+                }
+            }
+            
+            var dragDropSystem = FindFirstObjectByType<DragDropSystem>();
+            if (dragDropSystem != null)
+            {
+                try
+                {
+                    dragDropSystem.UpdateInventoryReference(playerInventory);
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LOOT] Error updating DragDropSystem: {e.Message}");
+                }
+            }
+            
+            // Trigger inventory change event after UI is ready
+            try
+            {
+                playerInventory.OnInventoryChanged?.Invoke();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[LOOT] Error triggering inventory change event: {e.Message}");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[LOOT] Error during UI update: {e.Message}");
+        }
     }
     
     /// <summary>

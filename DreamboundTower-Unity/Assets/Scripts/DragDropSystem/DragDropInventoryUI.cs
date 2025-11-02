@@ -475,37 +475,45 @@ public class DragDropInventoryUI : MonoBehaviour
     /// </summary>
     void ApplyRarityToSlotImage(Image slotImage, ItemRarity rarity)
     {
-        if (slotImage == null) return;
+        if (slotImage == null || slotImage.gameObject == null) return;
         
-        // Apply to main slot image
-        RarityColorUtility.ApplyRarityBackground(slotImage, rarity);
-        
-        // Update DropZone's originalColor to preserve rarity color after drag operations
-        DropZone dropZone = slotImage.GetComponent<DropZone>();
-        if (dropZone != null)
+        try
         {
-            dropZone.UpdateOriginalColor();
-        }
-        
-        // Also check for a "Background" child object
-        Transform bgTransform = slotImage.transform.Find("Background");
-        if (bgTransform != null)
-        {
-            Image bgImage = bgTransform.GetComponent<Image>();
-            if (bgImage != null)
+            // Apply to main slot image
+            RarityColorUtility.ApplyRarityBackground(slotImage, rarity);
+            
+            // Update DropZone's originalColor to preserve rarity color after drag operations
+            DropZone dropZone = slotImage.GetComponent<DropZone>();
+            if (dropZone != null)
             {
-                RarityColorUtility.ApplyRarityBackground(bgImage, rarity);
+                dropZone.UpdateOriginalColor();
+            }
+            
+            // Also check for a "Background" child object
+            Transform bgTransform = slotImage.transform.Find("Background");
+            if (bgTransform != null)
+            {
+                Image bgImage = bgTransform.GetComponent<Image>();
+                if (bgImage != null)
+                {
+                    RarityColorUtility.ApplyRarityBackground(bgImage, rarity);
+                }
+            }
+            
+            // Also check parent GameObject for background Image
+            if (slotImage.transform.parent != null)
+            {
+                Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
+                if (parentBgImage != null && parentBgImage != slotImage)
+                {
+                    RarityColorUtility.ApplyRarityBackground(parentBgImage, rarity);
+                }
             }
         }
-        
-        // Also check parent GameObject for background Image
-        if (slotImage.transform.parent != null)
+        catch (System.Exception e)
         {
-            Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
-            if (parentBgImage != null && parentBgImage != slotImage)
-            {
-                RarityColorUtility.ApplyRarityBackground(parentBgImage, rarity);
-            }
+            // Slot or component has been destroyed, skip this slot
+            Debug.LogWarning($"[INVENTORY UI] Error applying rarity color to slot: {e.Message}");
         }
     }
     
@@ -514,47 +522,55 @@ public class DragDropInventoryUI : MonoBehaviour
     /// </summary>
     void RestoreSlotColor(Image slotImage)
     {
-        if (slotImage == null) return;
+        if (slotImage == null || slotImage.gameObject == null) return;
         
-        Color originalColor = GetOriginalSlotColor(slotImage);
-        
-        // Restore the slot image color
-        slotImage.color = originalColor;
-        
-        // Also reset background child if exists
-        Transform bgTransform = slotImage.transform.Find("Background");
-        if (bgTransform != null)
+        try
         {
-            Image bgImage = bgTransform.GetComponent<Image>();
-            if (bgImage != null)
+            Color originalColor = GetOriginalSlotColor(slotImage);
+            
+            // Restore the slot image color
+            slotImage.color = originalColor;
+            
+            // Also reset background child if exists
+            Transform bgTransform = slotImage.transform.Find("Background");
+            if (bgTransform != null)
             {
-                bgImage.color = originalColor;
-            }
-        }
-        
-        // Also reset parent GameObject background Image if exists
-        if (slotImage.transform.parent != null)
-        {
-            Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
-            if (parentBgImage != null && parentBgImage != slotImage)
-            {
-                // Use stored parent color if available, otherwise use slot's original color
-                if (originalSlotColors.ContainsKey(parentBgImage))
+                Image bgImage = bgTransform.GetComponent<Image>();
+                if (bgImage != null)
                 {
-                    parentBgImage.color = originalSlotColors[parentBgImage];
-                }
-                else
-                {
-                    parentBgImage.color = originalColor;
+                    bgImage.color = originalColor;
                 }
             }
+            
+            // Also reset parent GameObject background Image if exists
+            if (slotImage.transform.parent != null)
+            {
+                Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
+                if (parentBgImage != null && parentBgImage != slotImage)
+                {
+                    // Use stored parent color if available, otherwise use slot's original color
+                    if (originalSlotColors.ContainsKey(parentBgImage))
+                    {
+                        parentBgImage.color = originalSlotColors[parentBgImage];
+                    }
+                    else
+                    {
+                        parentBgImage.color = originalColor;
+                    }
+                }
+            }
+            
+            // Update DropZone's originalColor to match restored original
+            DropZone dropZone = slotImage.GetComponent<DropZone>();
+            if (dropZone != null)
+            {
+                dropZone.originalColor = originalColor;
+            }
         }
-        
-        // Update DropZone's originalColor to match restored original
-        DropZone dropZone = slotImage.GetComponent<DropZone>();
-        if (dropZone != null)
+        catch (System.Exception e)
         {
-            dropZone.originalColor = originalColor;
+            // Slot or component has been destroyed, skip this slot
+            Debug.LogWarning($"[INVENTORY UI] Error restoring slot color: {e.Message}");
         }
     }
     
@@ -584,34 +600,43 @@ public class DragDropInventoryUI : MonoBehaviour
     /// </summary>
     Image UpdateItemIconImage(Image slotImage, GearItem item)
     {
-        if (slotImage == null) return null;
+        if (slotImage == null || slotImage.gameObject == null) return null;
         
-        Image itemImage = FindItemIconImage(slotImage);
-        
-        // Update the ItemIcon
-        if (itemImage != null)
+        try
         {
-            if (item != null && item.icon != null)
+            Image itemImage = FindItemIconImage(slotImage);
+            
+            // Update the ItemIcon
+            if (itemImage != null)
             {
-                itemImage.sprite = item.icon;
-                itemImage.color = Color.white;
-                itemImage.enabled = true;
-                itemImage.raycastTarget = true;
-                itemImage.maskable = true;
-                itemImage.transform.SetAsLastSibling();
-                itemImage.gameObject.SetActive(true);
+                if (item != null && item.icon != null)
+                {
+                    itemImage.sprite = item.icon;
+                    itemImage.color = Color.white;
+                    itemImage.enabled = true;
+                    itemImage.raycastTarget = true;
+                    itemImage.maskable = true;
+                    itemImage.transform.SetAsLastSibling();
+                    itemImage.gameObject.SetActive(true);
+                }
+                else
+                {
+                    // Clear ItemIcon when slot is empty
+                    itemImage.sprite = null;
+                    itemImage.color = Color.clear;
+                    itemImage.enabled = false;
+                    itemImage.gameObject.SetActive(false);
+                }
             }
-            else
-            {
-                // Clear ItemIcon when slot is empty
-                itemImage.sprite = null;
-                itemImage.color = Color.clear;
-                itemImage.enabled = false;
-                itemImage.gameObject.SetActive(false);
-            }
+            
+            return itemImage;
         }
-        
-        return itemImage;
+        catch (System.Exception e)
+        {
+            // Slot or component has been destroyed, skip this slot
+            Debug.LogWarning($"[INVENTORY UI] Error updating item icon: {e.Message}");
+            return null;
+        }
     }
     
     /// <summary>
@@ -652,11 +677,29 @@ public class DragDropInventoryUI : MonoBehaviour
     {
         if (inventory == null) return;
         
+        // Check if inventory slots list is valid
+        if (inventorySlots == null || inventorySlots.Count == 0) return;
+        
         // Update ALL inventory slots, not just the ones with items
         for (int i = 0; i < inventorySlots.Count; i++)
         {
+            // Skip if slot is null or destroyed
+            if (inventorySlots[i] == null || inventorySlots[i].gameObject == null)
+            {
+                continue; // Skip destroyed slots
+            }
+            
             GearItem item = (i < inventory.items.Count) ? inventory.items[i] : null;
-            UpdateInventorySlot(i, item);
+            try
+            {
+                UpdateInventorySlot(i, item);
+            }
+            catch (System.Exception e)
+            {
+                // Log but don't crash - some slots may be destroyed after scene transitions
+                Debug.LogWarning($"[INVENTORY UI] Error updating slot {i}: {e.Message}");
+                continue; // Continue with next slot
+            }
         }
     }
     
@@ -685,6 +728,12 @@ public class DragDropInventoryUI : MonoBehaviour
         // Update the actual slot Image
         Image slotImage = inventorySlots[slotIndex];
         
+        // Check if slot image has been destroyed (common after scene transitions)
+        if (slotImage == null || slotImage.gameObject == null)
+        {
+            return; // Skip this slot if it's been destroyed
+        }
+        
         // Apply rarity background or restore original color
         if (item != null)
         {
@@ -695,11 +744,21 @@ public class DragDropInventoryUI : MonoBehaviour
             RestoreSlotColor(slotImage);
         }
         
-        // Find DraggableItem component
-        DraggableItem draggableItem = slotImage.GetComponent<DraggableItem>();
-        if (draggableItem == null)
+        // Find DraggableItem component (with null checks)
+        DraggableItem draggableItem = null;
+        try
         {
-            draggableItem = slotImage.GetComponentInChildren<DraggableItem>();
+            draggableItem = slotImage.GetComponent<DraggableItem>();
+            if (draggableItem == null)
+            {
+                draggableItem = slotImage.GetComponentInChildren<DraggableItem>();
+            }
+        }
+        catch (System.Exception e)
+        {
+            // Slot or component has been destroyed, skip this slot
+            Debug.LogWarning($"[INVENTORY UI] Error accessing slot {slotIndex}: {e.Message}");
+            return;
         }
         
         // Update ItemIcon and get reference for tooltip
