@@ -4087,6 +4087,23 @@ MonoBehaviour:
       pendingEnemyFloor: 0
       pendingEventID: 
     availableEventPool: []
+    checkpointPlayerData:
+      selectedRaceId: 
+      selectedClassId: 
+      currentStats:
+        HP: 0
+        STR: 0
+        DEF: 0
+        MANA: 0
+        INT: 0
+        AGI: 0
+      itemIds: []
+      inventoryItemIds: []
+      gold: 0
+      steadfastDurability: 0
+      currentHP: 0
+      currentMana: 0
+      totalTimePlayed: 0
   playerInstance: {fileID: 0}
   fallbackRace: {fileID: 11400000, guid: 75d22c60321de4745970bd6c442e1405, type: 2}
   fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
@@ -5416,19 +5433,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 8509356346518861108}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 5850385722822571171}
-        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
-        m_MethodName: RetryAtCheckpoint
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!1 &7958536711203583815
 GameObject:
   m_ObjectHideFlags: 0

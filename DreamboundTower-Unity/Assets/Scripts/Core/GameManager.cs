@@ -361,43 +361,78 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Chức năng mới: Thử lại từ checkpoint gần nhất.
+    /// Chức năng mới: Thử lại từ checkpoint GẦN NHẤT.
+    /// Sẽ trừ 1 Steadfast Heart và kiểm tra hết "mạng".
     /// </summary>
     public void RetryAtCheckpoint()
     {
         Time.timeScale = 1f;
-
         if (currentRunData == null) return;
-
-        // 1. Kiểm tra xem còn "mạng" để thử lại không
+        if (SceneManager.GetActiveScene().name == "MainGame")
+        {
+            BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+            if (battleManager != null)
+            {
+                battleManager.RestorePersistentPlayer();
+                Debug.Log("[GameManager] Đã gọi RestorePersistentPlayer() từ RetryAtCheckpoint.");
+            }
+            else
+            {
+                Debug.LogWarning("[GameManager] Đang ở MainGame nhưng không tìm thấy BattleManager!");
+            }
+        }
+        // 1. Kiểm tra xem CÓ còn "mạng" không (lớn hơn 0)
         if (currentRunData.playerData.steadfastDurability <= 0)
         {
-            Debug.LogWarning("Không còn Steadfast Heart để thử lại. Buộc thoát ra Main Menu.");
-            QuitToMainMenu();
+            Debug.LogWarning("RetryAtCheckpoint: Đã hết Steadfast Heart. Hiển thị Defeat Panel.");
+            ShowDefeatPanel(); // Hiển thị màn hình thua (theo yêu cầu mới của bạn)
             return;
         }
 
-        // 2. Trừ 1 Steadfast Heart
+        // 2. TRỪ 1 "MẠNG"
         currentRunData.playerData.steadfastDurability--;
         if (playerStatusUI != null)
             playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
 
-        // 3. Reset lại trạng thái map về đầu zone (logic tương tự trong BattleManager)
-        currentRunData.mapData.currentMapJson = null;
-        currentRunData.mapData.path.Clear();
-
-        // 4. Hồi phục HP/Mana về trạng thái an toàn (ví dụ: 100%)
-        var playerChar = playerInstance.GetComponent<Character>();
-        if (playerChar != null)
+        // 3. KIỂM TRA LẠI (theo yêu cầu mới của bạn)
+        // Nếu vừa dùng "mạng" cuối cùng
+        if (currentRunData.playerData.steadfastDurability <= 0)
         {
-            currentRunData.playerData.currentHP = playerChar.maxHP;
-            currentRunData.playerData.currentMana = playerChar.mana;
+            Debug.LogWarning("RetryAtCheckpoint: Vừa dùng Steadfast Heart cuối cùng. Hiển thị Defeat Panel.");
+            RunSaveService.SaveRun(currentRunData); // Lưu lại số "mạng" = 0
+            ShowDefeatPanel(); // Hiển thị màn hình thua
+            return;
         }
 
-        // 5. Lưu lại trạng thái mới
+        // 4. LƯU LẠI SỐ "MẠNG" VỪA BỊ TRỪ
+        int durabilityAfterCost = currentRunData.playerData.steadfastDurability;
+
+        // 5. TẢI LẠI CHECKPOINT (Nếu vẫn còn "mạng")
+        if (currentRunData.checkpointPlayerData == null || currentRunData.checkpointPlayerData.currentHP == 0)
+        {
+            Debug.LogError("RetryAtCheckpoint: checkpointPlayerData bị null hoặc rỗng! Không thể tải checkpoint.");
+            QuitToMainMenu(); // Lỗi nghiêm trọng, thoát ra menu
+            return;
+        }
+
+        // Clone() để đảm bảo chúng không tham chiếu cùng một đối tượng
+        currentRunData.playerData = currentRunData.checkpointPlayerData.Clone();
+
+        // 6. PHỤC HỒI LẠI SỐ "MẠNG" ĐÚNG (vì checkpointPlayerData chứa số mạng cũ)
+        currentRunData.playerData.steadfastDurability = durabilityAfterCost;
+
+        Debug.Log($"[GameManager] CHECKPOINT LOADED. HP: {currentRunData.playerData.currentHP}, Gold: {currentRunData.playerData.gold}, Hearts: {currentRunData.playerData.steadfastDurability}");
+
+        // 7. Reset map
+        currentRunData.mapData.currentMapJson = null;
+        currentRunData.mapData.path.Clear();
+        currentRunData.mapData.pendingNodePoint = new Vector2Int(-1, -1);
+        currentRunData.mapData.pendingNodeSceneName = null;
+
+        // 8. Lưu lại trạng thái (đã tải checkpoint và bị trừ "mạng")
         RunSaveService.SaveRun(currentRunData);
 
-        // 6. Tải lại scene của zone hiện tại
+        // 9. Tải lại scene map
         string zoneSceneToLoad = "Zone" + currentRunData.mapData.currentZone;
         SceneManager.LoadScene(zoneSceneToLoad);
     }
@@ -627,8 +662,23 @@ public class GameManager : MonoBehaviour
             equipment.ApplyGearStats(); // Hàm này cần đảm bảo nó đọc trang bị từ RunData
 
             // 3.4. HỒI ĐẦY MÁU VÀ MANA CHO LẦN ĐẦU TIÊN
-            playerCharacter.currentHP = playerCharacter.maxHP;
-            playerCharacter.currentMana = playerCharacter.mana;
+            if (currentRunData.playerData.currentHP <= 0)
+            {
+                // Đây là lần đầu (New Game), hồi đầy
+                playerCharacter.currentHP = playerCharacter.maxHP;
+                playerCharacter.currentMana = playerCharacter.mana;
+
+                // --- ✅ QUAN TRỌNG: Cập nhật RunData (trong memory) ---
+                // Đồng bộ HP/Mana mới tạo vào RunData
+                currentRunData.playerData.currentHP = playerCharacter.currentHP;
+                currentRunData.playerData.currentMana = playerCharacter.currentMana;
+            }
+            else
+            {
+                // Đây là lần "Continue" hoặc "Retry", tải từ RunData
+                playerCharacter.currentHP = currentRunData.playerData.currentHP;
+                playerCharacter.currentMana = currentRunData.playerData.currentMana;
+            }
 
             // BƯỚC 3.5: ĐĂNG KÝ LẮNG NGHE SỰ KIỆN TỪ NHÂN VẬT
             if (playerCharacter != null && playerStatusUI != null)
@@ -678,7 +728,12 @@ public class GameManager : MonoBehaviour
         Debug.Log("Player Character Initialized from RunData!");
 
         // Bước 5: Lưu trạng thái ban đầu và cập nhật giao diện
-        SavePlayerStateToRunData();
+        //SavePlayerStateToRunData();
+        if (currentRunData.checkpointPlayerData.currentHP == 0 || currentRunData.mapData.pendingEnemyFloor <= 1)
+        {
+            SaveCheckpoint();
+            Debug.Log("[GameManager] Initial checkpoint (Floor 1) saved.");
+        }
         if (playerCharacter != null && playerStatusUI != null)
         {
             playerStatusUI.UpdateHealth(playerCharacter.currentHP, playerCharacter.maxHP);
@@ -775,12 +830,18 @@ public class GameManager : MonoBehaviour
     }
     public bool HandlePlayerDefeat()
     {
-        if (currentRunData == null) return true;
-        currentRunData.playerData.steadfastDurability--;
-        Debug.Log($"Player was defeated! Steadfast Heart remaining: {currentRunData.playerData.steadfastDurability}");
-        if (playerStatusUI != null) playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
-        RunSaveService.SaveRun(currentRunData);
-        return currentRunData.playerData.steadfastDurability <= 0;
+        if (currentRunData == null) return true; // Nếu không có data, coi như run kết thúc
+
+        // Chỉ kiểm tra xem người chơi CÓ CÒN "mạng" hay không.
+        // Tuyệt đối KHÔNG có dòng "steadfastDurability--" ở đây.
+        bool canRetry = currentRunData.playerData.steadfastDurability > 0;
+
+        Debug.Log($"Player was defeated! Can retry: {canRetry} (Hearts: {currentRunData.playerData.steadfastDurability})");
+
+        // Trả về "runEnded". 
+        // Nếu canRetry=true (còn mạng) => runEnded=false (chưa kết thúc).
+        // Nếu canRetry=false (hết mạng) => runEnded=true (kết thúc).
+        return !canRetry;
     }
 
     // HÀM MỚI: Dùng để hồi lại khi qua checkpoint
@@ -1163,4 +1224,84 @@ public class GameManager : MonoBehaviour
         playerCharacter.Kill();
         Debug.LogWarning("[CHEAT] Player killed!");
     }
+
+    /// <summary>
+    /// Tìm và hiển thị DefeatPanel (trên PersistentUICanvas) từ GameManager.
+    /// Hàm này sẽ tự động ẩn nút Retry.
+    /// </summary>
+    public void ShowDefeatPanel()
+    {
+        Transform defeatPanelTransform = null;
+
+        // Logic tìm DefeatPanel (tương tự như trong DisableDefeatPanel)
+        if (playerStatusUI != null)
+        {
+            Transform persistentCanvas = playerStatusUI.transform.parent;
+            if (persistentCanvas != null)
+            {
+                defeatPanelTransform = persistentCanvas.Find("DefeatPanel");
+            }
+        }
+
+        if (defeatPanelTransform == null)
+        {
+            // Fallback: Tìm trong con của GameManager
+            Transform persistentCanvasTransform = transform.Find("PersistentUICanvas");
+            if (persistentCanvasTransform != null)
+            {
+                defeatPanelTransform = persistentCanvasTransform.Find("DefeatPanel");
+            }
+        }
+
+        if (defeatPanelTransform != null)
+        {
+            GameObject defeatPanel = defeatPanelTransform.gameObject;
+
+            // Tìm và xử lý các nút
+            Button[] allButtons = defeatPanel.GetComponentsInChildren<Button>(true);
+            foreach (Button btn in allButtons)
+            {
+                string buttonName = btn.name.ToLower();
+
+                // 1. ẨN nút Retry
+                if (buttonName.Contains("retry"))
+                {
+                    btn.gameObject.SetActive(false);
+                }
+
+                // 2. GÁN lại nút Quit (để chắc chắn nó gọi QuitToMainMenu)
+                if (buttonName.Contains("quit"))
+                {
+                    btn.onClick.RemoveAllListeners();
+                    btn.onClick.AddListener(QuitToMainMenu);
+                }
+            }
+
+            // 3. Hiển thị Panel
+            defeatPanel.SetActive(true);
+            Time.timeScale = 0f; // Tạm dừng game
+        }
+        else
+        {
+            Debug.LogError("[GameManager] Không thể tìm thấy DefeatPanel trên PersistentUICanvas!");
+        }
+    }
+
+    /// <summary>
+    /// Lưu trạng thái hiện tại của người chơi (HP, items, stats) làm checkpoint.
+    /// </summary>
+    public void SaveCheckpoint()
+    {
+        if (currentRunData == null || currentRunData.playerData == null) return;
+
+        // Sao chép sâu dữ liệu "sống" vào dữ liệu "checkpoint"
+        // Dùng hàm Clone() chúng ta đã tạo ở Bước 1
+        currentRunData.checkpointPlayerData = currentRunData.playerData.Clone();
+
+        // Lưu game ngay lập tức
+        RunSaveService.SaveRun(currentRunData);
+
+        Debug.Log($"[GameManager] CHECKPOINT SAVED. HP: {currentRunData.checkpointPlayerData.currentHP}, Gold: {currentRunData.checkpointPlayerData.gold}");
+    }
+
 }
