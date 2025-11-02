@@ -660,10 +660,6 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5850385722822571171, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
-      propertyPath: blockerPanel
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 5850385722822571171, guid: 0226444a63246c640b8be2673a3dab2c, type: 3}
       propertyPath: overridePlayerStats
       value: 0
       objectReference: {fileID: 0}
