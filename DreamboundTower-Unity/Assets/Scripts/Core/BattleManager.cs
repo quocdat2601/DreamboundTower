@@ -339,7 +339,8 @@ public class BattleManager : MonoBehaviour
         // --- 2. KIỂM TRA MIMIC (SAU KHI ĐÃ CÓ archetypeId) ---
         // Tên file SO của bạn phải là "Mimic"
         //bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
-        bool isSpecialEncounter = (archetypeId == "Mimic" || archetypeId == "RivalChild" || archetypeId == "Spirit" );
+        //bool isSpecialEncounter = (archetypeId == "Mimic" || archetypeId == "RivalChild" || archetypeId == "Spirit" );
+        bool isSpecialEncounter = !string.IsNullOrEmpty(archetypeId);
 
         // --- 3. TÍNH TOÁN SỐ LƯỢNG KẺ ĐỊCH ---
         int enemyCount = 1;
@@ -404,6 +405,11 @@ public class BattleManager : MonoBehaviour
             else if (isSpecialEncounter)
             {
                 finalTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == archetypeId);
+                if (finalTemplate == null) // Lỗi bạn gặp ở lần trước
+                {
+                    Debug.LogError($"[BATTLE] Lỗi nghiêm trọng: Không tìm thấy template cho Special Encounter '{archetypeId}' trong GameManager.allEnemyTemplates!");
+                    continue;
+                }
             }
             else
             {
@@ -1338,6 +1344,12 @@ public class BattleManager : MonoBehaviour
             // Kiểm tra xem node vừa hoàn thành có phải là boss không
             if ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss)
             {
+                if (mapData.pendingEnemyFloor == 100)
+                {
+                    Debug.Log("FINAL BOSS DEFEATED! Loading Victory Screen...");
+                    HandleGameVictory(runData); // Gọi hàm chiến thắng mới
+                    yield break; // Dừng VictoryRoutine ngay lập tức
+                }
                 Debug.Log("[BATTLE] Boss defeated! Advancing to the next zone.");
                 // Tăng zone và chuẩn bị scene tiếp theo
                 mapData.currentZone++;
@@ -1613,6 +1625,36 @@ public class BattleManager : MonoBehaviour
         //DontDestroyOnLoad(persistentPlayer);
         persistentPlayer.SetActive(false);
     }
+    /// <summary>
+    /// Xử lý khi người chơi chiến thắng toàn bộ game (đánh bại F100).
+    /// </summary>
+    private void HandleGameVictory(RunData runData)
+    {
+        // 1. Lấy thời gian hoàn thành của run này
+        float currentTime = runData.playerData.totalTimePlayed;
+        Debug.Log($"[BATTLE] Run completed in: {currentTime}s");
+
+        // 2. Lưu kỷ lục (nếu đây là kỷ lục mới)
+        RunSaveService.SaveBestTime(currentTime);
+
+        // 3. Lưu thời gian này vào GameManager để VictoryScene có thể đọc
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.lastRunTime = currentTime;
+        }
+
+        // 4. XÓA RUNDATA (RẤT QUAN TRỌNG)
+        // Việc này sẽ khiến MainMenu.cs ẩn nút "Continue"
+        RunSaveService.ClearRun();
+        Debug.Log("[BATTLE] RunData cleared after victory.");
+
+        // 5. Đưa player về DontDestroyOnLoad
+        RestorePersistentPlayer();
+
+        // 6. Chuyển sang Scene Chiến thắng
+        SceneManager.LoadScene("VictoryScene"); // (Bạn cần tạo scene này)
+    }
+
     /// <summary>
     /// Cố gắng triệu hồi một đồng minh mới cho Summoner.
     /// </summary>

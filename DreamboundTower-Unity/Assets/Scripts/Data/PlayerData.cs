@@ -17,7 +17,7 @@ public class PlayerData
 
     public int currentHP;
     public int currentMana;
-
+    public float totalTimePlayed = 0f;
     public PlayerData()
     {
         itemIds = new List<string>();

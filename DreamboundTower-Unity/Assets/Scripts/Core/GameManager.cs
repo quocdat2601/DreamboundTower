@@ -1,11 +1,12 @@
 ﻿using Presets;
+using StatusEffects;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using UnityEngine.InputSystem;
-using StatusEffects;
 
 public class GameManager : MonoBehaviour
 {
@@ -44,12 +45,12 @@ public class GameManager : MonoBehaviour
     [Header("Pause & Settings Panels")]
     public Button pauseButton;
     public GameObject pauseMenuPanel;
+    public GameObject blockerPanel;
     public GameObject settingsPanel;
     public GameObject settingsMenuPrefab;
     private GameObject currentSettingsInstance;
 
-
-
+    public float lastRunTime = 0f;
     private bool isPaused = false;
     private bool isPausable = false;
 
@@ -82,6 +83,7 @@ public class GameManager : MonoBehaviour
 
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
+        if (blockerPanel != null) blockerPanel.SetActive(false);
 
         if (pauseButton != null)
         {
@@ -174,6 +176,26 @@ public class GameManager : MonoBehaviour
                 TogglePause();
             }
         }
+
+        // Kiểm tra tổ hợp phím (Ví dụ: Ctrl + L cho Legendary)
+
+        // Chúng ta sẽ cho phép cheat ở bất cứ đâu:
+        if (Keyboard.current != null &&
+            (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
+            Keyboard.current.lKey.wasPressedThisFrame)
+        {
+            // Kiểm tra để tránh spam cheat
+            if (SceneManager.GetActiveScene().name != "MainGame") // Đảm bảo không đang ở trong Combat
+            {
+                Debug.LogWarning("--- CHEAT CODE ACTIVATED: LOADING F100 LEGENDARY RUN ---");
+                // Gọi Coroutine để xử lý việc tải
+                StartCoroutine(LoadCheatRun());
+            }
+        }
+        if (currentRunData != null && !isPaused)
+        {
+            currentRunData.playerData.totalTimePlayed += Time.unscaledDeltaTime;
+        }
     }
 
     #region Setting/Pause
@@ -185,6 +207,7 @@ public class GameManager : MonoBehaviour
         {
             Time.timeScale = 0f;
             pauseMenuPanel.SetActive(true);
+            if (blockerPanel != null) blockerPanel.SetActive(true);
         }
         else
         {
@@ -198,7 +221,7 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
-
+        if (blockerPanel != null) blockerPanel.SetActive(false);
         // ✅ BỔ SUNG LOGIC DỌN DẸP
         if (currentSettingsInstance != null)
         {
@@ -908,5 +931,68 @@ public class GameManager : MonoBehaviour
         {
             playerStatusUI.UpdateGold(clamped);
         }
+    }
+
+    /// <summary>
+    /// Coroutine để chuẩn bị và tải trận đấu Boss F100 với full đồ Legendary.
+    /// </summary>
+    private IEnumerator LoadCheatRun()
+    {
+        // 1. Đảm bảo có RunData (Giữ nguyên)
+        if (currentRunData == null)
+        {
+            Debug.LogWarning("[Cheat] Không tìm thấy RunData, tạo mới...");
+            currentRunData = new RunData();
+            currentRunData.playerData.steadfastDurability = 99;
+        }
+
+        // 2. Đảm bảo có Player Instance (Giữ nguyên)
+        if (playerInstance == null)
+        {
+            Debug.LogWarning("[Cheat] Không tìm thấy PlayerInstance, khởi tạo bằng Fallback...");
+            InitializePlayerCharacter();
+            yield return null;
+        }
+
+        // 3. Lấy Inventory của Player (Giữ nguyên)
+        Inventory inventory = playerInstance.GetComponent<Inventory>();
+        if (inventory == null)
+        {
+            Debug.LogError("[Cheat] Thất bại: Không tìm thấy component Inventory trên PlayerInstance!");
+            yield break;
+        }
+
+        // --- ✅ SỬA LẠI LOGIC NẠP ĐỒ ---
+        Debug.Log("[Cheat] Đang nạp đồ Legendary (chỉ vào data)...");
+        inventory.items.Clear(); // Xóa list data
+        foreach (GearItem item in allItems)
+        {
+            if (item.rarity == ItemRarity.Legendary)
+            {
+                // THAY ĐỔI: Thêm trực tiếp vào List data, KHÔNG GỌI inventory.AddItem(item)
+                inventory.items.Add(item);
+                // Debug.Log($"[Cheat] Đã thêm data: {item.itemName}"); // Bỏ log này để tránh spam
+            }
+        }
+        // XÓA: Không gọi cập nhật UI của scene cũ
+        // inventory.OnInventoryChanged?.Invoke(); 
+        // --- KẾT THÚC SỬA ---
+
+        // 5. Lưu trạng thái Inventory này vào RunData (Giữ nguyên)
+        SavePlayerStateToRunData();
+
+        // 6. Thiết lập Trận đấu F100 (Giữ nguyên)
+        currentRunData.mapData.pendingEnemyArchetypeId = "Corrupted Core";
+        currentRunData.mapData.pendingEnemyKind = (int)Presets.EnemyKind.Boss;
+        currentRunData.mapData.pendingEnemyFloor = 100;
+        currentRunData.mapData.pendingNodeSceneName = "Zone1"; // Mặc định
+
+        // 7. Đảm bảo game đang chạy (Giữ nguyên)
+        Time.timeScale = 1f;
+        if (isPaused) ResumeGame();
+
+        // 8. Tải Scene Combat (Giữ nguyên)
+        Debug.Log("[Cheat] Đang tải Scene 'MainGame'...");
+        SceneManager.LoadScene("MainGame");
     }
 }

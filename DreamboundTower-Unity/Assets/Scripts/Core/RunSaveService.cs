@@ -4,6 +4,7 @@ public static class RunSaveService
 {
     private const string RunActiveKey = "Run_Active";
     private const string RunDataKey = "Run_Data"; // Chỉ một key cho toàn bộ dữ liệu
+    private const string BEST_TIME_KEY = "BestClearTime";
 
     public static bool HasActiveRun()
     {
@@ -49,5 +50,30 @@ public static class RunSaveService
         PlayerPrefs.SetInt(RunActiveKey, 0);
         PlayerPrefs.Save();
         Debug.Log("Run data cleared!");
+    }
+
+    /// <summary>
+    /// Lưu thời gian hoàn thành tốt nhất (tính bằng giây).
+    /// </summary>
+    public static void SaveBestTime(float timeInSeconds)
+    {
+        // Lưu lại nếu thời gian mới tốt hơn (nhỏ hơn) thời gian cũ
+        float currentBest = LoadBestTime();
+        if (timeInSeconds < currentBest)
+        {
+            PlayerPrefs.SetFloat(BEST_TIME_KEY, timeInSeconds);
+            PlayerPrefs.Save();
+            Debug.Log($"[GameStats] New Best Time Saved: {timeInSeconds}s");
+        }
+    }
+
+    /// <summary>
+    /// Tải thời gian hoàn thành tốt nhất (tính bằng giây).
+    /// </summary>
+    /// <returns>Thời gian tốt nhất, hoặc float.MaxValue nếu chưa có.</returns>
+    public static float LoadBestTime()
+    {
+        // Trả về thời gian đã lưu, hoặc một giá trị "vô cực" nếu chưa từng lưu
+        return PlayerPrefs.GetFloat(BEST_TIME_KEY, float.MaxValue);
     }
 }

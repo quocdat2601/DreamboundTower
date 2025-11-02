@@ -1,7 +1,9 @@
+using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using System.Collections;
+using System;
 
 public class MainMenu : MonoBehaviour
 {
@@ -19,7 +21,7 @@ public class MainMenu : MonoBehaviour
     private bool isSettingOpen = false; // Trạng thái settings đang mở hay đóng
     private GameObject currentSettingMenu; // Reference đến setting menu hiện tại
     private Coroutine animationCoroutine; // Coroutine đang chạy animation
-
+    public TextMeshProUGUI bestTimeText;
     void Start()
     {
         // Ẩn setting panel ban đầu
@@ -43,6 +45,25 @@ public class MainMenu : MonoBehaviour
         if (overwriteWarningPanel != null)
         {
             overwriteWarningPanel.SetActive(false);
+        }
+        if (bestTimeText != null)
+        {
+            // 1. Tải kỷ lục
+            float bestTime = RunSaveService.LoadBestTime();
+
+            // 2. Kiểm tra xem có kỷ lục không (float.MaxValue là giá trị mặc định
+            //    mà hàm LoadBestTime() trả về nếu không tìm thấy key)
+            if (bestTime == float.MaxValue)
+            {
+                // 3. NẾU KHÔNG CÓ: Ẩn toàn bộ GameObject chứa Text đi
+                bestTimeText.gameObject.SetActive(false);
+            }
+            else
+            {
+                // 4. NẾU CÓ: Hiện GameObject lên và cập nhật nội dung
+                bestTimeText.gameObject.SetActive(true);
+                bestTimeText.text = $"BEST TIME CLEAR: {FormatTime(bestTime)}"; // (Nhớ thêm hàm FormatTime)
+            }
         }
     }
 
@@ -218,5 +239,10 @@ public class MainMenu : MonoBehaviour
     public void Quit()
     {
         Application.Quit(); // Thoát game
+    }
+    private string FormatTime(float timeInSeconds)
+    {
+        TimeSpan time = TimeSpan.FromSeconds(timeInSeconds);
+        return time.ToString(@"mm\:ss"); // Ví dụ: 05:30
     }
 }
