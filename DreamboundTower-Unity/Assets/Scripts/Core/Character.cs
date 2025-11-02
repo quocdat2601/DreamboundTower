@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.Collections;
 using DG.Tweening;
 using StatusEffects;
 using Assets.Scripts.Data;
@@ -73,6 +74,8 @@ public class Character : MonoBehaviour
     [Header("Passive Bonuses")]
     [Tooltip("Percentage bonus to mana regeneration from passive skills")]
     public float manaRegenBonus = 0f; // <-- THÊM MỚI
+    [Tooltip("Base HP regeneration per turn (percentage of max HP, e.g. 5 = 5% of max HP per turn)")]
+    public float baseHPRegenPerTurn = 5f; // Base HP regen per turn (5% of max HP)
     [Tooltip("Percentage bonus to physical damage from passive skills")]
     public float physicalDamageBonus = 0f; // Physical damage bonus (0.05 = 5%)
     [Tooltip("Percentage bonus to magic damage from passive skills")]
@@ -164,6 +167,7 @@ public class Character : MonoBehaviour
         // Initialize crit damage multiplier to base value
         critDamageMultiplier = BASE_CRITICAL_DAMAGE_MULTIPLIER;
     }
+    
     #endregion
 
     #region Stats Management
@@ -1174,6 +1178,45 @@ public class Character : MonoBehaviour
         float totalPercent = percent + (manaRegenBonus * 100f);
         int regenAmount = Mathf.RoundToInt(mana * totalPercent / 100.0f);
         RegenerateMana(regenAmount);
+    }
+    
+    /// <summary>
+    /// Called when a new turn starts - regenerates HP based on percentage of max HP
+    /// </summary>
+    /// <param name="turn">The current turn number</param>
+    public void OnNewTurnStarted(int turn)
+    {
+        // Only regenerate if HP is below max and character is alive
+        if (currentHP < maxHP && currentHP > 0 && baseHPRegenPerTurn > 0f)
+        {
+            // Calculate heal amount as percentage of max HP
+            int healAmount = Mathf.RoundToInt(maxHP * (baseHPRegenPerTurn / 100f));
+            
+            // Ensure we heal at least 1 HP if regen is enabled
+            if (healAmount < 1 && baseHPRegenPerTurn > 0f)
+            {
+                healAmount = 1;
+            }
+            
+            // Heal up to max HP
+            int hpBefore = currentHP;
+            currentHP = Mathf.Min(currentHP + healAmount, maxHP);
+            int actualHeal = currentHP - hpBefore;
+            
+            if (actualHeal > 0)
+            {
+                // Update UI
+                OnHealthChanged?.Invoke(currentHP, maxHP);
+                UpdateHPUI();
+                
+                // Show green healing number (same as normal Heal() method)
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                    CombatEffectManager.Instance.ShowHealingNumber(uiPosition, actualHeal);
+                }
+            }
+        }
     }
     #endregion
 
