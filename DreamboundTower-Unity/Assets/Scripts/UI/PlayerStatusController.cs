@@ -101,10 +101,13 @@ public class PlayerStatusController : MonoBehaviour
         
         if (hpText != null)
         {
-            // Show HP + Shield in text
+            // Set text alignment to center
+            hpText.alignment = TMPro.TextAlignmentOptions.Center;
+            
+            // Show HP + Shield in text (shield on new line below HP)
             if (shieldAmount > 0)
             {
-                hpText.text = $"{current} / {max} [Shield: {shieldAmount}]";
+                hpText.text = $"{current} / {max}\n[Shield: {shieldAmount}]";
             }
             else
             {

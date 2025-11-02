@@ -619,6 +619,15 @@ public class DragDropInventoryUI : MonoBehaviour
                     itemImage.transform.SetAsLastSibling();
                     itemImage.gameObject.SetActive(true);
                 }
+                else if (item != null && item.icon == null)
+                {
+                    // Item exists but has no icon - log warning and show placeholder
+                    Debug.LogWarning($"[INVENTORY UI] Item '{item.itemName}' (Rarity: {item.rarity}, Type: {item.gearType}) has NULL icon! Icon reference may be broken.");
+                    itemImage.sprite = null;
+                    itemImage.color = new Color(1f, 1f, 1f, 0.3f); // Show as semi-transparent white
+                    itemImage.enabled = true;
+                    itemImage.gameObject.SetActive(true);
+                }
                 else
                 {
                     // Clear ItemIcon when slot is empty

@@ -380,6 +380,19 @@ public class TooltipManager : MonoBehaviour
             }
         }
 
+        // Add weapon scaling type for weapons only
+        if (item.gearType == GearType.Weapon && statTextPrefab != null && statContainer != null)
+        {
+            GameObject scalingGO = Instantiate(statTextPrefab, statContainer);
+            TextMeshProUGUI scalingText = scalingGO.GetComponent<TextMeshProUGUI>();
+            if (scalingText != null)
+            {
+                string scalingName = GetWeaponScalingName(item.scalingType);
+                scalingText.text = $"Scales with: {scalingName}";
+                scalingText.color = GetWeaponScalingColor(item.scalingType);
+            }
+        }
+
         // Tạo dòng mới cho mỗi chỉ số khác 0
         AddStatLine("Max HP", item.hpBonus);
         AddStatLine("MANA", item.manaBonus);
@@ -387,6 +400,36 @@ public class TooltipManager : MonoBehaviour
         AddStatLine("DEF", item.defenseBonus);
         AddStatLine("INT", item.intBonus);
         AddStatLine("AGI", item.agiBonus);
+    }
+
+    private string GetWeaponScalingName(WeaponScalingType scalingType)
+    {
+        switch (scalingType)
+        {
+            case WeaponScalingType.STR:
+                return "Physical";
+            case WeaponScalingType.INT:
+                return "Magical";
+            case WeaponScalingType.Hybrid:
+                return "Hybrid";
+            default:
+                return "Physical";
+        }
+    }
+
+    private Color GetWeaponScalingColor(WeaponScalingType scalingType)
+    {
+        switch (scalingType)
+        {
+            case WeaponScalingType.STR:
+                return new Color(0.9f, 0.7f, 0.7f, 1f); // Light red for physical
+            case WeaponScalingType.INT:
+                return new Color(0.7f, 0.7f, 0.9f, 1f); // Light blue for magical
+            case WeaponScalingType.Hybrid:
+                return new Color(0.9f, 0.9f, 0.7f, 1f); // Light yellow for hybrid
+            default:
+                return Color.white;
+        }
     }
 
     private void AddStatLine(string statName, int value)

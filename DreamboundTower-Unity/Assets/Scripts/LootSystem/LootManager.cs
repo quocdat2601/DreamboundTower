@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// Manages loot spawning and collection in the game
@@ -108,7 +109,65 @@ public class LootManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Spawn loot from a loot table at a specific position
+    /// Spawn loot at a specific position using rarity-based system.
+    /// Items are added directly to player inventory.
+    /// </summary>
+    /// <param name="rarity">The rarity of item to spawn</param>
+    /// <param name="position">Position to spawn loot (unused now, items go to inventory)</param>
+    /// <param name="quantity">Number of items to spawn</param>
+    public void SpawnLootByRarity(ItemRarity rarity, Vector3 position, int quantity = 1)
+    {
+        // Ensure we have the current scene's inventory reference
+        RefreshReferences();
+        
+        if (playerInventory == null || GameManager.Instance == null || GameManager.Instance.allItems == null)
+        {
+            Debug.LogWarning("[LOOT] Cannot spawn loot: Missing inventory or item pool");
+            return;
+        }
+        
+        // Get all items of the requested rarity
+        var availableItems = GameManager.Instance.allItems
+            .Where(item => item != null && item.rarity == rarity)
+            .ToList();
+        
+        if (availableItems.Count == 0)
+        {
+            Debug.LogWarning($"[LOOT] No items of rarity {rarity} found in item pool");
+            return;
+        }
+        
+        bool anyItemAdded = false;
+        
+        // Add random items of the specified rarity
+        for (int i = 0; i < quantity; i++)
+        {
+            GearItem randomItem = availableItems[Random.Range(0, availableItems.Count)];
+            
+            try
+            {
+                bool success = playerInventory.AddItemSilent(randomItem);
+                if (success)
+                {
+                    anyItemAdded = true;
+                    Debug.Log($"[LOOT] Collected {randomItem.itemName} (rarity: {rarity})");
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[LOOT] Error adding item {randomItem.itemName} to inventory: {e.Message}");
+            }
+        }
+        
+        // Trigger UI update once after all items are added
+        if (anyItemAdded)
+        {
+            StartCoroutine(DelayedInventoryUIUpdate());
+        }
+    }
+    
+    /// <summary>
+    /// Spawn loot from a loot table at a specific position (LEGACY - kept for compatibility)
     /// </summary>
     /// <param name="lootTable">The loot table to use</param>
     /// <param name="position">World position to spawn at</param>

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Silverclaw Dagger
   gearType: 6
-  icon: {fileID: 2182994084055932133, guid: d341c15c8d0a1fe47a22a695462d7010, type: 3}
+  icon: {fileID: 295697814555805666, guid: df0c5395ec13e61489deeb229692259d, type: 3}
   description: ManaRegenPercent + 5%
   rarity: 1
   basePrice: 120
