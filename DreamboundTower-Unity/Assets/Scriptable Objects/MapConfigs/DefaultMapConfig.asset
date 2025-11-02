@@ -22,7 +22,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 3cd24b2e276b6dc48a3c3842ff38a96c, type: 2}
   - {fileID: 11400000, guid: e1635866d1c2f154e8c9045bd0e000f2, type: 2}
   - {fileID: 11400000, guid: dfb2651849bbba640970aec1f4b8601f, type: 2}
-  randomNodes: 0600000004000000070000000000000002000000
+  randomNodes: 060000000400000007000000000000000200000001000000
   numOfPreBossNodes:
     min: 4
     max: 5

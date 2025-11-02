@@ -10,22 +10,30 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Normal Priest
+  m_Name: Hobgoblin
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
-  kind: 0
-  gimmick: 0
+  kind: 1
+  gimmick: 1048576
+  isUniqueOrEventOnly: 0
+  minFloor: 50
+  summonableEnemies:
+  - {fileID: 11400000, guid: 9f146549a02b60f40aa21ac211dc6359, type: 2}
+  - {fileID: 11400000, guid: 10b620da49e84aa479c0756954b54e4f, type: 2}
+  - {fileID: 11400000, guid: a6dc4961b207b7c4889d67b8707a7f77, type: 2}
+  manaRegenPerTurnn: 0
+  skills: []
   sprites:
-  - {fileID: 6479153587181500979, guid: 1bd5e3ccbfcbba94e84a13a83c07eee9, type: 3}
+  - {fileID: -984343241313531184, guid: af2f06ebc97c5064ebb878a74645c8a1, type: 3}
   baseStatsAtFloor1:
-    HP: 4
-    STR: 6
-    DEF: 2
+    HP: 50
+    STR: 28
+    DEF: 15
     MANA: 2
     INT: 2
     AGI: 0
-  hpMultiplier: 1
-  strMultiplier: 1
-  defMultiplier: 1
+  hpMultiplier: 3
+  strMultiplier: 1.6
+  defMultiplier: 1.5
   baseRate: 0.012
   endlessAfterFloor: 100
   endlessBonus: 0.002

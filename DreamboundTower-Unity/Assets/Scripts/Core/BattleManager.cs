@@ -67,6 +67,7 @@ public class BattleManager : MonoBehaviour
     public Button inspectTagButton; // Nút "Tag" duy nhất (Từ Bước 2)
     public TextMeshProUGUI inspectTagButtonText; // Text bên trong nút Tag
     public Button attackButton;
+    private Button defeatRetryButton;
 
     [Header("Status Effect Display")]
     public GameObject statusEffectIconPrefab; // Prefab for status effect icons
@@ -1359,9 +1360,9 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(enemyTurnEndDelay); // Dùng biến delay mới
     }
 
-    #endregion
+    #endregion
 
-    #region Battle Outcome
+    #region Battle Outcome
 
     // Coroutine for when the player is victorious
     IEnumerator VictoryRoutine()
@@ -1372,12 +1373,12 @@ public class BattleManager : MonoBehaviour
             Debug.Log("[BATTLE] Victory routine already running, ignoring duplicate call.");
             yield break;
         }
-        
+
         isVictoryRoutineRunning = true;
-        
+
         Debug.Log("[BATTLE] Victory! All enemies defeated!");
         yield return new WaitForSeconds(1.5f);
-        
+
         // Wait for all loot to be collected before ending battle
         if (LootManager.Instance != null)
         {
@@ -1399,7 +1400,49 @@ public class BattleManager : MonoBehaviour
                 mapData.path.Add(pendingNode);
             }
 
-            // Kiểm tra xem node vừa hoàn thành có phải là boss không
+            // --- ✅ BẮT ĐẦU KHỐI SỬA LỖI ---
+            // 
+            // BƯỚC 1: ĐỒNG BỘ TRẠNG THÁI "SỐNG" (INSTANCE) VÀO "DỮ LIỆU" (RUNDATA) TRƯỚC TIÊN
+            //
+            if (playerCharacter != null)
+            {
+                runData.playerData.currentHP = playerCharacter.currentHP;
+                runData.playerData.currentMana = playerCharacter.currentMana; // (Thêm dòng này để chắc chắn)
+
+                // Decrement event-based status effect durations per battle node (not per turn)
+                if (StatusEffectManager.Instance != null)
+                {
+                    StatusEffectManager.Instance.DecrementEventBasedEffectsPerBattleNode(playerCharacter);
+                    Debug.Log("[BATTLE] Event-based status effect durations decremented per battle node.");
+                }
+
+                // Clear temporary modifiers from skills (they don't persist between battles)
+                TemporaryModifierManager tempMods = playerCharacter.GetComponent<TemporaryModifierManager>();
+                if (tempMods != null)
+                {
+                    tempMods.ClearAllTemporaryModifiers();
+                    Debug.Log("[BATTLE] Cleared all temporary modifiers from player.");
+                }
+
+                // Clear shields (they don't persist between battles)
+                if (StatusEffectManager.Instance != null)
+                {
+                    int shieldBefore = playerCharacter.CurrentShield;
+                    StatusEffectManager.Instance.RemoveEffect(playerCharacter, typeof(StatusEffects.ShieldEffect));
+                    if (shieldBefore > 0)
+                    {
+                        Debug.Log($"[BATTLE] Cleared {shieldBefore} shield from player at battle end.");
+                    }
+                }
+            }
+
+            // QUAN TRỌNG: Đồng bộ (Inventory, Equipment, Gold) TỪ "playerInstance" VÀO "runData.playerData"
+            GameManager.Instance.SavePlayerStateToRunData();
+            Debug.Log("[SAVE SYSTEM] Player state (HP, Gold, Items) synced to RunData in memory.");
+
+            //
+            // BƯỚC 2: SAU KHI DỮ LIỆU ĐÃ ĐÚNG, BÂY GIỜ MỚI XỬ LÝ LOGIC BOSS HOẶC CHECKPOINT
+            //
             if ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss)
             {
                 if (mapData.pendingEnemyFloor == 100)
@@ -1413,55 +1456,35 @@ public class BattleManager : MonoBehaviour
                 mapData.currentZone++;
                 mapData.path.Clear(); // Xóa đường đi cũ để bắt đầu zone mới
                 sceneToReturnTo = "Zone" + mapData.currentZone; // Ví dụ: "Zone2", "Zone3"
-            }
+            }
             else
             {
                 // Nếu không phải boss, quay lại scene hiện tại
                 sceneToReturnTo = "Zone" + mapData.currentZone;
+
+                // --- LOGIC CHECKPOINT ĐÃ ĐƯỢC CHUYỂN XUỐNG ĐÂY ---
+                int floor = mapData.pendingEnemyFloor;
+                // Tầng 1, 11, 21, 31, ... 91
+                if (floor == 1 || (floor > 1 && (floor % 10 == 1)))
+                {
+                    Debug.Log($"[BATTLE] Checkpoint floor {floor} reached! Saving current state as checkpoint...");
+                    // Bây giờ, SaveCheckpoint() sẽ sao chép runData.playerData (ĐÃ CẬP NHẬT)
+                    GameManager.Instance.SaveCheckpoint();
+                }
             }
+
+            // --- KẾT THÚC KHỐI SỬA LỖI ---
+
 
             // Xóa trạng thái "đang chờ"
             mapData.pendingNodePoint = new Vector2Int(-1, -1);
             mapData.pendingNodeSceneName = null;
 
-            if (playerCharacter != null)
-            {
-                runData.playerData.currentHP = playerCharacter.currentHP;
-                // runData.playerData.currentMana = playerCharacter.currentMana;
-                
-                // Decrement event-based status effect durations per battle node (not per turn)
-                if (StatusEffectManager.Instance != null)
-                {
-                    StatusEffectManager.Instance.DecrementEventBasedEffectsPerBattleNode(playerCharacter);
-                    Debug.Log("[BATTLE] Event-based status effect durations decremented per battle node.");
-                }
-                
-                // Clear temporary modifiers from skills (they don't persist between battles)
-                TemporaryModifierManager tempMods = playerCharacter.GetComponent<TemporaryModifierManager>();
-                if (tempMods != null)
-                {
-                    tempMods.ClearAllTemporaryModifiers();
-                    Debug.Log("[BATTLE] Cleared all temporary modifiers from player.");
-                }
-                
-                // Clear shields (they don't persist between battles)
-                if (StatusEffectManager.Instance != null)
-                {
-                    int shieldBefore = playerCharacter.CurrentShield;
-                    StatusEffectManager.Instance.RemoveEffect(playerCharacter, typeof(StatusEffects.ShieldEffect));
-                    if (shieldBefore > 0)
-                    {
-                        Debug.Log($"[BATTLE] Cleared {shieldBefore} shield from player at battle end.");
-                    }
-                }
-            }
+            // (Các dòng 'SavePlayerStateToRunData' và 'if (playerCharacter != null)' cũ đã được chuyển lên trên)
 
-            // IMPORTANT: Save player state (inventory, equipment) to RunData before saving to file
-            GameManager.Instance.SavePlayerStateToRunData();
-
-            // Lưu lại toàn bộ RunData
+            // Lưu lại toàn bộ RunData (bao gồm cả 'playerData' và 'checkpointPlayerData' mới)
             RunSaveService.SaveRun(runData);
-            Debug.Log("[SAVE SYSTEM] Node completed. Pending status cleared. Game saved.");
+            Debug.Log("[SAVE SYSTEM] Node completed. Pending status cleared. Game saved to disk.");
         }
 
         // Chuyển scene về bản đồ
@@ -1477,40 +1500,53 @@ public class BattleManager : MonoBehaviour
             Debug.Log("[BATTLE] Defeat routine already running, ignoring duplicate call.");
             yield break;
         }
-        
+
         isDefeatRoutineRunning = true;
-        
+
         Debug.Log("[BATTLE] Player died.");
-        
-        // Find DefeatPanel if reference is null (it's now on PersistentUICanvas)
+
+        // 1. Tìm Panel VÀ kết nối các nút (hàm này sẽ gán defeatRetryButton)
         FindDefeatPanelIfNull();
-        
-        // Handle player defeat
+
+        // 2. Kiểm tra xem run đã kết thúc CHƯA (hàm này KHÔNG trừ "mạng")
+        // runEnded = true nếu hết mạng, runEnded = false nếu còn mạng.
         bool runEnded = GameManager.Instance.HandlePlayerDefeat();
 
-        // Show defeat panel immediately and ensure buttons are connected
+        // Show defeat panel 
         if (defeatPanel != null)
         {
-            ConnectDefeatPanelButtons();
+            // 3. Xử lý logic ẩn/hiện nút Retry
+            if (defeatRetryButton != null)
+            {
+                // Nếu run KẾT THÚC (runEnded = true), HIDE retry button
+                // Nếu run CHƯA KẾT THÚC (runEnded = false), SHOW retry button
+                defeatRetryButton.gameObject.SetActive(!runEnded);
+                Debug.Log($"[BATTLE] Defeat Panel: Run ended? {runEnded}. Retry button active: {!runEnded}");
+            }
+            else
+            {
+                Debug.LogWarning("[BATTLE] Không tìm thấy 'RetryButton' trên DefeatPanel. Hãy chắc chắn tên nút chứa 'retry'.");
+            }
+
+            // 4. Hiển thị panel
             defeatPanel.SetActive(true);
         }
         else
         {
             Debug.LogWarning("[BATTLE] Defeat panel is null! Could not show defeat screen.");
         }
-        
-        // Loot will auto-collect immediately in the background (no delay since globalAutoCollectDelay = 0)
 
-        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
-        // Chúng ta sẽ không tự động chuyển scene nữa
-        yield return null; // Chờ vô tận cho đến khi người chơi bấm nút
+        // Loot will auto-collect immediately...
+
+        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
+        yield return null; // Chờ vô tận
     }
 
-    #endregion
+    #endregion
 
-    #region Helpers
+    #region Helpers
     #region Skill VFX
-    
+
     /// <summary>
     /// Spawns skill VFX at the appropriate target location
     /// For buff skills (Self/AllAlly), VFX will track the character
@@ -1661,7 +1697,7 @@ public class BattleManager : MonoBehaviour
         // Fallback to transform position
         return character.transform.position;
     }
-    
+
     #endregion
 
     /// <summary>
@@ -1669,7 +1705,7 @@ public class BattleManager : MonoBehaviour
     /// Without this the player instance stays parented to the battle scene's slot and gets
     /// destroyed when the scene unloads, causing the missing player on the map.
     /// </summary>
-    void RestorePersistentPlayer()
+    public void RestorePersistentPlayer()
     {
         if (GameManager.Instance == null) return;
 
@@ -2104,45 +2140,6 @@ public class BattleManager : MonoBehaviour
         SceneManager.LoadScene("MainMenu");
     }
 
-    public void OnRetryButton()
-    {
-        Debug.Log("Retry button pressed. Reverting to the last checkpoint.");
-
-        var runData = GameManager.Instance.currentRunData;
-
-        // Nếu hết mạng thì không cho retry
-        if (runData.playerData.steadfastDurability <= 0)
-        {
-            Debug.LogWarning("Cannot retry, no durability left. Forcing quit.");
-            OnQuitButton();
-            return;
-        } // --- LOGIC KHÔI PHỤC CHECKPOINT ---
-          // 1. Xóa bản đồ hiện tại để buộc game tạo map mới cho zone
-        runData.mapData.currentMapJson = null;
-
-        // 2. Xóa đường đi cũ trên bản đồ
-        runData.mapData.path.Clear();
-
-        // 3. Khôi phục lại máu/mana (ví dụ: hồi đầy)
-        //    Lưu ý: Chúng ta cần truy cập vào chỉ số max của người chơi
-        //    Cách đơn giản nhất là thêm maxHP, maxMana vào PlayerData
-        //    (Bạn cần thêm public int maxHP; public int maxMana; vào PlayerData.cs)
-        //    Tạm thời, chúng ta sẽ hồi máu dựa trên chỉ số từ Character component
-        var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
-        if (playerChar != null)
-        {
-            runData.playerData.currentHP = playerChar.maxHP;
-            //runData.playerData.currentMana = playerChar.maxMana;
-        }
-
-        // 4. Lưu lại trạng thái đã khôi phục
-        RunSaveService.SaveRun(runData);
-
-        // 5. Tải lại scene của zone hiện tại để bắt đầu lại
-        string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
-        SceneManager.LoadScene(zoneSceneToLoad);
-    }
-
     private void HandleCharacterDeath(Character deadCharacter)
     {
         // Check if BattleManager is still valid (not destroyed)
@@ -2379,38 +2376,61 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    
+
     /// <summary>
     /// Connects the Restart and Quit buttons in DefeatPanel to their handlers
     /// </summary>
     private void ConnectDefeatPanelButtons()
     {
         if (defeatPanel == null) return;
-        
-        // Find buttons by searching all children (handles any naming variation)
+
         Button[] allButtons = defeatPanel.GetComponentsInChildren<Button>(true);
-        bool restartConnected = false;
         bool quitConnected = false;
-        
+        bool retryConnected = false;
+
         foreach (Button btn in allButtons)
         {
-            string buttonName = btn.name.ToLower();
-            
-            if (!restartConnected && (buttonName.Contains("restart") || buttonName.Contains("retry")))
-            {
-                btn.onClick.RemoveAllListeners();
-                btn.onClick.AddListener(OnRetryButton);
-                restartConnected = true;
-            }
-            else if (!quitConnected && buttonName.Contains("quit"))
+            string buttonName = btn.name.ToLower(); // "RetryButton" -> "retrybutton"
+
+            // Tìm nút Quit
+            if (!quitConnected && buttonName.Contains("quit"))
             {
                 btn.onClick.RemoveAllListeners();
                 btn.onClick.AddListener(OnQuitButton);
                 quitConnected = true;
+                continue; // Đã tìm thấy, qua nút tiếp
+            }
+
+            // Tìm nút Retry
+            if (!retryConnected && buttonName.Contains("retry"))
+            {
+                btn.onClick.RemoveAllListeners();
+
+                // --- THAY ĐỔI DÒNG NÀY ---
+                // btn.onClick.AddListener(GameManager.Instance.RetryAtCheckpoint); // XÓA DÒNG CŨ
+                btn.onClick.AddListener(OnRetryButton); // THÊM DÒNG MỚI NÀY
+                // --- KẾT THÚC THAY ĐỔI ---
+
+                defeatRetryButton = btn; // Lưu tham chiếu
+                retryConnected = true;
             }
         }
     }
-    
+    /// <summary>
+    /// Được gọi bởi nút Retry trên DefeatPanel.
+    /// Hàm này đảm bảo trả player về GameManager TRƯỚC KHI tải lại scene.
+    /// </summary>
+    public void OnRetryButton()
+    {
+        // 1. Trả player về cho GameManager (Fix lỗi mất playerInstance)
+        RestorePersistentPlayer();
+
+        // 2. Gọi logic Retry (tải checkpoint, trừ tim, tải scene)
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RetryAtCheckpoint();
+        }
+    }   
     #endregion
 
 }

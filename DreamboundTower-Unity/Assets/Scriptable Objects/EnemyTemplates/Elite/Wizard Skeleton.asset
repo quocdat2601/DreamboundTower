@@ -10,20 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Elite Wizard
+  m_Name: Wizard Skeleton
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
   kind: 1
   gimmick: 1048577
+  isUniqueOrEventOnly: 0
+  minFloor: 1
   summonableEnemies:
-  - {fileID: 11400000, guid: d28eb5e22e1cf9c47ad4491f5336b0e7, type: 2}
+  - {fileID: 11400000, guid: 10b620da49e84aa479c0756954b54e4f, type: 2}
   manaRegenPerTurnn: 0
   skills: []
   sprites:
   - {fileID: 735992723534926870, guid: 1961bf6498a502642a95e15f1dad69cd, type: 3}
   baseStatsAtFloor1:
-    HP: 10
-    STR: 6
-    DEF: 2
+    HP: 25
+    STR: 15
+    DEF: 10
     MANA: 2
     INT: 2
     AGI: 0

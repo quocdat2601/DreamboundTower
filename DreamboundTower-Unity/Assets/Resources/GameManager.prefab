@@ -3624,7 +3624,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &6792822406683209723
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4087,14 +4087,31 @@ MonoBehaviour:
       pendingEnemyFloor: 0
       pendingEventID: 
     availableEventPool: []
+    checkpointPlayerData:
+      selectedRaceId: 
+      selectedClassId: 
+      currentStats:
+        HP: 0
+        STR: 0
+        DEF: 0
+        MANA: 0
+        INT: 0
+        AGI: 0
+      itemIds: []
+      inventoryItemIds: []
+      gold: 0
+      steadfastDurability: 0
+      currentHP: 0
+      currentMana: 0
+      totalTimePlayed: 0
   playerInstance: {fileID: 0}
   fallbackRace: {fileID: 11400000, guid: 75d22c60321de4745970bd6c442e1405, type: 2}
   fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
   overridePlayerStats: 1
   customPlayerStats:
-    HP: 100
+    HP: 1
     STR: 100
-    DEF: 100
+    DEF: 1
     MANA: 100
     INT: 100
     AGI: 100
@@ -4174,6 +4191,25 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 44e8b30f18c984d448eabd5629190e12, type: 2}
   - {fileID: 11400000, guid: 1fec442ef70221c4bab0e6aabf4811ae, type: 2}
   - {fileID: 11400000, guid: 1e16a6fdfd467404a86f9238f7e9081b, type: 2}
+  - {fileID: 11400000, guid: ae2250e43f1a9574d9596af7550e606c, type: 2}
+  - {fileID: 11400000, guid: 25266bb3f613d6341b10c94773a88a32, type: 2}
+  - {fileID: 11400000, guid: 1534ac2dfc7e7de4b9e35ba3e81eb454, type: 2}
+  - {fileID: 11400000, guid: 5eaf47fe391ce694e8508f2f8b2da5aa, type: 2}
+  - {fileID: 11400000, guid: 00ecc2a439328d34fb5f2537d654304c, type: 2}
+  - {fileID: 11400000, guid: 2150e47eaee6700439a5b62358b0764d, type: 2}
+  - {fileID: 11400000, guid: a6dc4961b207b7c4889d67b8707a7f77, type: 2}
+  - {fileID: 11400000, guid: a7c41b6e012740c4f95ae3732f721dcd, type: 2}
+  - {fileID: 11400000, guid: 2d72947c9a2b0a14ead779d71dc14889, type: 2}
+  - {fileID: 11400000, guid: 4a34ee181a446f74f893459e1ee4a064, type: 2}
+  - {fileID: 11400000, guid: 01ae39cd1f8b67b458c0faebd7a99229, type: 2}
+  - {fileID: 11400000, guid: bc396595e3595c344b184db42bd83a44, type: 2}
+  - {fileID: 11400000, guid: 85d38f3168fc7f14f8aca149468cd6fc, type: 2}
+  - {fileID: 11400000, guid: b66632f38868f964da6a61ba258b1b3c, type: 2}
+  - {fileID: 11400000, guid: 735ff8094d7b5df46995a037932e08c9, type: 2}
+  - {fileID: 11400000, guid: 1791db9eb0c40b34db501213b3aaf20c, type: 2}
+  - {fileID: 11400000, guid: ff432506354f2a94aa2d31d726bda73d, type: 2}
+  - {fileID: 11400000, guid: 8b151cb87c2d48c4ea897e6671e4fe01, type: 2}
+  - {fileID: 11400000, guid: 8e5c9d988be7b40419303fa45d2a5d09, type: 2}
   allEvents:
   - {fileID: 11400000, guid: 0de8c6e442346da43b17f5118edc9046, type: 2}
   - {fileID: 11400000, guid: 80c3d02fabc851e41a802a4eef10ec9c, type: 2}
@@ -4197,7 +4233,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: fcb3b58ec9f294f4795ba787aa9a304b, type: 2}
   pauseButton: {fileID: 6403060979234749111}
   pauseMenuPanel: {fileID: 3559478053474464741}
-  blockerPanel: {fileID: 0}
+  blockerPanel: {fileID: 8655274579607826135}
   settingsPanel: {fileID: 7958536711203583815}
   settingsMenuPrefab: {fileID: 2872595822027186355, guid: 3ea22ca041a396f4fb5a457efc2fbb0c, type: 3}
   lastRunTime: 0
@@ -5330,10 +5366,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 492084923885883520}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 544.85425, y: -64.90936}
-  m_SizeDelta: {x: 274, y: 129.81873}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 274, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8944767346539283760
 CanvasRenderer:
@@ -5416,19 +5452,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 8509356346518861108}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: BattleManager, Assembly-CSharp
-        m_MethodName: OnRetryButton
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!1 &7958536711203583815
 GameObject:
   m_ObjectHideFlags: 0
@@ -5898,10 +5922,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 492084923885883520}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 181.61807, y: -64.90936}
-  m_SizeDelta: {x: 274, y: 129.81873}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 274, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7631275087539003640
 CanvasRenderer:
