@@ -136,12 +136,39 @@ public class TooltipManager : MonoBehaviour
         HideAllTooltips();
         activeTooltipRect = itemTooltipRect;
 
-        // Cập nhật Header (giữ nguyên)
-        if (itemHeaderNameText) itemHeaderNameText.text = item.itemName;
+        // Apply rarity background to tooltip panel
+        Image tooltipPanelImage = itemTooltipPanel.GetComponent<Image>();
+        if (tooltipPanelImage == null)
+        {
+            tooltipPanelImage = itemTooltipPanel.AddComponent<Image>();
+        }
+        RarityColorUtility.ApplyRarityBackground(tooltipPanelImage, item.rarity);
+        
+        // Also look for a background child object in tooltip panel
+        Transform tooltipBgTransform = itemTooltipPanel.transform.Find("Background");
+        if (tooltipBgTransform != null)
+        {
+            Image tooltipBgImage = tooltipBgTransform.GetComponent<Image>();
+            if (tooltipBgImage != null)
+            {
+                RarityColorUtility.ApplyRarityBackground(tooltipBgImage, item.rarity);
+            }
+        }
+
+        // Cập nhật Header với rarity color
+        if (itemHeaderNameText)
+        {
+            itemHeaderNameText.text = item.itemName;
+            // Apply rarity color to name text
+            itemHeaderNameText.color = RarityColorUtility.GetRarityColor(item.rarity);
+        }
         if (itemHeaderCostText) itemHeaderCostText.text = item.basePrice.ToString(); // Thêm .ToString() nếu basePrice là số
 
         // Dọn dẹp và tạo các dòng chỉ số mới (giữ nguyên)
         PopulateStats(item);
+        
+        // Add rarity name to stats (if needed, can be added as a stat line)
+        // For now, we'll add it to the description area or create a separate rarity indicator
 
         // --- SỬA LOGIC ẨN/HIỆN DESCRIPTION ---
         if (itemDescriptionGO != null) // Kiểm tra GameObject cha
@@ -332,6 +359,25 @@ public class TooltipManager : MonoBehaviour
         foreach (Transform child in statContainer)
         {
             Destroy(child.gameObject);
+        }
+
+        // Add rarity information at the top (as a special stat line with rarity color)
+        if (item != null && statTextPrefab != null && statContainer != null)
+        {
+            GameObject rarityGO = Instantiate(statTextPrefab, statContainer);
+            TextMeshProUGUI rarityText = rarityGO.GetComponent<TextMeshProUGUI>();
+            if (rarityText != null)
+            {
+                string rarityName = RarityColorUtility.GetRarityName(item.rarity);
+                rarityText.text = $"Rarity: {rarityName}";
+                rarityText.color = RarityColorUtility.GetRarityColor(item.rarity);
+                // Make it slightly larger/bolder to stand out
+                rarityText.fontStyle = FontStyles.Bold;
+                if (rarityText.fontSize > 0)
+                {
+                    rarityText.fontSize *= 1.1f;
+                }
+            }
         }
 
         // Tạo dòng mới cho mỗi chỉ số khác 0

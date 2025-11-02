@@ -42,6 +42,16 @@ public class DragDropInventoryUI : MonoBehaviour
     private List<GameObject> inventoryItemObjects = new List<GameObject>();
     private List<GameObject> equipmentItemObjects = new List<GameObject>();
     
+    // Store original slot colors to restore when empty
+    private Dictionary<Image, Color> originalSlotColors = new Dictionary<Image, Color>();
+    
+    void Awake()
+    {
+        // Store original slot colors IMMEDIATELY in Awake, before anything else
+        // This ensures we capture the true original colors from the prefab/scene
+        StoreOriginalSlotColors();
+    }
+    
     void Start()
     {
         // Components should be assigned in inspector
@@ -335,6 +345,276 @@ public class DragDropInventoryUI : MonoBehaviour
     }
     
     /// <summary>
+    /// Store original colors of all slots to restore later
+    /// Only stores colors that are NOT rarity colors (to avoid storing purple/etc as original)
+    /// </summary>
+    void StoreOriginalSlotColors()
+    {
+        originalSlotColors.Clear();
+        
+        // Check if a color looks like a rarity color (epic purple, legendary gold, etc)
+        // Rarity colors are typically bright/saturated, original slot colors are usually gray/dark
+        bool IsLikelyRarityColor(Color color)
+        {
+            // Rarity colors are usually bright (high saturation) and not gray
+            float saturation = Mathf.Max(color.r, color.g, color.b) - Mathf.Min(color.r, color.g, color.b);
+            
+            // Epic purple: high R and B, low G
+            bool looksEpic = color.r > 0.5f && color.b > 0.5f && color.g < 0.5f;
+            // Legendary gold: high R and G, low B
+            bool looksLegendary = color.r > 0.8f && color.g > 0.7f && color.b < 0.3f;
+            // Rare blue: high B, low R and G
+            bool looksRare = color.b > 0.5f && color.r < 0.5f && color.g < 0.5f;
+            
+            return looksEpic || looksLegendary || looksRare || saturation > 0.5f;
+        }
+        
+        // Default empty slot color (dark gray) - use if slot is transparent or has rarity color
+        Color defaultEmpty = new Color(0.2f, 0.2f, 0.2f, 0.3f);
+        
+        // Store inventory slot colors (only if not a rarity color and not transparent)
+        foreach (Image slotImage in inventorySlots)
+        {
+            if (slotImage != null && !originalSlotColors.ContainsKey(slotImage))
+            {
+                Color currentColor = slotImage.color;
+                
+                // Check if color is transparent (alpha < 0.1) - if so, use default
+                bool isTransparent = currentColor.a < 0.1f;
+                
+                // Only store if it doesn't look like a rarity color AND is not transparent
+                if (!isTransparent && !IsLikelyRarityColor(currentColor))
+                {
+                    originalSlotColors[slotImage] = currentColor;
+                }
+                else
+                {
+                    // Use default empty slot color for transparent or rarity colors
+                    originalSlotColors[slotImage] = defaultEmpty;
+                }
+            }
+            
+            // Also store parent Image color if exists (we apply rarity to it too)
+            if (slotImage != null && slotImage.transform.parent != null)
+            {
+                Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
+                if (parentBgImage != null && parentBgImage != slotImage && !originalSlotColors.ContainsKey(parentBgImage))
+                {
+                    Color parentColor = parentBgImage.color;
+                    bool isTransparent = parentColor.a < 0.1f;
+                    if (!isTransparent && !IsLikelyRarityColor(parentColor))
+                    {
+                        originalSlotColors[parentBgImage] = parentColor;
+                    }
+                    else
+                    {
+                        originalSlotColors[parentBgImage] = defaultEmpty;
+                    }
+                }
+            }
+        }
+        
+        // Store equipment slot colors (only if not a rarity color and not transparent)
+        foreach (Image slotImage in equipmentSlots)
+        {
+            if (slotImage != null && !originalSlotColors.ContainsKey(slotImage))
+            {
+                Color currentColor = slotImage.color;
+                
+                // Check if color is transparent (alpha < 0.1) - if so, use default
+                bool isTransparent = currentColor.a < 0.1f;
+                
+                // Only store if it doesn't look like a rarity color AND is not transparent
+                if (!isTransparent && !IsLikelyRarityColor(currentColor))
+                {
+                    originalSlotColors[slotImage] = currentColor;
+                }
+                else
+                {
+                    // Use default empty slot color for transparent or rarity colors
+                    originalSlotColors[slotImage] = defaultEmpty;
+                }
+            }
+            
+            // Also store parent Image color if exists (we apply rarity to it too)
+            if (slotImage != null && slotImage.transform.parent != null)
+            {
+                Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
+                if (parentBgImage != null && parentBgImage != slotImage && !originalSlotColors.ContainsKey(parentBgImage))
+                {
+                    Color parentColor = parentBgImage.color;
+                    bool isTransparent = parentColor.a < 0.1f;
+                    if (!isTransparent && !IsLikelyRarityColor(parentColor))
+                    {
+                        originalSlotColors[parentBgImage] = parentColor;
+                    }
+                    else
+                    {
+                        originalSlotColors[parentBgImage] = defaultEmpty;
+                    }
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Get the original color for a slot (restore when empty)
+    /// </summary>
+    Color GetOriginalSlotColor(Image slotImage)
+    {
+        if (slotImage != null && originalSlotColors.ContainsKey(slotImage))
+        {
+            return originalSlotColors[slotImage];
+        }
+        // Fallback to default empty color if not stored
+        return new Color(0.2f, 0.2f, 0.2f, 0.3f);
+    }
+    
+    /// <summary>
+    /// Apply rarity background color to slot image and related images (background child, parent)
+    /// </summary>
+    void ApplyRarityToSlotImage(Image slotImage, ItemRarity rarity)
+    {
+        if (slotImage == null) return;
+        
+        // Apply to main slot image
+        RarityColorUtility.ApplyRarityBackground(slotImage, rarity);
+        
+        // Update DropZone's originalColor to preserve rarity color after drag operations
+        DropZone dropZone = slotImage.GetComponent<DropZone>();
+        if (dropZone != null)
+        {
+            dropZone.UpdateOriginalColor();
+        }
+        
+        // Also check for a "Background" child object
+        Transform bgTransform = slotImage.transform.Find("Background");
+        if (bgTransform != null)
+        {
+            Image bgImage = bgTransform.GetComponent<Image>();
+            if (bgImage != null)
+            {
+                RarityColorUtility.ApplyRarityBackground(bgImage, rarity);
+            }
+        }
+        
+        // Also check parent GameObject for background Image
+        if (slotImage.transform.parent != null)
+        {
+            Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
+            if (parentBgImage != null && parentBgImage != slotImage)
+            {
+                RarityColorUtility.ApplyRarityBackground(parentBgImage, rarity);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Restore original slot color to slot image and related images (background child, parent)
+    /// </summary>
+    void RestoreSlotColor(Image slotImage)
+    {
+        if (slotImage == null) return;
+        
+        Color originalColor = GetOriginalSlotColor(slotImage);
+        
+        // Restore the slot image color
+        slotImage.color = originalColor;
+        
+        // Also reset background child if exists
+        Transform bgTransform = slotImage.transform.Find("Background");
+        if (bgTransform != null)
+        {
+            Image bgImage = bgTransform.GetComponent<Image>();
+            if (bgImage != null)
+            {
+                bgImage.color = originalColor;
+            }
+        }
+        
+        // Also reset parent GameObject background Image if exists
+        if (slotImage.transform.parent != null)
+        {
+            Image parentBgImage = slotImage.transform.parent.GetComponent<Image>();
+            if (parentBgImage != null && parentBgImage != slotImage)
+            {
+                // Use stored parent color if available, otherwise use slot's original color
+                if (originalSlotColors.ContainsKey(parentBgImage))
+                {
+                    parentBgImage.color = originalSlotColors[parentBgImage];
+                }
+                else
+                {
+                    parentBgImage.color = originalColor;
+                }
+            }
+        }
+        
+        // Update DropZone's originalColor to match restored original
+        DropZone dropZone = slotImage.GetComponent<DropZone>();
+        if (dropZone != null)
+        {
+            dropZone.originalColor = originalColor;
+        }
+    }
+    
+    /// <summary>
+    /// Find ItemIcon Image component in a slot (not the slot background)
+    /// </summary>
+    Image FindItemIconImage(Image slotImage)
+    {
+        if (slotImage == null) return null;
+        
+        // Look for an Image component that's not the slot background
+        Image[] allImages = slotImage.GetComponentsInChildren<Image>();
+        foreach (Image img in allImages)
+        {
+            if (img != slotImage) // Not the slot background, this is ItemIcon
+            {
+                return img;
+            }
+        }
+        
+        // If no child Image found, create one
+        return CreateItemIconImage(slotImage);
+    }
+    
+    /// <summary>
+    /// Update ItemIcon image based on item (show icon if item exists, hide if empty)
+    /// </summary>
+    Image UpdateItemIconImage(Image slotImage, GearItem item)
+    {
+        if (slotImage == null) return null;
+        
+        Image itemImage = FindItemIconImage(slotImage);
+        
+        // Update the ItemIcon
+        if (itemImage != null)
+        {
+            if (item != null && item.icon != null)
+            {
+                itemImage.sprite = item.icon;
+                itemImage.color = Color.white;
+                itemImage.enabled = true;
+                itemImage.raycastTarget = true;
+                itemImage.maskable = true;
+                itemImage.transform.SetAsLastSibling();
+                itemImage.gameObject.SetActive(true);
+            }
+            else
+            {
+                // Clear ItemIcon when slot is empty
+                itemImage.sprite = null;
+                itemImage.color = Color.clear;
+                itemImage.enabled = false;
+                itemImage.gameObject.SetActive(false);
+            }
+        }
+        
+        return itemImage;
+    }
+    
+    /// <summary>
     /// Add drag and drop components to a slot
     /// </summary>
     void AddDragDropToSlot(GameObject slotObject, int slotIndex, bool isInventorySlot)
@@ -405,62 +685,34 @@ public class DragDropInventoryUI : MonoBehaviour
         // Update the actual slot Image
         Image slotImage = inventorySlots[slotIndex];
         
-        // Find DraggableItem component (could be on the slot image or its children)
+        // Apply rarity background or restore original color
+        if (item != null)
+        {
+            ApplyRarityToSlotImage(slotImage, item.rarity);
+        }
+        else
+        {
+            RestoreSlotColor(slotImage);
+        }
+        
+        // Find DraggableItem component
         DraggableItem draggableItem = slotImage.GetComponent<DraggableItem>();
         if (draggableItem == null)
         {
             draggableItem = slotImage.GetComponentInChildren<DraggableItem>();
         }
         
-        // Find the item Image component (not the slot background Image)
-        Image itemImage = null;
+        // Update ItemIcon and get reference for tooltip
+        Image itemImage = UpdateItemIconImage(slotImage, item);
         
-        // Look for an Image component that's not the slot background
-        Image[] allImages = slotImage.GetComponentsInChildren<Image>();
-        foreach (Image img in allImages)
-        {
-            if (img != slotImage) // Not the slot background
-            {
-                itemImage = img;
-                break;
-            }
-        }
-        
-        // If no child Image found, create one
-        if (itemImage == null)
-        {
-            itemImage = CreateItemIconImage(slotImage);
-        }
-        
-        // Update the item Image
-        if (itemImage != null)
-        {
-            if (item != null && item.icon != null)
-            {
-                itemImage.sprite = item.icon;
-                itemImage.color = Color.white;
-                itemImage.enabled = true;
-                itemImage.raycastTarget = true;
-                itemImage.maskable = true;
-                itemImage.transform.SetAsLastSibling();
-            }
-            else
-            {
-                itemImage.sprite = null;
-                itemImage.color = Color.clear;
-            }
-        }
-        
-        // Still update the DraggableItem for drag functionality
+        // Update DraggableItem for drag functionality
         if (draggableItem != null)
         {
             draggableItem.SetItemData(item, slotIndex, true);
-            
-            // Always ensure the DraggableItem has the correct dragDropSystem reference
             draggableItem.dragDropSystem = FindFirstObjectByType<DragDropSystem>();
         }
         
-        // Setup tooltip on the item icon (not the slot)
+        // Setup tooltip on the item icon
         SetupTooltipOnItemIcon(itemImage, item);
     }
     
@@ -474,66 +726,34 @@ public class DragDropInventoryUI : MonoBehaviour
         // Update the actual slot Image
         Image slotImage = equipmentSlots[slotIndex];
         
-        // Find DraggableItem component (could be on the slot image or its children)
+        // Apply rarity background or restore original color
+        if (item != null)
+        {
+            ApplyRarityToSlotImage(slotImage, item.rarity);
+        }
+        else
+        {
+            RestoreSlotColor(slotImage);
+        }
+        
+        // Find DraggableItem component
         DraggableItem draggableItem = slotImage.GetComponent<DraggableItem>();
         if (draggableItem == null)
         {
             draggableItem = slotImage.GetComponentInChildren<DraggableItem>();
         }
         
-        // Find the item Image component (not the slot background Image) - same logic as inventory
-        Image itemImage = null;
+        // Update ItemIcon and get reference for tooltip
+        Image itemImage = UpdateItemIconImage(slotImage, item);
         
-        // Look for an Image component that's not the slot background
-        Image[] allImages = slotImage.GetComponentsInChildren<Image>();
-        foreach (Image img in allImages)
-        {
-            if (img != slotImage) // Not the slot background
-            {
-                itemImage = img;
-                break;
-            }
-        }
-        
-        // If no child Image found, create one
-        if (itemImage == null)
-        {
-            itemImage = CreateItemIconImage(slotImage);
-        }
-        
-        // Update the item Image directly
-        if (itemImage != null)
-        {
-            if (item != null && item.icon != null)
-            {
-                itemImage.sprite = item.icon;
-                itemImage.color = Color.white;
-                itemImage.enabled = true;
-                itemImage.raycastTarget = true;
-                itemImage.maskable = true;
-                itemImage.transform.SetAsLastSibling();
-                
-                // Force the image to be visible
-                itemImage.gameObject.SetActive(true);
-            }
-            else
-            {
-                itemImage.sprite = null;
-                itemImage.color = Color.clear;
-                itemImage.enabled = false;
-            }
-        }
-        
-        // Update DraggableItem data (this will also try to update visuals, but we've already done it above)
+        // Update DraggableItem for drag functionality
         if (draggableItem != null)
         {
             draggableItem.SetItemData(item, slotIndex, false);
-            
-            // Always ensure the DraggableItem has the correct dragDropSystem reference
             draggableItem.dragDropSystem = FindFirstObjectByType<DragDropSystem>();
         }
         
-        // Setup tooltip on the item icon (not the slot)
+        // Setup tooltip on the item icon
         SetupTooltipOnItemIcon(itemImage, item);
     }
     
@@ -619,8 +839,6 @@ public class DragDropInventoryUI : MonoBehaviour
             }
         }
     }
-    
-    
     
     /// <summary>
     /// Update the inventory reference and resubscribe to events

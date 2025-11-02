@@ -18,7 +18,7 @@ MonoBehaviour:
   descriptionTemplate: Deals {damage} physical damage. Has a 30% chance to Stun the
     target for 1 turn. Deals +25% damage to already stunned targets.
   resource: 1
-  cost: 8
+  cost: 10
   baseDamage: 30
   scalingStat: 0
   scalingPercent: 1

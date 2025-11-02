@@ -692,8 +692,13 @@ public class BattleManager : MonoBehaviour
     public void OnPlayerDeselectSkill()
     {
         selectedSkill = null;
-        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
-    }
+        // Deselect skill icon in UI
+        if (uiManager != null)
+        {
+            uiManager.DeselectSkillIcon();
+        }
+        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
+    }
 
     // Called from the UI Attack button's OnClick event
     public void OnAttackButton()
@@ -1067,9 +1072,9 @@ public class BattleManager : MonoBehaviour
         // Regenerate mana at the start of player turn
         if (playerCharacter != null)
         {
-            // Calculate total mana regeneration: base 5% + passive bonuses
+            // Calculate total mana regeneration: base 8% + passive bonuses
             int oldMana = playerCharacter.currentMana;
-            float totalRegenPercent = 5.0f; // Base 5% per turn
+            float totalRegenPercent = 8.0f; // Base 8% per turn (increased from 5% for better balance)
             // Add passive skill mana regeneration per turn (Divine Resonance)
             var conditionalManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
             if (conditionalManager != null && conditionalManager.manaRegenPerTurn > 0f)
@@ -1168,6 +1173,7 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(attackDelay);
 
         selectedSkill = null; // Reset selected skill after use
+        OnPlayerDeselectSkill(); // Deselect skill UI after use
 
         // Skills do NOT trigger double action - only normal attacks do
         // (CheckForDoubleAction removed from here)

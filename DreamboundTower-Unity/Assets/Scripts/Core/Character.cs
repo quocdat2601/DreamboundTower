@@ -1231,7 +1231,7 @@ public class Character : MonoBehaviour
             ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
         }
 
-        // Apply reflect damage (works with or without shield, from both status effects and gear)
+        // Apply reflect damage (status effect reflect is tied to shield, gear-based reflect works independently)
         if (reflectPercent > 0 && attacker != null)
         {
             // reflectPercent is already a decimal (0.1 = 10%), so multiply directly

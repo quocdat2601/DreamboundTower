@@ -87,7 +87,21 @@ public class ShieldEffect : StatusEffect
     
     public override void OnApply(Character target) { }
     public override void OnTick(Character target) { }
-    public override void OnRemove(Character target) { }
+    public override void OnRemove(Character target)
+    {
+        // When shield expires naturally, only remove reflect if Radiant Shield portion was still active
+        // Check if ReflectEffect exists and has radiantShieldAmount > 0 before removing
+        if (StatusEffectManager.Instance != null)
+        {
+            var reflectEffect = StatusEffectManager.Instance.GetEffect(target, typeof(ReflectEffect)) as ReflectEffect;
+            // Only remove ReflectEffect if it exists and was tied to Radiant Shield (radiantShieldAmount > 0)
+            // This ensures we don't remove reflect from other sources (e.g., gear-based reflect)
+            if (reflectEffect != null && reflectEffect.radiantShieldAmount > 0)
+            {
+                StatusEffectManager.Instance.RemoveEffect(target, typeof(ReflectEffect));
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -95,8 +109,13 @@ public class ShieldEffect : StatusEffect
 /// </summary>
 public class ReflectEffect : StatusEffect
 {
-    public ReflectEffect(int reflectPercent, int duration) : base("Reflect", duration, reflectPercent, EffectTiming.EndOfTurn, false, false)
+    // Track the shield amount that has reflect (e.g., from Radiant Shield skill)
+    // Reflect only works while this shield amount > 0
+    public int radiantShieldAmount = 0;
+    
+    public ReflectEffect(int reflectPercent, int duration, int radiantShieldAmount = 0) : base("Reflect", duration, reflectPercent, EffectTiming.EndOfTurn, false, false)
     {
+        this.radiantShieldAmount = radiantShieldAmount;
     }
     
     public override void OnApply(Character target) { }

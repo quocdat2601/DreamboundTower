@@ -18,7 +18,7 @@ MonoBehaviour:
   descriptionTemplate: Deal {damage} single-target physical damage, but the user
     takes 5% MaxHP as recoil damage.
   resource: 1
-  cost: 6
+  cost: 10
   baseDamage: 45
   scalingStat: 0
   scalingPercent: 1

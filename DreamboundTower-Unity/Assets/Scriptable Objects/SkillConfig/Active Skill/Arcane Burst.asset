@@ -18,7 +18,7 @@ MonoBehaviour:
   descriptionTemplate: Deals {damage} {scaling_info} magic damage to all enemies
     and applies Burn for {duration} turns.
   resource: 1
-  cost: 12
+  cost: 16
   cooldown: 4
   target: 1
   vfxPrefab: {fileID: 5069109496326652748, guid: bb215333720912340ab7e30727cc411a, type: 3}

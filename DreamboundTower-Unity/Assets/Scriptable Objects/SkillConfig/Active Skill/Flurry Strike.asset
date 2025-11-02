@@ -17,8 +17,8 @@ MonoBehaviour:
   icon: {fileID: -8582376783789590509, guid: cce400af541e5224595678e850f9d8dc, type: 3}
   descriptionTemplate: Execute 3 quick attacks, each dealing {damage} damage. Each
     hit that lands heals you for 25% of the damage dealt.
-  resource: 0
-  cost: 0
+  resource: 1
+  cost: 12
   cooldown: 3
   target: 0
   vfxPrefab: {fileID: 5069109496326652748, guid: 04d993ef9f53ee243a37ae8ace848b27, type: 3}
