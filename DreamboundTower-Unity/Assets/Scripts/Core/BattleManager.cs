@@ -86,7 +86,7 @@ public class BattleManager : MonoBehaviour
     // runtime
     private GameObject playerInstance;
     private GameObject[] enemyInstances;
-    private Character playerCharacter; // Reference to the player's Character component for quick access
+    public Character playerCharacter; // Reference to the player's Character component for quick access (public for cheat access)
     private EnemyTemplateSO[] enemyTemplates; 
 
     // state & selection
@@ -96,6 +96,10 @@ public class BattleManager : MonoBehaviour
     
     // turn counter
     private int currentTurn = 1;
+    
+    // Battle state flags
+    private bool isVictoryRoutineRunning = false;
+    private bool isDefeatRoutineRunning = false;
     
     // Public properties for SkillManager access
     public bool PlayerTurn 
@@ -163,7 +167,13 @@ public class BattleManager : MonoBehaviour
         // -------------------------
 
         // Các logic khởi tạo cũ
+        // Find DefeatPanel if reference is null (it's now on PersistentUICanvas)
+        FindDefeatPanelIfNull();
         if (defeatPanel != null) defeatPanel.SetActive(false);
+
+        // Reset battle state flags
+        isVictoryRoutineRunning = false;
+        isDefeatRoutineRunning = false;
 
         // SpawnPlayer giờ chỉ còn 1 nhiệm vụ: tìm và đặt player vào vị trí
         SpawnPlayer();
@@ -205,9 +215,35 @@ public class BattleManager : MonoBehaviour
         }
         #endif
     }
-    #endregion
+    
+    void OnDestroy()
+    {
+        // Unsubscribe from character death events to prevent errors when BattleManager is destroyed
+        if (playerCharacter != null && playerCharacter.OnDeath != null)
+        {
+            playerCharacter.OnDeath -= HandleCharacterDeath;
+            playerCharacter.OnManaChanged -= OnPlayerManaChanged;
+        }
+        
+        // Unsubscribe from all enemy death events
+        if (enemyInstances != null)
+        {
+            foreach (var enemyInstance in enemyInstances)
+            {
+                if (enemyInstance != null)
+                {
+                    Character enemyCharacter = enemyInstance.GetComponent<Character>();
+                    if (enemyCharacter != null && enemyCharacter.OnDeath != null)
+                    {
+                        enemyCharacter.OnDeath -= HandleCharacterDeath;
+                    }
+                }
+            }
+        }
+    }
+    #endregion
 
-    #region Spawning
+    #region Spawning
 
     // Handles finding the persistent player or spawning a fallback for testing
     void SpawnPlayer()
@@ -1327,11 +1363,27 @@ public class BattleManager : MonoBehaviour
 
     #region Battle Outcome
 
-    // Coroutine for when the player is victorious
+    // Coroutine for when the player is victorious
     IEnumerator VictoryRoutine()
     {
+        // Prevent duplicate calls
+        if (isVictoryRoutineRunning)
+        {
+            Debug.Log("[BATTLE] Victory routine already running, ignoring duplicate call.");
+            yield break;
+        }
+        
+        isVictoryRoutineRunning = true;
+        
         Debug.Log("[BATTLE] Victory! All enemies defeated!");
         yield return new WaitForSeconds(1.5f);
+        
+        // Wait for all loot to be collected before ending battle
+        if (LootManager.Instance != null)
+        {
+            Debug.Log("[BATTLE] Waiting for all loot to be collected before ending battle...");
+            yield return StartCoroutine(LootManager.Instance.WaitForAllLootCollected());
+        }
 
         string sceneToReturnTo = "Zone1"; // Scene mặc định nếu có lỗi
 
@@ -1416,35 +1468,38 @@ public class BattleManager : MonoBehaviour
         RestorePersistentPlayer();
         SceneManager.LoadScene(sceneToReturnTo);
     }
-    // Coroutine for when the player is defeated
-    IEnumerator DefeatRoutine()
+    // Coroutine for when the player is defeated
+    IEnumerator DefeatRoutine()
     {
-        Debug.Log("[BATTLE] Player died.");
-
-        // ✅ GỌI GAMEMANAGER ĐỂ XỬ LÝ HẬU QUẢ
-        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
-
-        // Nếu run thực sự kết thúc (hết mạng)
-        if (runEnded)
+        // Prevent duplicate calls
+        if (isDefeatRoutineRunning)
         {
-            // Kích hoạt Defeat Panel với lựa chọn "Quit" hoặc xem kết quả
-            if (defeatPanel != null)
-            {
-                // TODO: Bạn có thể muốn có một panel "Run Over" riêng
-                // Tạm thời vẫn dùng defeatPanel
-                defeatPanel.SetActive(true);
-            }
-            // Ở đây, nút Retry có thể bị vô hiệu hóa vì không thể retry được nữa
-        }
-        // Nếu vẫn còn mạng
-        else
-        {
-            // Vẫn kích hoạt Defeat Panel để cho phép người chơi Quit hoặc Retry
-            if (defeatPanel != null)
-            {
-                defeatPanel.SetActive(true);
-            }
+            Debug.Log("[BATTLE] Defeat routine already running, ignoring duplicate call.");
+            yield break;
         }
+        
+        isDefeatRoutineRunning = true;
+        
+        Debug.Log("[BATTLE] Player died.");
+        
+        // Find DefeatPanel if reference is null (it's now on PersistentUICanvas)
+        FindDefeatPanelIfNull();
+        
+        // Handle player defeat
+        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
+
+        // Show defeat panel immediately and ensure buttons are connected
+        if (defeatPanel != null)
+        {
+            ConnectDefeatPanelButtons();
+            defeatPanel.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning("[BATTLE] Defeat panel is null! Could not show defeat screen.");
+        }
+        
+        // Loot will auto-collect immediately in the background (no delay since globalAutoCollectDelay = 0)
 
         // Tạm dừng ở màn hình thua, chờ người chơi tương tác
         // Chúng ta sẽ không tự động chuyển scene nữa
@@ -2090,10 +2145,13 @@ public class BattleManager : MonoBehaviour
 
     private void HandleCharacterDeath(Character deadCharacter)
     {
-        Debug.Log($"[BATTLE] Character {deadCharacter.name} has died!");
-        Debug.Log($"[BATTLE] Starting ProcessDeathRoutine for {deadCharacter.name}");
-        // Dùng một coroutine nhỏ để đợi một chút, cho phép các hiệu ứng
-        // như animation chết hoặc gimmick hồi sinh có thời gian để chạy.
+        // Check if BattleManager is still valid (not destroyed)
+        if (gameObject == null || !gameObject.activeInHierarchy || !enabled)
+        {
+            return;
+        }
+        
+        // Start death routine - allows death animations and revival gimmicks time to run
         StartCoroutine(ProcessDeathRoutine(deadCharacter));
     }
     
@@ -2109,9 +2167,20 @@ public class BattleManager : MonoBehaviour
     
     private IEnumerator ProcessDeathRoutine(Character deadCharacter)
     {
-        // Đợi một khoảng thời gian rất ngắn (ví dụ: cuối frame)
-        // để các script gimmick (như Resurrect) có cơ hội can thiệp vào currentHP
+        // Check if BattleManager is still valid before processing death
+        if (gameObject == null || !gameObject.activeInHierarchy || !enabled)
+        {
+            yield break;
+        }
+        
+        // Wait a frame to allow gimmicks (like Resurrect) to intervene with currentHP
         yield return new WaitForEndOfFrame();
+
+        // Check again after waiting (BattleManager might have been destroyed)
+        if (gameObject == null || !gameObject.activeInHierarchy || !enabled)
+        {
+            yield break;
+        }
 
         // 1. KIỂM TRA XEM ĐÓ LÀ NGƯỜI CHƠI HAY KẺ ĐỊCH
 
@@ -2268,6 +2337,80 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
+    
+    /// <summary>
+    /// Finds DefeatPanel on PersistentUICanvas if the reference is null
+    /// </summary>
+    private void FindDefeatPanelIfNull()
+    {
+        if (defeatPanel != null)
+        {
+            ConnectDefeatPanelButtons();
+            return;
+        }
+        
+        if (GameManager.Instance != null && GameManager.Instance.playerStatusUI != null)
+        {
+            Transform persistentCanvas = GameManager.Instance.playerStatusUI.transform.parent;
+            if (persistentCanvas != null)
+            {
+                Transform defeatPanelTransform = persistentCanvas.Find("DefeatPanel");
+                if (defeatPanelTransform != null)
+                {
+                    defeatPanel = defeatPanelTransform.gameObject;
+                    ConnectDefeatPanelButtons();
+                    return;
+                }
+            }
+        }
+        
+        // Fallback: Search directly in GameManager's children
+        if (GameManager.Instance != null)
+        {
+            Transform persistentCanvasTransform = GameManager.Instance.transform.Find("PersistentUICanvas");
+            if (persistentCanvasTransform != null)
+            {
+                Transform defeatPanelTransform = persistentCanvasTransform.Find("DefeatPanel");
+                if (defeatPanelTransform != null)
+                {
+                    defeatPanel = defeatPanelTransform.gameObject;
+                    ConnectDefeatPanelButtons();
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Connects the Restart and Quit buttons in DefeatPanel to their handlers
+    /// </summary>
+    private void ConnectDefeatPanelButtons()
+    {
+        if (defeatPanel == null) return;
+        
+        // Find buttons by searching all children (handles any naming variation)
+        Button[] allButtons = defeatPanel.GetComponentsInChildren<Button>(true);
+        bool restartConnected = false;
+        bool quitConnected = false;
+        
+        foreach (Button btn in allButtons)
+        {
+            string buttonName = btn.name.ToLower();
+            
+            if (!restartConnected && (buttonName.Contains("restart") || buttonName.Contains("retry")))
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(OnRetryButton);
+                restartConnected = true;
+            }
+            else if (!quitConnected && buttonName.Contains("quit"))
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(OnQuitButton);
+                quitConnected = true;
+            }
+        }
+    }
+    
     #endregion
 
 }

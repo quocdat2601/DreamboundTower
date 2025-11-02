@@ -102,6 +102,10 @@ public class Character : MonoBehaviour
     
     [HideInInspector]
     public bool isInvincible = false;
+    
+    [HideInInspector]
+    public float cheatDamageMultiplier = 1.0f;
+    
     private Equipment equipment;
     
     // Track applied gear modifiers for cleanup
@@ -502,8 +506,9 @@ public class Character : MonoBehaviour
         }
 
         // 2. Áp dụng Multiplier (ví dụ: CounterAttack) cho CẢ HAI
-        int modifiedPhysical = Mathf.RoundToInt(physicalBase * damageMultiplier);
-        int modifiedMagic = Mathf.RoundToInt(magicBase * damageMultiplier);
+        float finalDamageMultiplier = damageMultiplier * cheatDamageMultiplier;
+        int modifiedPhysical = Mathf.RoundToInt(physicalBase * finalDamageMultiplier);
+        int modifiedMagic = Mathf.RoundToInt(magicBase * finalDamageMultiplier);
         
         // Apply critical damage multiplier if that type crit
         if (isPhysicalCrit)
@@ -1093,6 +1098,18 @@ public class Character : MonoBehaviour
     {
         //PlayDeathAnimation();
         OnDeath?.Invoke(this);
+    }
+    
+    /// <summary>
+    /// Instantly kills the character (cheat method)
+    /// </summary>
+    public void Kill()
+    {
+        if (currentHP <= 0) return; // Already dead
+        
+        currentHP = 0;
+        UpdateHPUI();
+        Die();
     }
     #endregion
 

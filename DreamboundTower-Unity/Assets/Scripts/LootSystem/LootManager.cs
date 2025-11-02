@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -27,7 +28,7 @@ public class LootManager : MonoBehaviour
     public float lootDespawnTime = 60f;
     
     [Tooltip("Auto-collect all loot after this many seconds (0 = disabled)")]
-    public float globalAutoCollectDelay = 0f;
+    public float globalAutoCollectDelay = 0.1f; // Set to 0.1s for immediate collection
     
     
     [Header("References")]
@@ -310,6 +311,69 @@ public class LootManager : MonoBehaviour
         return activeLoot.Count;
     }
     
+    /// <summary>
+    /// Wait for all loot to be collected before proceeding
+    /// This ensures all loot is picked up (manually or via auto-collect) before battle ends
+    /// </summary>
+    /// <returns>Coroutine that waits until all loot is collected</returns>
+    public IEnumerator WaitForAllLootCollected()
+    {
+        // Clean up null references first
+        activeLoot.RemoveAll(loot => loot == null);
+        
+        // If no active loot, we're done
+        if (activeLoot.Count == 0)
+        {
+            yield break;
+        }
+        
+        // Find the maximum remaining auto-collect time among active loot
+        float maxRemainingTime = 0f;
+        foreach (var loot in activeLoot)
+        {
+            if (loot != null)
+            {
+                float remaining = loot.RemainingAutoCollectTime();
+                if (remaining > maxRemainingTime)
+                {
+                    maxRemainingTime = remaining;
+                }
+            }
+        }
+        
+        // If there's auto-collect enabled, wait until the longest remaining delay has passed
+        if (maxRemainingTime > 0)
+        {
+            Debug.Log($"[LOOT] Waiting for auto-collect delays (max remaining: {maxRemainingTime}s)");
+            yield return new WaitForSeconds(maxRemainingTime + 0.5f); // Add small buffer
+        }
+        
+        // Now wait until all loot is actually collected (might have been manually collected or auto-collected)
+        float waitStartTime = Time.time;
+        float maxWaitTime = 30f; // Safety timeout - don't wait forever
+        
+        while (activeLoot.Count > 0 && (Time.time - waitStartTime) < maxWaitTime)
+        {
+            // Clean up null references each frame
+            activeLoot.RemoveAll(loot => loot == null);
+            
+            if (activeLoot.Count == 0)
+            {
+                break;
+            }
+            
+            yield return null; // Wait one frame
+        }
+        
+        if (activeLoot.Count > 0)
+        {
+            Debug.LogWarning($"[LOOT] Some loot was not collected before battle end. Remaining: {activeLoot.Count}");
+        }
+        else
+        {
+            Debug.Log("[LOOT] All loot collected!");
+        }
+    }
     
     
 }

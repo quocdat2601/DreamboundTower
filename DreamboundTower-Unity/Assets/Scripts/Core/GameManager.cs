@@ -53,6 +53,9 @@ public class GameManager : MonoBehaviour
     public float lastRunTime = 0f;
     private bool isPaused = false;
     private bool isPausable = false;
+    
+    // Cheat system flags
+    private bool godModeCheatActive = false;
 
     private const int HP_UNIT = 10;
     private const int MANA_UNIT = 5;
@@ -84,6 +87,9 @@ public class GameManager : MonoBehaviour
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
         if (blockerPanel != null) blockerPanel.SetActive(false);
+        
+        // Disable DefeatPanel on PersistentUICanvas on startup
+        DisableDefeatPanel();
 
         if (pauseButton != null)
         {
@@ -144,6 +150,66 @@ public class GameManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Helper method to find and disable DefeatPanel on PersistentUICanvas
+    /// </summary>
+    private void DisableDefeatPanel()
+    {
+        // Try to find DefeatPanel through playerStatusUI first
+        if (playerStatusUI != null)
+        {
+            Transform persistentCanvas = playerStatusUI.transform.parent;
+            if (persistentCanvas != null)
+            {
+                Transform defeatPanelTransform = persistentCanvas.Find("DefeatPanel");
+                if (defeatPanelTransform != null)
+                {
+                    defeatPanelTransform.gameObject.SetActive(false);
+                    return;
+                }
+            }
+        }
+        
+        // Fallback: Search directly in GameManager's children for PersistentUICanvas
+        Transform persistentCanvasTransform = transform.Find("PersistentUICanvas");
+        if (persistentCanvasTransform != null)
+        {
+            Transform defeatPanelTransform = persistentCanvasTransform.Find("DefeatPanel");
+            if (defeatPanelTransform != null)
+            {
+                defeatPanelTransform.gameObject.SetActive(false);
+                return;
+            }
+        }
+        
+        // Last resort: Search all children recursively
+        Transform defeatPanel = FindChildRecursive(transform, "DefeatPanel");
+        if (defeatPanel != null)
+        {
+            defeatPanel.gameObject.SetActive(false);
+        }
+    }
+    
+    /// <summary>
+    /// Recursively search for a child by name
+    /// </summary>
+    private Transform FindChildRecursive(Transform parent, string name)
+    {
+        foreach (Transform child in parent)
+        {
+            if (child.name == name)
+            {
+                return child;
+            }
+            Transform result = FindChildRecursive(child, name);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+        return null;
+    }
+    
     void SetupStatusEffectManager()
     {
         // Check if StatusEffectManager already exists
@@ -195,6 +261,24 @@ public class GameManager : MonoBehaviour
         if (currentRunData != null && !isPaused)
         {
             currentRunData.playerData.totalTimePlayed += Time.unscaledDeltaTime;
+        }
+        
+        // God Mode cheat (Ctrl + Shift + G)
+        if (Keyboard.current != null &&
+            (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
+            (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed) &&
+            Keyboard.current.gKey.wasPressedThisFrame)
+        {
+            ToggleGodModeCheat();
+        }
+        
+        // Kill Player cheat (Ctrl + Shift + K)
+        if (Keyboard.current != null &&
+            (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
+            (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed) &&
+            Keyboard.current.kKey.wasPressedThisFrame)
+        {
+            KillPlayer();
         }
     }
 
@@ -362,6 +446,13 @@ public class GameManager : MonoBehaviour
             // Thêm dòng log này để biết nếu playerStatusUI bị null
             Debug.LogError("LỖI: playerStatusUI trong GameManager đang bị null!");
         }
+        
+        // Disable DefeatPanel in MainMenu and map scenes (it should only show in battle scenes)
+        if (scene.name == "MainMenu" || scene.name.StartsWith("Zone"))
+        {
+            DisableDefeatPanel();
+        }
+        
         // Load player state (inventory, equipment) from RunData when entering gameplay scenes
         if (playerInstance != null && currentRunData != null)
         {
@@ -976,23 +1067,100 @@ public class GameManager : MonoBehaviour
         }
         // XÓA: Không gọi cập nhật UI của scene cũ
         // inventory.OnInventoryChanged?.Invoke(); 
-        // --- KẾT THÚC SỬA ---
-
-        // 5. Lưu trạng thái Inventory này vào RunData (Giữ nguyên)
-        SavePlayerStateToRunData();
-
-        // 6. Thiết lập Trận đấu F100 (Giữ nguyên)
-        currentRunData.mapData.pendingEnemyArchetypeId = "Corrupted Core";
-        currentRunData.mapData.pendingEnemyKind = (int)Presets.EnemyKind.Boss;
-        currentRunData.mapData.pendingEnemyFloor = 100;
-        currentRunData.mapData.pendingNodeSceneName = "Zone1"; // Mặc định
-
-        // 7. Đảm bảo game đang chạy (Giữ nguyên)
-        Time.timeScale = 1f;
-        if (isPaused) ResumeGame();
-
-        // 8. Tải Scene Combat (Giữ nguyên)
-        Debug.Log("[Cheat] Đang tải Scene 'MainGame'...");
-        SceneManager.LoadScene("MainGame");
+    }
+    
+    /// <summary>
+    /// Toggles God Mode cheat: makes player invincible and able to one-shot enemies
+    /// </summary>
+    private void ToggleGodModeCheat()
+    {
+        godModeCheatActive = !godModeCheatActive;
+        
+        if (playerInstance == null)
+        {
+            Debug.LogWarning("[CHEAT] Player instance not found!");
+            return;
+        }
+        
+        Character playerCharacter = playerInstance.GetComponent<Character>();
+        if (playerCharacter == null)
+        {
+            Debug.LogWarning("[CHEAT] Player Character component not found!");
+            return;
+        }
+        
+        if (godModeCheatActive)
+        {
+            // Enable God Mode
+            playerCharacter.isInvincible = true;
+            playerCharacter.cheatDamageMultiplier = 9999f; // One-shot damage
+            
+            // Apply to all characters in battle (if in battle scene)
+            if (SceneManager.GetActiveScene().name == "MainGame")
+            {
+                var battleManager = FindFirstObjectByType<BattleManager>();
+                if (battleManager != null && battleManager.playerCharacter != null)
+                {
+                    battleManager.playerCharacter.isInvincible = true;
+                    battleManager.playerCharacter.cheatDamageMultiplier = 9999f;
+                }
+            }
+            
+            Debug.LogWarning("[CHEAT] God Mode ENABLED - Invincibility and One-Shot Damage Active!");
+        }
+        else
+        {
+            // Disable God Mode
+            playerCharacter.isInvincible = false;
+            playerCharacter.cheatDamageMultiplier = 1.0f;
+            
+            // Apply to all characters in battle (if in battle scene)
+            if (SceneManager.GetActiveScene().name == "MainGame")
+            {
+                var battleManager = FindFirstObjectByType<BattleManager>();
+                if (battleManager != null && battleManager.playerCharacter != null)
+                {
+                    battleManager.playerCharacter.isInvincible = false;
+                    battleManager.playerCharacter.cheatDamageMultiplier = 1.0f;
+                }
+            }
+            
+            Debug.LogWarning("[CHEAT] God Mode DISABLED");
+        }
+    }
+    
+    /// <summary>
+    /// Instantly kills the player
+    /// </summary>
+    public void KillPlayer()
+    {
+        if (playerInstance == null)
+        {
+            Debug.LogWarning("[CHEAT] Player instance not found!");
+            return;
+        }
+        
+        Character playerCharacter = playerInstance.GetComponent<Character>();
+        if (playerCharacter == null)
+        {
+            Debug.LogWarning("[CHEAT] Player Character component not found!");
+            return;
+        }
+        
+        // Check if in battle scene
+        if (SceneManager.GetActiveScene().name == "MainGame")
+        {
+            var battleManager = FindFirstObjectByType<BattleManager>();
+            if (battleManager != null && battleManager.playerCharacter != null)
+            {
+                battleManager.playerCharacter.Kill();
+                Debug.LogWarning("[CHEAT] Player killed!");
+                return;
+            }
+        }
+        
+        // Fallback: kill player character directly
+        playerCharacter.Kill();
+        Debug.LogWarning("[CHEAT] Player killed!");
     }
 }

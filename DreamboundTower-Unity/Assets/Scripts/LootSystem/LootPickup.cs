@@ -68,6 +68,25 @@ public class LootPickup : MonoBehaviour
         spawnTime = Time.time;
     }
     
+    /// <summary>
+    /// Get the time when this loot was spawned
+    /// </summary>
+    public float SpawnTime => spawnTime;
+    
+    /// <summary>
+    /// Get the remaining time until auto-collect (0 if auto-collect disabled or already passed)
+    /// </summary>
+    public float RemainingAutoCollectTime()
+    {
+        if (autoCollectDelay <= 0f)
+        {
+            return 0f;
+        }
+        float elapsedTime = Time.time - spawnTime;
+        float remaining = autoCollectDelay - elapsedTime;
+        return Mathf.Max(0f, remaining);
+    }
+    
     void Start()
     {
         // Start despawn timer
