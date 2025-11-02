@@ -612,16 +612,29 @@ public class BattleManager : MonoBehaviour
             return;
         }
         
+        // Get HP bar RectTransform to position icons on top of it
+        RectTransform hpBarRect = hpBarTransform.GetComponent<RectTransform>();
+        if (hpBarRect == null)
+        {
+            Debug.LogWarning($"[BATTLE] HpBar does not have RectTransform for {enemyGO.name}");
+            return;
+        }
+        
         // Create container for status effect icons above HP bar
         GameObject statusEffectContainer = new GameObject("StatusEffectContainer");
         statusEffectContainer.transform.SetParent(enemyGO.transform, false);
         RectTransform containerRect = statusEffectContainer.AddComponent<RectTransform>();
         
-        // Position above HP bar (100 units above center)
+        // Position directly on top of HP bar
         containerRect.anchorMin = new Vector2(0.5f, 0.5f);
         containerRect.anchorMax = new Vector2(0.5f, 0.5f);
         containerRect.pivot = new Vector2(0.5f, 0.5f);
-        containerRect.anchoredPosition = new Vector2(0, 100);
+        
+        // Calculate position: HP bar center Y + half HP bar height + larger offset to avoid clipping
+        float hpBarCenterY = hpBarRect.anchoredPosition.y;
+        float hpBarHeight = hpBarRect.sizeDelta.y;
+        float iconOffset = hpBarHeight * 0.5f + 15f; // Half HP bar height + 15 pixels spacing to prevent clipping
+        containerRect.anchoredPosition = new Vector2(0, hpBarCenterY + iconOffset);
         containerRect.sizeDelta = new Vector2(400, 80);
         
         // Configure horizontal layout for icons
@@ -645,8 +658,8 @@ public class BattleManager : MonoBehaviour
         displayManager.iconDatabase = statusEffectIconDatabase;
         displayManager.SetTargetCharacter(enemyChar);
         
-        // Scale up icons (2x) for better visibility on enemies
-        statusEffectContainer.transform.localScale = new Vector3(2.0f, 2.0f, 1.0f);
+        // Scale icons even smaller (0.5x) to be compact and avoid clipping with HP bar
+        statusEffectContainer.transform.localScale = new Vector3(0.5f, 0.5f, 1.0f);
     }
 
     #endregion

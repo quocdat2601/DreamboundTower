@@ -138,6 +138,7 @@ public class ShopManager : MonoBehaviour
             if (availableItems.Count > 0)
             {
                 GearItem itemToDisplay = availableItems[Random.Range(0, availableItems.Count)];
+                Debug.Log($"[SHOP] Generating shop item {i+1}: {itemToDisplay.itemName} (rarity: {itemToDisplay.rarity}, price: {itemToDisplay.basePrice})");
                 CreateItemSlot(itemToDisplay);
             }
             else { }
@@ -161,10 +162,61 @@ public class ShopManager : MonoBehaviour
             var c = rootImage.color; c.a = 0.001f; rootImage.color = c;
         }
         rootImage.raycastTarget = true;
-        Image itemIcon = slotGO.transform.Find("ItemIcon").GetComponent<Image>();
+        
+        Transform itemIconTransform = slotGO.transform.Find("ItemIcon");
+        if (itemIconTransform == null)
+        {
+            Debug.LogError($"[SHOP] ItemIcon not found in slot prefab for item: {item.itemName}! Cannot create shop slot.");
+            Destroy(slotGO);
+            return;
+        }
+        
+        Image itemIcon = itemIconTransform.GetComponent<Image>();
+        if (itemIcon == null)
+        {
+            Debug.LogError($"[SHOP] Image component not found on ItemIcon for item: {item.itemName}! Cannot create shop slot.");
+            Destroy(slotGO);
+            return;
+        }
+        
+        // Check if item has an icon sprite
+        if (item.icon == null)
+        {
+            Debug.LogWarning($"[SHOP] Item '{item.itemName}' has no icon sprite assigned! It will appear as white/empty.");
+        }
+        
         itemIcon.sprite = item.icon;
         // Đảm bảo icon nhận raycast (đây thường là topmost hit)
         itemIcon.raycastTarget = true;
+        
+        // If icon is null, the Image will show as white/empty, but we still want to show the item exists
+        if (item.icon == null)
+        {
+            // Could set a default placeholder sprite here if you have one
+            // For now, just log the warning above
+        }
+        
+        // Check if player can afford this item and darken if not enough gold
+        bool canAfford = currentRunData != null && currentRunData.playerData.gold >= item.basePrice;
+        if (!canAfford)
+        {
+            // Darken the icon (similar to disabled event choices)
+            itemIcon.color = new Color(0.5f, 0.5f, 0.5f, 0.7f); // Gray with reduced opacity
+            
+            // Also darken the button/root image if it has color
+            if (rootImage != null && rootImage.color.a > 0.1f)
+            {
+                rootImage.color = new Color(0.5f, 0.5f, 0.5f, rootImage.color.a);
+            }
+            
+            // Disable button interaction but keep it visible
+            if (slotButton != null)
+            {
+                var colors = slotButton.colors;
+                colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
+                slotButton.colors = colors;
+            }
+        }
 
         // Kết nối Tooltip (nếu có)
         TooltipTrigger trigger = slotGO.GetComponent<TooltipTrigger>();
@@ -187,27 +239,39 @@ public class ShopManager : MonoBehaviour
             }
         }
 
-        // Gắn handler click độc lập với Button để đảm bảo nhận sự kiện (trên root)
-        var clickable = slotGO.GetComponent<ShopItemClickHandler>();
-        if (clickable == null) clickable = slotGO.AddComponent<ShopItemClickHandler>();
-        clickable.manager = this;
-        clickable.item = item;
-        clickable.button = slotButton;
-        clickable.slotRoot = slotGO;
-
-        // Đồng thời gắn handler trực tiếp lên ItemIcon (vì nó là đối tượng được raycast)
-        var iconClickable = itemIcon.gameObject.GetComponent<ShopItemClickHandler>();
-        if (iconClickable == null) iconClickable = itemIcon.gameObject.AddComponent<ShopItemClickHandler>();
-        iconClickable.manager = this;
-        iconClickable.item = item;
-        iconClickable.button = slotButton;
-        iconClickable.slotRoot = slotGO;
-
-        // Cho phép button con (nếu prefab có) cũng gọi mua
-        var childButton = slotGO.GetComponentInChildren<Button>(true);
-        if (childButton != null)
+        // Only add click handlers if player can afford the item
+        if (canAfford)
         {
-            childButton.onClick.AddListener(() => PurchaseItem(item, childButton, slotGO));
+            // Gắn handler click độc lập với Button để đảm bảo nhận sự kiện (trên root)
+            var clickable = slotGO.GetComponent<ShopItemClickHandler>();
+            if (clickable == null) clickable = slotGO.AddComponent<ShopItemClickHandler>();
+            clickable.manager = this;
+            clickable.item = item;
+            clickable.button = slotButton;
+            clickable.slotRoot = slotGO;
+
+            // Đồng thời gắn handler trực tiếp lên ItemIcon (vì nó là đối tượng được raycast)
+            var iconClickable = itemIcon.gameObject.GetComponent<ShopItemClickHandler>();
+            if (iconClickable == null) iconClickable = itemIcon.gameObject.AddComponent<ShopItemClickHandler>();
+            iconClickable.manager = this;
+            iconClickable.item = item;
+            iconClickable.button = slotButton;
+            iconClickable.slotRoot = slotGO;
+
+            // Cho phép button con (nếu prefab có) cũng gọi mua
+            var childButton = slotGO.GetComponentInChildren<Button>(true);
+            if (childButton != null)
+            {
+                childButton.onClick.AddListener(() => PurchaseItem(item, childButton, slotGO));
+            }
+        }
+        else
+        {
+            // Disable button completely if can't afford
+            if (slotButton != null)
+            {
+                slotButton.interactable = false;
+            }
         }
     }
 
@@ -221,14 +285,36 @@ public class ShopManager : MonoBehaviour
 
         public void OnPointerClick(PointerEventData eventData)
         {
-            if (manager == null || item == null) return;
+            Debug.Log($"[SHOP] ShopItemClickHandler.OnPointerClick called for item: {(item != null ? item.itemName : "NULL")}");
+            if (manager == null)
+            {
+                Debug.LogWarning("[SHOP] Manager is null in ShopItemClickHandler!");
+                return;
+            }
+            if (item == null)
+            {
+                Debug.LogWarning("[SHOP] Item is null in ShopItemClickHandler!");
+                return;
+            }
             manager.PurchaseItem(item, button != null ? button : GetComponent<Button>(), slotRoot != null ? slotRoot : gameObject);
         }
     }
 
     private void PurchaseItem(GearItem item, Button slotButton, GameObject slotRoot)
     {
-        if (currentRunData.playerData.gold < item.basePrice) return;
+        if (item == null)
+        {
+            Debug.LogWarning("[SHOP] PurchaseItem called with null item!");
+            return;
+        }
+        
+        Debug.Log($"[SHOP] Attempting to purchase: {item.itemName} (price: {item.basePrice}, gold: {currentRunData.playerData.gold})");
+        
+        if (currentRunData.playerData.gold < item.basePrice)
+        {
+            Debug.LogWarning($"[SHOP] Not enough gold to purchase {item.itemName}! Need {item.basePrice}, have {currentRunData.playerData.gold}");
+            return;
+        }
 
         currentRunData.playerData.gold -= item.basePrice;
         if (currentRunData.playerData.gold < 0) currentRunData.playerData.gold = 0;
@@ -270,6 +356,74 @@ public class ShopManager : MonoBehaviour
                 iconTf.gameObject.SetActive(false);
             }
         }
+    }
+
+    /// <summary>
+    /// Calculate the sell price for an item (typically 50% of base price)
+    /// </summary>
+    public int CalculateSellPrice(GearItem item)
+    {
+        if (item == null) return 0;
+        // Standard practice: sell for 50% of base price
+        return Mathf.Max(1, item.basePrice / 2);
+    }
+
+    /// <summary>
+    /// Sell an item from inventory or equipment
+    /// </summary>
+    public bool SellItem(GearItem item)
+    {
+        if (item == null || currentRunData == null) return false;
+
+        int sellPrice = CalculateSellPrice(item);
+
+        // Try to remove from inventory first
+        if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+        {
+            var inventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
+            var equipment = GameManager.Instance.playerInstance.GetComponent<Equipment>();
+
+            if (inventory != null)
+            {
+                // Try to remove from inventory (RemoveItem already checks if item exists)
+                if (inventory.RemoveItem(item))
+                {
+                    // Add gold and update UI
+                    currentRunData.playerData.gold += sellPrice;
+                    UpdatePlayerGoldUI();
+
+                    // Force UI refresh
+                    SyncInventoryAndEquipmentUI();
+                    return true;
+                }
+            }
+
+            // If not in inventory, check equipment
+            if (equipment != null)
+            {
+                // Check all equipment slots
+                for (int i = 0; i < equipment.equipmentSlots.Length; i++)
+                {
+                    if (equipment.equipmentSlots[i] == item)
+                    {
+                        // Unequip the item
+                        GearItem unequippedItem = equipment.UnequipItemFromSlot(i);
+                        if (unequippedItem != null)
+                        {
+                            // Add gold and update UI
+                            currentRunData.playerData.gold += sellPrice;
+                            UpdatePlayerGoldUI();
+
+                            // Force UI refresh
+                            SyncInventoryAndEquipmentUI();
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     // --- CÁC HÀM HỖ TRỢ ---

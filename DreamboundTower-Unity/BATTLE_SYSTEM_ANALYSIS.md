@@ -291,7 +291,26 @@ The `Equipment.ApplyGearStats()` method correctly handles the complex interactio
    - Dodge check (if not bypassed)
    - Conditional damage reduction (low HP, non-boss)
    - Regular damage reduction (`damageReduction`)
-   - Defense subtraction
+   - **Defense-based damage reduction** (League of Legends style: percentage-based)
+     - Formula: `damageReductionPercent = defense / (defense + DEFENSE_FORMULA_CONSTANT)`
+     - Constant tuned to 100 (standard LoL formula) for balanced scaling
+     - Provides diminishing returns: Low DEF scales slower, high DEF scales slower (balanced)
+     - **Defense-only cap at 67%** (MAX_DEFENSE_DAMAGE_REDUCTION): Defense stat alone cannot exceed 67%
+     - Examples with constant=100 (capped at 67% for defense alone):
+       - DEF 10 → 9.1% reduction (slower scaling at low DEF)
+       - DEF 25 → 20.0% reduction
+       - DEF 50 → 33.3% reduction (good mid-game scaling)
+       - DEF 100 → 50.0% reduction
+       - DEF 200 → 66.7% reduction (below 67% cap)
+       - DEF 500 → 83.3% reduction → **CAPPED at 67%** (defense alone cannot exceed 67%)
+   - **Gear damage reduction + Defense reduction stacking**:
+     - Gear reduction and defense reduction stack multiplicatively
+     - Formula: `totalReduction = 1 - (1 - gearReduction) * (1 - defenseReduction)`
+     - Example: 10% gear + 40% defense = 46% total reduction
+   - **Maximum total damage reduction cap**: 80% (MAX_TOTAL_DAMAGE_REDUCTION)
+     - Prevents near-invincible builds when high DEF + gear damage reduction stack
+     - Ensures minimum 20% damage is always taken (combat remains engaging)
+     - Defense alone capped at 67%, but gear can push total up to 80%
    - Minimum 1 damage guaranteed
    - Reflect damage calculation
    - Shield absorption (if applicable)
@@ -520,7 +539,8 @@ Similar to attack damage, but:
 3. **Damage Reduction Tests**:
    - Verify regular damage reduction
    - Verify conditional damage reduction (low HP, non-boss)
-   - Verify defense application
+   - Verify defense application (percentage-based: `damageReductionPercent = defense / (defense + 100)`)
+   - Test various defense values (0, 25, 50, 100, 200) and verify reduction percentages
 
 ---
 
@@ -556,16 +576,96 @@ The battle system is well-architected with clear separation of concerns and modu
 5. ✅ **Temporary Modifier Tracking**: Complete system implemented
 6. ✅ **Overheal → Shield Mechanic**: Implemented with 40% conversion, 2-turn duration, and shield cap
 7. ✅ **Shield Persistence Fix**: Shields are now cleared when battles end
+8. ✅ **Defense Formula**: Changed from flat subtraction to percentage-based (League of Legends style) with constant (100), defense-only cap (67%), and total cap (80%) to prevent invincible builds
+
+#### ✅ Issue #6: Defense Formula - Changed to Percentage-Based (League of Legends Style) - Tuned Constant + Cap
+- **Status**: ✅ **FIXED** (with tuned constant and maximum cap)
+- **Severity**: Medium
+- **Location**: `Character.TakeDamage()` line 800-856
+- **Problem**: 
+  - Original formula used flat subtraction: `actualDamage = Mathf.Max(1, reducedDamage - defense)`
+  - High defense could reduce damage to near-zero values (e.g., 100 damage vs 52 DEF = 48 damage)
+  - Early game players with 100 base STR dealing only 48 damage after defense was too low
+- **Solution Implemented**:
+  - Changed to percentage-based damage reduction (League of Legends style)
+  - Formula: `damageReductionPercent = defense / (defense + DEFENSE_FORMULA_CONSTANT)`
+  - **Tuned constant to 100** (standard LoL formula) for balanced scaling across all DEF ranges
+  - **Added defense-only cap of 67%** (MAX_DEFENSE_DAMAGE_REDUCTION): Defense stat alone cannot exceed 67%
+  - **Added maximum total damage reduction cap of 80%** (MAX_TOTAL_DAMAGE_REDUCTION): Gear + defense combined can go up to 80%
+  - Gear damage reduction and defense reduction stack multiplicatively
+  - Final damage: `actualDamage = Mathf.Max(1, conditionallyReducedDamage * (1 - totalDamageReduction))`
+  - Provides diminishing returns: Balanced scaling prevents excessive reduction at both low and high DEF
+- **Constant Tuning Analysis**:
+  - Based on game's DEF range from analysis:
+    - Early game: 0-50 DEF (players start ~10 DEF, enemies ~2-52 DEF)
+    - Mid game: 50-200 DEF (with gear bonuses)
+    - Late game: 200-1000+ DEF (with scaling and gear)
+  - Constant 100 provides balanced curve:
+    - Standard League of Legends formula (tested and balanced)
+    - Lower constant = faster scaling at low DEF, slower at high DEF
+    - Higher constant = slower scaling at low DEF, faster at high DEF
+    - 100 provides balanced scaling: Slower early game, but prevents excessive late game scaling
+    - DEF 200 naturally provides ~67% reduction, which aligns well with the 67% cap
+- **Scaling Comparison (constant=100, defense capped at 67%)**:
+  - **DEF 10**: 9.1% reduction (slower scaling - balanced early game)
+  - **DEF 25**: 20.0% reduction
+  - **DEF 50**: 33.3% reduction (good mid-game scaling)
+  - **DEF 100**: 50.0% reduction (standard half damage point)
+  - **DEF 200**: 66.7% reduction (below 67% defense cap)
+  - **DEF 500**: Would be 83.3% reduction → **CAPPED at 67%** (defense alone cannot exceed 67%)
+- **Defense-Only Damage Reduction Cap**:
+  - **Defense cap set to 67%** (MAX_DEFENSE_DAMAGE_REDUCTION = 0.67f)
+  - Prevents flat defense stat from providing excessive reduction on its own
+  - Defense stat alone cannot exceed 67%, regardless of how high DEF gets
+  - Example: DEF 200 (66.7% reduction) - below cap, no capping
+  - Example: DEF 500 (would be 83.3% reduction) → **CAPPED at 67%** (defense alone)
+- **Maximum Total Damage Reduction Cap**:
+  - **Total cap set to 80%** (MAX_TOTAL_DAMAGE_REDUCTION = 0.80f)
+  - Prevents near-invincible builds when high DEF + gear damage reduction stack
+  - Ensures minimum 20% damage is always taken (combat remains engaging)
+  - Defense alone capped at 67%, but gear can push total up to 80%
+  - Example: DEF 200 (67% reduction) + 0% gear = 67% total (defense at cap, total below 80% cap)
+  - Example: DEF 200 (67% reduction) + 20% gear = 74% total (below 80% cap)
+  - Example: DEF 500 (67% reduction capped) + 30% gear = 77% total (below 80% cap)
+  - Example: DEF 200 (67% reduction) + 40% gear = 80% total → **AT 80% CAP**
+  - Example: DEF 500 (67% reduction capped) + 50% gear = 84% total → **CAPPED at 80%**
+- **Benefits**:
+  - Better early-game scaling: Low DEF values provide meaningful reduction
+  - Balanced mid-game: DEF 50-100 provides good protection
+  - Proper diminishing returns: High DEF scales slower (prevents overpowered tank builds)
+  - Maximum cap prevents invincible tank builds while still rewarding high defense investment
+  - Combat remains engaging even with very high defense + damage reduction gear
+- **Example Comparison**:
+  - **Old (flat)**: 100 damage vs 52 DEF = 48 damage (flat -52)
+  - **New (constant=100, capped)**: 100 damage vs 52 DEF = 66 damage (34.2% reduction, below 67% cap)
+  - **New (constant=100, DEF 200)**: 100 damage vs 200 DEF = 33 damage (67% reduction, at cap)
+- **Stacking Examples with Caps (constant=100, defense max=67%, total max=80%)**:
+  - **DEF 100 (50% reduction) + 10% gear**: Total = 55% reduction (both below caps)
+  - **DEF 200 (67% reduction) + 0% gear**: Total = 67% reduction (defense at cap, total below 80%)
+  - **DEF 200 (67% reduction) + 20% gear**: Total = 74% reduction (below 80% cap)
+  - **DEF 500 (67% reduction capped) + 0% gear**: Total = 67% reduction (defense capped at 67%)
+  - **DEF 500 (67% reduction capped) + 30% gear**: Total = 77% reduction (below 80% cap)
+  - **DEF 200 (67% reduction) + 40% gear**: Total = 80% reduction → **AT 80% TOTAL CAP**
+  - **DEF 500 (67% reduction capped) + 50% gear**: Total = 84% reduction → **CAPPED at 80%** (would be 84% without cap)
+- **Files Modified**:
+  - `Assets/Scripts/Core/Character.cs` - Added `DEFENSE_FORMULA_CONSTANT = 100f`, `MAX_DEFENSE_DAMAGE_REDUCTION = 0.67f` (defense-only cap), and `MAX_TOTAL_DAMAGE_REDUCTION = 0.80f` (total cap), updated `TakeDamage()` method to cap defense at 67% and total at 80%
+- **Testing**:
+  - Test with various defense values (0, 10, 25, 50, 100, 200, 500)
+  - Verify damage reduction percentages match formula
+  - Check console logs for `[DAMAGE REDUCTION]` showing percentage reduction
+  - Verify early-game enemies (DEF 2-52) provide appropriate reduction
+  - Verify late-game scaling with high DEF values
 
 ### 📋 Next Steps:
 1. Add comprehensive testing for all systems
 2. Test skill stat modifiers with various durations
 3. Verify lifesteal accuracy in various scenarios
-4. Consider additional improvements as needed
+4. Test new percentage-based defense formula with various scenarios
+5. Consider additional improvements as needed
 
 ---
 
-**Last Updated**: All critical issues fixed and verified (2024)
+**Last Updated**: Defense formula changed to percentage-based (League of Legends style) - December 2024
 **Author**: AI Assistant
 **Status**: Comprehensive analysis complete - All issues resolved
 

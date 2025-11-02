@@ -196,7 +196,61 @@ public class MysterySceneManager : MonoBehaviour
             if (availableItems.Count > 0)
             {
                 GearItem itemWon = availableItems[Random.Range(0, availableItems.Count)];
-                // (Tương lai) Inventory.Instance.AddItem(itemWon);
+                
+                // Thêm item vào inventory
+                if (GameManager.Instance != null && GameManager.Instance.playerInstance != null)
+                {
+                    var inventory = GameManager.Instance.playerInstance.GetComponent<Inventory>();
+                    if (inventory != null)
+                    {
+                        bool added = inventory.AddItem(itemWon);
+                        if (added)
+                        {
+                            Debug.Log($"[MYSTERY] Added {itemWon.itemName} to inventory");
+                            
+                            // Lưu item vào RunData để persistence
+                            string itemId = itemWon.name; // Use ScriptableObject name as ID
+                            if (currentRunData != null && !currentRunData.playerData.inventoryItemIds.Contains(itemId))
+                            {
+                                currentRunData.playerData.inventoryItemIds.Add(itemId);
+                            }
+                            
+                            // Force refresh UI
+                            var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
+                            foreach (var ui in inventoryUIs)
+                            {
+                                if (ui.inventory != inventory)
+                                {
+                                    ui.UpdateInventoryReference(inventory);
+                                }
+                                else
+                                {
+                                    ui.ForceRefreshUI();
+                                }
+                            }
+                            
+                            // Update DragDropSystem reference
+                            var dragDropSystem = FindFirstObjectByType<DragDropSystem>();
+                            if (dragDropSystem != null)
+                            {
+                                dragDropSystem.UpdateInventoryReference(inventory);
+                            }
+                        }
+                        else
+                        {
+                            Debug.LogWarning($"[MYSTERY] Inventory full! Cannot add {itemWon.itemName}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogError("[MYSTERY] Inventory component not found on playerInstance!");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("[MYSTERY] GameManager.Instance or playerInstance is null!");
+                }
+                
                 CreateRewardSlot(itemWon.icon, itemWon, itemWon.itemName); // Gọi hàm tạo slot cho item
             }
         }

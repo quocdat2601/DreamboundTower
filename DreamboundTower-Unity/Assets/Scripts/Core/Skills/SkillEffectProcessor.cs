@@ -121,6 +121,13 @@ public static class SkillEffectProcessor
                 {
                     caster.RestoreHealth(healAmount);
                     Debug.Log($"[SKILL LIFESTEAL] {caster.name} healed for {healAmount} HP from {damageDealtThisHit} actual damage ({skillData.lifestealPercent * 100f}%)");
+                    
+                    // Show green healing number for skill lifesteal
+                    if (CombatEffectManager.Instance != null)
+                    {
+                        Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(caster);
+                        CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+                    }
                 }
             }
 
@@ -168,6 +175,13 @@ public static class SkillEffectProcessor
             
             Debug.Log($"[SKILL EFFECT] Healing {target.name} for {healAmount} HP");
             target.RestoreHealth(healAmount);
+            
+            // Show green healing number for skill healing
+            if (CombatEffectManager.Instance != null)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(target);
+                CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+            }
         }
     }
     

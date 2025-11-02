@@ -49,6 +49,26 @@ public class Character : MonoBehaviour
     
     // Critical Damage: Base multiplier (can be modified by gear)
     public const float BASE_CRITICAL_DAMAGE_MULTIPLIER = 1.5f; // Base critical hits deal 1.5x damage
+    
+    // Defense formula constant (League of Legends style percentage-based reduction)
+    // Formula: damage_reduction% = defense / (defense + DEFENSE_FORMULA_CONSTANT)
+    // Lower constant = faster scaling at low DEF, slower at high DEF (more diminishing returns)
+    // Higher constant = slower scaling at low DEF, faster at high DEF (less diminishing returns)
+    // Tuned for game's DEF range: Early (0-50), Mid (50-200), Late (200-1000+)
+    // Value of 100 provides balanced curve: 25 DEF = 20%, 50 DEF = 33%, 100 DEF = 50%, 200 DEF = 67%
+    // Increased from 75 to 100 to slow down high DEF scaling and prevent excessive reduction
+    public const float DEFENSE_FORMULA_CONSTANT = 100f; // Tuned constant for balanced scaling (slower at high DEF)
+    
+    // Maximum defense-only damage reduction cap (defense stat alone cannot exceed this)
+    // Prevents flat defense from providing excessive reduction on its own
+    // 67% cap means defense stat alone can provide maximum 67% reduction
+    public const float MAX_DEFENSE_DAMAGE_REDUCTION = 0.67f; // 67% maximum defense-only reduction cap
+    
+    // Maximum total damage reduction cap (includes both gear damageReduction and defense reduction)
+    // Prevents near-invincible builds when high DEF + gear damage reduction stack
+    // 80% cap means maximum 80% damage reduction (minimum 20% damage taken)
+    // This ensures combat remains engaging even with very high defense and damage reduction gear
+    public const float MAX_TOTAL_DAMAGE_REDUCTION = 0.80f; // 80% maximum total damage reduction cap
 
     [Header("Passive Bonuses")]
     [Tooltip("Percentage bonus to mana regeneration from passive skills")]
@@ -499,6 +519,9 @@ public class Character : MonoBehaviour
         int finalPhysicalDamage = CalculatePhysicalDamage(modifiedPhysical, target);
         int finalMagicDamage = CalculateMagicDamage(modifiedMagic);
 
+        // Debug summary: Show total damage before defense
+        Debug.Log($"[ATTACK] {name} attacks {target.name}: PhysicalBase={physicalBase}, ModifiedPhysical={modifiedPhysical}, FinalPhysical={finalPhysicalDamage} | MagicBase={magicBase}, ModifiedMagic={modifiedMagic}, FinalMagic={finalMagicDamage}");
+
         // 4. Apply damage and effects sequentially
         bool hitConnected = false;
         int actualPhysicalDamageDealt = 0;
@@ -559,6 +582,13 @@ public class Character : MonoBehaviour
             {
                 Debug.Log($"[ATTACK LIFESTEAL] {name} healed for {healAmount} HP from {totalActualDamageDealt} actual damage (Physical: {actualPhysicalDamageDealt}, Magic: {actualMagicDamageDealt}) - {lifestealPercent * 100f}%");
                 RestoreHealth(healAmount);
+                
+                // Show green healing number for lifesteal
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                    CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+                }
             }
         }
         
@@ -597,10 +627,12 @@ public class Character : MonoBehaviour
         }
 
         // Tính toán sát thương gốc dựa trên scaling
+        // Note: The weapon's attackBonus is already included in attackPower via AddGearBonus()
+        // So we don't need to add it again - just use attackPower for scaling
         switch (scaling)
         {
             case WeaponScalingType.STR:
-                physicalBase = attackPower; // 100% STR -> Vật lý
+                physicalBase = attackPower; // 100% STR -> Vật lý (includes weapon's attackBonus)
                 magicBase = 0;
                 break;
             case WeaponScalingType.INT:
@@ -616,6 +648,16 @@ public class Character : MonoBehaviour
                 physicalBase = attackPower; // Mặc định về STR
                 magicBase = 0;
                 break;
+        }
+
+        // Debug logging to help diagnose damage issues
+        if (equippedWeapon != null && equippedWeapon.gearType == GearType.Weapon)
+        {
+            Debug.Log($"[DAMAGE CALC] Weapon equipped: {equippedWeapon.itemName}, attackPower={attackPower} (includes weapon bonus {equippedWeapon.attackBonus}), physicalBase={physicalBase}");
+        }
+        else
+        {
+            Debug.Log($"[DAMAGE CALC] No weapon equipped, attackPower={attackPower}, physicalBase={physicalBase}");
         }
 
         physicalBase = Mathf.Max(0, physicalBase);
@@ -776,12 +818,63 @@ public class Character : MonoBehaviour
             conditionallyReducedDamage = conditionalManager.ApplyConditionalDamageReduction(damage, attacker);
         }
         
-        // Apply regular damage reduction
-        int reducedDamage = ApplyDamageReduction(conditionallyReducedDamage);
+        // Get gear/passive damage reduction percentage (not applied yet - will be part of total calculation)
+        float gearDamageReduction = damageReduction; // Percentage from gear/passives
         
-        // NOTE: Currently, defense applies to BOTH physical and magic
-        // TODO: If you want separate Magic Resistance, add int magicDefense stat and check damageType here
-        int actualDamage = Mathf.Max(1, reducedDamage - defense);
+        // Calculate defense-based damage reduction (League of Legends style: percentage-based)
+        // Formula: damage reduction % = defense / (defense + DEFENSE_FORMULA_CONSTANT)
+        // This provides diminishing returns and scales better across all levels
+        // Lower DEF values scale faster (each point gives more % reduction)
+        // Higher DEF values scale slower (diminishing returns - each point gives less % reduction)
+        // 
+        // Scaling examples with DEFENSE_FORMULA_CONSTANT = 100:
+        // DEF 10  → 9.1% reduction (slower scaling at low DEF)
+        // DEF 25  → 20.0% reduction
+        // DEF 50  → 33.3% reduction (good mid-game scaling)
+        // DEF 100 → 50.0% reduction
+        // DEF 200 → 66.7% reduction (slower scaling at high DEF - maxes near 67%)
+        // DEF 500 → 83.3% reduction (but capped at 67% total with gear)
+        //
+        // Constant of 100 provides better balance: Slower early game, but prevents excessive late game scaling
+        float defenseReductionPercent = 0f;
+        
+        if (defense > 0)
+        {
+            // League of Legends style: defense / (defense + constant)
+            // Calculate base defense reduction
+            float rawDefenseReduction = defense / (defense + DEFENSE_FORMULA_CONSTANT);
+            
+            // Cap defense reduction alone at 67% (prevents flat DEF from providing excessive reduction)
+            // This ensures defense stat alone cannot exceed 67%, but gear can push total higher (up to 80%)
+            defenseReductionPercent = Mathf.Min(rawDefenseReduction, MAX_DEFENSE_DAMAGE_REDUCTION);
+        }
+        
+        // Calculate total damage reduction (multiplicative stacking)
+        // Total reduction = 1 - (1 - gearReduction) * (1 - defenseReduction)
+        // This ensures gear and defense stack multiplicatively, not additively
+        // Example: 10% gear + 40% defense = 1 - (0.9 * 0.6) = 1 - 0.54 = 46% total reduction
+        float totalDamageReduction = 1f - ((1f - gearDamageReduction) * (1f - defenseReductionPercent));
+        
+        // Apply maximum total damage reduction cap (gear + defense combined can go up to 80%)
+        // This ensures combat remains engaging even with very high defense + damage reduction gear
+        // Cap ensures minimum 20% damage is always taken (maximum 80% reduction)
+        bool wasCapped = false;
+        if (totalDamageReduction > MAX_TOTAL_DAMAGE_REDUCTION)
+        {
+            totalDamageReduction = MAX_TOTAL_DAMAGE_REDUCTION;
+            wasCapped = true;
+        }
+        
+        // Calculate final damage after all reductions
+        // Apply total reduction to the conditional damage (after conditional passives)
+        int actualDamage = Mathf.Max(1, Mathf.RoundToInt(conditionallyReducedDamage * (1f - totalDamageReduction)));
+        
+        // Debug logging for damage calculation
+        bool defenseWasCapped = defense > 0 && (defense / (defense + DEFENSE_FORMULA_CONSTANT)) > MAX_DEFENSE_DAMAGE_REDUCTION;
+        string defenseCappedMsg = defenseWasCapped ? $" (DEF capped at {MAX_DEFENSE_DAMAGE_REDUCTION*100f:F1}%)" : "";
+        string totalCappedMsg = wasCapped ? $" (TOTAL capped at {MAX_TOTAL_DAMAGE_REDUCTION*100f:F1}%)" : "";
+        Debug.Log($"[DAMAGE REDUCTION] {name} took {damage} damage (type: {damageType}) -> after conditional: {conditionallyReducedDamage}, gear reduction: {gearDamageReduction*100f:F1}%, defense: {defense} ({defenseReductionPercent*100f:F1}% reduction{defenseCappedMsg}), total reduction: {totalDamageReduction*100f:F1}%{totalCappedMsg}, final damage: {actualDamage}");
+        
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
         
@@ -886,6 +979,8 @@ public class Character : MonoBehaviour
     #region Health Management
     public void Heal(int amount)
     {
+        if (amount <= 0) return;
+        
         int finalAmount = amount;
         // Apply heal bonus/malus from status effects if available
         int bonusPercent = StatusEffectManager.Instance != null ? StatusEffectManager.Instance.GetHealBonusPercent(this) : 0;
@@ -897,6 +992,13 @@ public class Character : MonoBehaviour
         if (currentHP > maxHP) currentHP = maxHP;
         OnHealthChanged?.Invoke(currentHP, maxHP);
         UpdateHPUI(); // Ensure UI updates
+        
+        // Show green healing number for Heal() method
+        if (CombatEffectManager.Instance != null)
+        {
+            Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+            CombatEffectManager.Instance.ShowHealingNumber(uiPosition, finalAmount);
+        }
     }
 
     public void HealPercent(int percent)
@@ -912,10 +1014,19 @@ public class Character : MonoBehaviour
     public void HealPercentage(float percentage)
     {
         int healAmount = Mathf.FloorToInt(maxHP * percentage);
+        if (healAmount <= 0) return;
+        
         currentHP += healAmount;
         if (currentHP > maxHP) currentHP = maxHP;
         OnHealthChanged?.Invoke(currentHP, maxHP);
         UpdateHPUI(); // Ensure UI updates
+        
+        // Show green healing number for HealPercentage() method
+        if (CombatEffectManager.Instance != null)
+        {
+            Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+            CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+        }
     }
 
     /// <summary>

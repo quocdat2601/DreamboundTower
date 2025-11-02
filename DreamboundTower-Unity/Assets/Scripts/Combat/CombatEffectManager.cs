@@ -198,6 +198,37 @@ public class CombatEffectManager : MonoBehaviour // Updated for sprite animation
     }
     
     /// <summary>
+    /// Shows healing number (green, with + prefix)
+    /// </summary>
+    /// <param name="position">UI position to show healing number</param>
+    /// <param name="healAmount">Amount of healing to display</param>
+    public void ShowHealingNumber(Vector3 position, int healAmount)
+    {
+        if (damageNumberPrefab == null || damageNumberCanvas == null) return;
+        
+        // Spawn damage number
+        GameObject damageNumber = Instantiate(damageNumberPrefab, damageNumberCanvas.transform);
+        
+        // Set position relative to the canvas
+        damageNumber.transform.position = position;
+        
+        // Add some random offset to prevent overlapping
+        Vector3 randomOffset = new Vector3(
+            Random.Range(-80f, 80f),
+            Random.Range(-30f, 30f),
+            0f
+        );
+        damageNumber.transform.position += randomOffset;
+        
+        // Configure damage number with healing flag (green color, + prefix)
+        DamageNumber damageNumberScript = damageNumber.GetComponent<DamageNumber>();
+        if (damageNumberScript != null)
+        {
+            damageNumberScript.ShowDamage(healAmount, false, true, false, false); // isHealing = true
+        }
+    }
+    
+    /// <summary>
     /// Shows damage number with custom color
     /// </summary>
     /// <param name="position">UI position to show damage number</param>
