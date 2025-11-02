@@ -10,27 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Normal Armor Goblin
+  m_Name: Nightmare Mage
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
-  kind: 0
-  gimmick: 0
+  kind: 1
+  gimmick: 1572864
   isUniqueOrEventOnly: 0
-  minFloor: 20
-  summonableEnemies: []
+  minFloor: 70
+  summonableEnemies:
+  - {fileID: 11400000, guid: 00ecc2a439328d34fb5f2537d654304c, type: 2}
   manaRegenPerTurnn: 0
   skills: []
   sprites:
-  - {fileID: 391932375611520008, guid: c3b8d21ecdcad8747b56227803cc189f, type: 3}
+  - {fileID: -8848801979448007959, guid: 3eac8b04f114931409049385eebb1b64, type: 3}
   baseStatsAtFloor1:
-    HP: 4
-    STR: 6
-    DEF: 2
+    HP: 58
+    STR: 20
+    DEF: 8
     MANA: 2
     INT: 2
     AGI: 0
-  hpMultiplier: 1
-  strMultiplier: 1
-  defMultiplier: 1
+  hpMultiplier: 3
+  strMultiplier: 1.6
+  defMultiplier: 1.5
   baseRate: 0.012
   endlessAfterFloor: 100
   endlessBonus: 0.002

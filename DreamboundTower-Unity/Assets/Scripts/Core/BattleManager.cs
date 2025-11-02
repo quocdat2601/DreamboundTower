@@ -2104,45 +2104,6 @@ public class BattleManager : MonoBehaviour
         SceneManager.LoadScene("MainMenu");
     }
 
-    public void OnRetryButton()
-    {
-        Debug.Log("Retry button pressed. Reverting to the last checkpoint.");
-
-        var runData = GameManager.Instance.currentRunData;
-
-        // Nếu hết mạng thì không cho retry
-        if (runData.playerData.steadfastDurability <= 0)
-        {
-            Debug.LogWarning("Cannot retry, no durability left. Forcing quit.");
-            OnQuitButton();
-            return;
-        } // --- LOGIC KHÔI PHỤC CHECKPOINT ---
-          // 1. Xóa bản đồ hiện tại để buộc game tạo map mới cho zone
-        runData.mapData.currentMapJson = null;
-
-        // 2. Xóa đường đi cũ trên bản đồ
-        runData.mapData.path.Clear();
-
-        // 3. Khôi phục lại máu/mana (ví dụ: hồi đầy)
-        //    Lưu ý: Chúng ta cần truy cập vào chỉ số max của người chơi
-        //    Cách đơn giản nhất là thêm maxHP, maxMana vào PlayerData
-        //    (Bạn cần thêm public int maxHP; public int maxMana; vào PlayerData.cs)
-        //    Tạm thời, chúng ta sẽ hồi máu dựa trên chỉ số từ Character component
-        var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
-        if (playerChar != null)
-        {
-            runData.playerData.currentHP = playerChar.maxHP;
-            //runData.playerData.currentMana = playerChar.maxMana;
-        }
-
-        // 4. Lưu lại trạng thái đã khôi phục
-        RunSaveService.SaveRun(runData);
-
-        // 5. Tải lại scene của zone hiện tại để bắt đầu lại
-        string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
-        SceneManager.LoadScene(zoneSceneToLoad);
-    }
-
     private void HandleCharacterDeath(Character deadCharacter)
     {
         // Check if BattleManager is still valid (not destroyed)
@@ -2389,20 +2350,13 @@ public class BattleManager : MonoBehaviour
         
         // Find buttons by searching all children (handles any naming variation)
         Button[] allButtons = defeatPanel.GetComponentsInChildren<Button>(true);
-        bool restartConnected = false;
         bool quitConnected = false;
         
         foreach (Button btn in allButtons)
         {
             string buttonName = btn.name.ToLower();
             
-            if (!restartConnected && (buttonName.Contains("restart") || buttonName.Contains("retry")))
-            {
-                btn.onClick.RemoveAllListeners();
-                btn.onClick.AddListener(OnRetryButton);
-                restartConnected = true;
-            }
-            else if (!quitConnected && buttonName.Contains("quit"))
+           if (!quitConnected && buttonName.Contains("quit"))
             {
                 btn.onClick.RemoveAllListeners();
                 btn.onClick.AddListener(OnQuitButton);

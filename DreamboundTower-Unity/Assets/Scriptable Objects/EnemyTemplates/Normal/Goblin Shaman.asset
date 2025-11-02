@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
-  m_Name: Normal Goblin
+  m_Name: Goblin Shaman
   m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
   kind: 0
   gimmick: 0
@@ -20,11 +20,11 @@ MonoBehaviour:
   manaRegenPerTurnn: 0
   skills: []
   sprites:
-  - {fileID: 2572365745140355499, guid: facbffd5307849e45a5912aedd48cb4b, type: 3}
+  - {fileID: -6916682107500078297, guid: fb1a2d0391c1b304f89a59f62f28d409, type: 3}
   baseStatsAtFloor1:
-    HP: 4
-    STR: 6
-    DEF: 2
+    HP: 18
+    STR: 10
+    DEF: 8
     MANA: 2
     INT: 2
     AGI: 0

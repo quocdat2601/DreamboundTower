@@ -3624,7 +3624,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &6792822406683209723
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4092,9 +4092,9 @@ MonoBehaviour:
   fallbackClass: {fileID: 11400000, guid: 63c32e985882756438bbe27308f9abe9, type: 2}
   overridePlayerStats: 1
   customPlayerStats:
-    HP: 100
+    HP: 1
     STR: 100
-    DEF: 100
+    DEF: 1
     MANA: 100
     INT: 100
     AGI: 100
@@ -4197,7 +4197,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: fcb3b58ec9f294f4795ba787aa9a304b, type: 2}
   pauseButton: {fileID: 6403060979234749111}
   pauseMenuPanel: {fileID: 3559478053474464741}
-  blockerPanel: {fileID: 0}
+  blockerPanel: {fileID: 8655274579607826135}
   settingsPanel: {fileID: 7958536711203583815}
   settingsMenuPrefab: {fileID: 2872595822027186355, guid: 3ea22ca041a396f4fb5a457efc2fbb0c, type: 3}
   lastRunTime: 0
@@ -5330,10 +5330,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 492084923885883520}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 544.85425, y: -64.90936}
-  m_SizeDelta: {x: 274, y: 129.81873}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 274, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8944767346539283760
 CanvasRenderer:
@@ -5417,9 +5417,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: BattleManager, Assembly-CSharp
-        m_MethodName: OnRetryButton
+      - m_Target: {fileID: 5850385722822571171}
+        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
+        m_MethodName: RetryAtCheckpoint
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -5898,10 +5898,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 492084923885883520}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 181.61807, y: -64.90936}
-  m_SizeDelta: {x: 274, y: 129.81873}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 274, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7631275087539003640
 CanvasRenderer:
