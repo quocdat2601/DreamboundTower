@@ -1,63 +1,64 @@
 ﻿using UnityEngine;
+using Presets;
+using System.Linq;
 
 /// <summary>
 /// Component that handles loot dropping when an enemy dies
 /// 
 /// USAGE:
 /// - Attach to enemy GameObjects to make them drop loot
-/// - Uses LootTable to determine what items to drop
-/// - Handles drop chance calculations and loot spawning
+/// - Uses LootConfigManager to determine drop rates based on floor and enemy type
+/// - Automatically detects enemy type from EnemyInfo component or BattleManager
+/// - Selects random items from GameManager.allItems by rarity
 /// - Integrates with LootManager for loot management
 /// 
 /// SETUP:
 /// 1. Attach to enemy GameObjects
-/// 2. Assign LootTable reference
-/// 3. Set drop chance and multiplier values
-/// 4. System automatically drops loot on death
+/// 2. System automatically detects enemy type and floor
+/// 3. System automatically drops loot on death
 /// </summary>
 public class LootDrop : MonoBehaviour
 {
     [Header("Loot Configuration")]
-    [Tooltip("The loot table that defines what this enemy can drop")]
-    public LootTable lootTable;
+    [Tooltip("Override enemy kind (leave as Normal to auto-detect from EnemyInfo or BattleManager)")]
+    public EnemyKind overrideEnemyKind = EnemyKind.Normal;
     
-    [Tooltip("Base chance for this enemy to drop any loot (0-1)")]
-    [Range(0f, 1f)]
-    public float baseDropChance = 0.7f;
+    [Tooltip("If true, use overrideEnemyKind instead of auto-detecting")]
+    public bool useOverrideKind = false;
     
-    [Tooltip("Multiplier for drop chances (higher = more likely to drop)")]
+    [Header("Drop Settings")]
+    [Tooltip("Multiplier for drop chances (higher = more likely to drop). Only used if drop chance is not 100%")]
     [Range(0.1f, 3f)]
     public float dropChanceMultiplier = 1f;
     
-    [Header("Drop Settings")]
-    [Tooltip("Maximum number of items this enemy can drop")]
-    public int maxDrops = 3;
-    
-    [Tooltip("Should drops be scattered around the enemy position?")]
-    public bool scatterDrops = false;
-    
-    [Tooltip("Radius for scattering drops")]
-    public float scatterRadius = 0.1f;
-    
     private Character character;
     private LootManager lootManager;
-    //private ResurrectBehavior resurrectGimmick;
+    private EnemyInfo enemyInfo;
+    
     void Start()
     {
         // Get the Character component to listen for death
         character = GetComponent<Character>();
         if (character == null)
         {
+            Debug.LogWarning("[LootDrop] No Character component found!");
             return;
         }
         
         // Find the LootManager in the scene
         lootManager = FindFirstObjectByType<LootManager>();
-
+        if (lootManager == null)
+        {
+            Debug.LogWarning("[LootDrop] LootManager not found in scene!");
+            return;
+        }
+        
+        // Try to get EnemyInfo component
+        enemyInfo = GetComponent<EnemyInfo>();
+        
         // Subscribe to character death event
         character.OnDeath += OnCharacterDeath;
     }
-    
     
     void OnDestroy()
     {
@@ -75,13 +76,66 @@ public class LootDrop : MonoBehaviour
     void OnCharacterDeath(Character deadCharacter)
     {
         ResurrectBehavior resurrectGimmick = GetComponent<ResurrectBehavior>();
-        // Logic kiểm tra của bạn vẫn giữ nguyên
-        if (resurrectGimmick != null && !resurrectGimmick.hasResurrected)
+        // Check for fake death (resurrect gimmick)
+        if (resurrectGimmick != null && !resurrectGimmick.hasResurrected)
         {
-            // Đây là cái chết "giả". Không làm gì cả.
-            return;
+            // This is a fake death. Don't drop loot yet.
+            return;
         }
         DropLoot();
+    }
+    
+    /// <summary>
+    /// Get the enemy kind for this enemy
+    /// </summary>
+    EnemyKind GetEnemyKind()
+    {
+        // Use override if set
+        if (useOverrideKind)
+        {
+            return overrideEnemyKind;
+        }
+        
+        // Try to get from EnemyInfo component
+        if (enemyInfo != null)
+        {
+            return enemyInfo.enemyKind;
+        }
+        
+        // EnemyInfo component should be added by BattleManager during spawn
+        // If not found, fallback to name-based detection
+        
+        // Fallback: check by name
+        string enemyName = gameObject.name;
+        if (enemyName.Contains("Boss") || enemyName.Contains("BOSS"))
+        {
+            return EnemyKind.Boss;
+        }
+        else if (enemyName.Contains("Elite") || enemyName.Contains("ELITE"))
+        {
+            return EnemyKind.Elite;
+        }
+        
+        // Default to Normal
+        return EnemyKind.Normal;
+    }
+    
+    /// <summary>
+    /// Get the current absolute floor
+    /// </summary>
+    int GetAbsoluteFloor()
+    {
+        if (GameManager.Instance == null || GameManager.Instance.currentRunData == null)
+        {
+            return 1; // Fallback
+        }
+        
+        var runData = GameManager.Instance.currentRunData;
+        int zone = runData.mapData.currentZone;
+        int floorInZone = runData.mapData.currentFloorInZone;
+        int floorsPerZone = 10;
+        
+        return (zone - 1) * floorsPerZone + floorInZone;
     }
     
     /// <summary>
@@ -89,38 +143,64 @@ public class LootDrop : MonoBehaviour
     /// </summary>
     public void DropLoot()
     {
-        if (lootTable == null)
+        if (lootManager == null)
         {
+            Debug.LogWarning("[LootDrop] LootManager not found!");
             return;
         }
         
-        
-        // Calculate final drop chance
-        float finalDropChance = baseDropChance * dropChanceMultiplier;
-        
-        // Roll for drops
-        int dropsToSpawn = 0;
-        for (int i = 0; i < maxDrops; i++)
+        if (LootConfigManager.Instance == null)
         {
-            if (Random.Range(0f, 1f) <= finalDropChance)
+            Debug.LogWarning("[LootDrop] LootConfigManager not found! Make sure it's in the scene.");
+            return;
+        }
+        
+        // Get enemy kind and floor
+        EnemyKind enemyKind = GetEnemyKind();
+        int absoluteFloor = GetAbsoluteFloor();
+        
+        // Get rarity config for this enemy type and floor
+        LootConfigSO.LootRarityConfig rarityConfig = LootConfigManager.Instance.GetRarityConfig(enemyKind, absoluteFloor);
+        if (rarityConfig == null)
+        {
+            Debug.LogWarning($"[LootDrop] No rarity config found for {enemyKind} at floor {absoluteFloor}");
+            return;
+        }
+        
+        // Calculate number of drops
+        int dropCount = Random.Range(rarityConfig.minDrops, rarityConfig.maxDrops + 1);
+        
+        // Roll for each drop slot
+        int actualDrops = 0;
+        float baseDropChance = rarityConfig.baseDropChance * dropChanceMultiplier;
+        
+        for (int i = 0; i < dropCount; i++)
+        {
+            // Boss enemies always drop (baseDropChance should be 1.0)
+            // Other enemies roll based on baseDropChance
+            if (enemyKind == EnemyKind.Boss || Random.Range(0f, 1f) <= baseDropChance)
             {
-                dropsToSpawn++;
+                // Get random rarity based on config
+                ItemRarity rarity = rarityConfig.GetRandomRarity();
+                
+                // Spawn loot with this rarity
+                Vector3 spawnPos = GetEnemyWorldPosition(); // Not used, but kept for compatibility
+                lootManager.SpawnLootByRarity(rarity, spawnPos, 1);
+                
+                actualDrops++;
             }
         }
         
-        if (dropsToSpawn > 0)
+        if (actualDrops > 0)
         {
-            // Get the enemy's UI position and convert to world coordinates
-            Vector3 spawnPosition = GetEnemyWorldPosition();
-            
-            lootManager.SpawnLoot(lootTable, spawnPosition, dropsToSpawn, scatterDrops, scatterRadius);
+            Debug.Log($"[LootDrop] Dropped {actualDrops} items for {enemyKind} enemy at floor {absoluteFloor}");
         }
     }
     
     /// <summary>
     /// Get the enemy's world position by converting from UI coordinates
     /// </summary>
-    /// <returns>World position where loot should spawn</returns>
+    /// <returns>World position where loot should spawn (not used in new system, but kept for compatibility)</returns>
     Vector3 GetEnemyWorldPosition()
     {
         // Check if this enemy is in a UI Canvas
@@ -172,7 +252,7 @@ public class LootDrop : MonoBehaviour
                 {
                     // Use the enemy's actual world position (same approach as player)
                     Vector3 enemyPos = targetEnemy.transform.position;
-                    worldPos = new Vector3(enemyPos.x, enemyPos.y - 30f, 0); // Reduced from 50f to 30f to make it higher
+                    worldPos = new Vector3(enemyPos.x, enemyPos.y - 30f, 0);
                     
                     Debug.Log($"[LootDrop] Found {targetEnemy.name} at pos: {enemyPos}, Placing loot at: {worldPos}");
                 }
@@ -182,12 +262,12 @@ public class LootDrop : MonoBehaviour
                     if (player != null)
                     {
                         Vector3 playerPos = player.transform.position;
-                        worldPos = new Vector3(playerPos.x + 100f, playerPos.y - 30f, 0); // Also reduced from 50f to 30f
+                        worldPos = new Vector3(playerPos.x + 100f, playerPos.y - 30f, 0);
                         Debug.Log($"[LootDrop] No enemy found, using player pos: {playerPos}, Placing loot at: {worldPos}");
                     }
                     else
                     {
-                        worldPos = new Vector3(500f, 120f, 0); // Increased from 100f to 120f
+                        worldPos = new Vector3(500f, 120f, 0);
                         Debug.Log($"[LootDrop] No characters found, using fallback: {worldPos}");
                     }
                 }
@@ -210,10 +290,6 @@ public class LootDrop : MonoBehaviour
     [ContextMenu("Force Drop Loot")]
     public void ForceDropLoot()
     {
-        if (lootTable != null && lootManager != null)
-        {
-            Vector3 worldPos = GetEnemyWorldPosition();
-            lootManager.SpawnLoot(lootTable, worldPos, maxDrops, scatterDrops, scatterRadius);
-        }
+        DropLoot();
     }
 }

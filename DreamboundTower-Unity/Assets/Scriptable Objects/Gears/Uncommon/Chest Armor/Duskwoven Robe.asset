@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Duskwoven Robe
   gearType: 2
-  icon: {fileID: 3926095386875515789, guid: ad7028ce6b6f04b4d9b7aa85950e787f, type: 3}
+  icon: {fileID: 3926095386875515789, guid: f61fcfbaafe4f9041b32146b4cb02b8f, type: 3}
   description: nothing lol
   rarity: 1
   basePrice: 200

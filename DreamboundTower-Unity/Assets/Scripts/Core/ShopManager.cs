@@ -199,7 +199,13 @@ public class ShopManager : MonoBehaviour
         // Check if item has an icon sprite
         if (item.icon == null)
         {
-            Debug.LogWarning($"[SHOP] Item '{item.itemName}' has no icon sprite assigned! It will appear as white/empty.");
+            Debug.LogWarning($"[SHOP] Item '{item.itemName}' (Rarity: {item.rarity}, Type: {item.gearType}) has NULL icon! Icon reference may be broken. It will appear as white/empty.");
+            // Show item with semi-transparent white to indicate missing icon
+            itemIcon.color = new Color(1f, 1f, 1f, 0.3f);
+        }
+        else
+        {
+            itemIcon.color = Color.white;
         }
         
         itemIcon.sprite = item.icon;

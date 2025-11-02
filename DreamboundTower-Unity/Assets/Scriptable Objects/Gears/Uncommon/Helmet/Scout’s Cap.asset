@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: "Scout\u2019s Cap"
   gearType: 1
-  icon: {fileID: 9079177159190570043, guid: d9e5d13023755c04a8bea5a92a556bf5, type: 3}
+  icon: {fileID: 9079177159190570043, guid: 2c530a46586b516419cf9149feb77266, type: 3}
   description: nothing lol
   rarity: 1
   basePrice: 85

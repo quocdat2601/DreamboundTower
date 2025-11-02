@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Moonstone Charm
   gearType: 5
-  icon: {fileID: 8118147015489885807, guid: 5f3b73629beafd64faed8ca58b94e825, type: 3}
+  icon: {fileID: 8118147015489885807, guid: 70389042fa0189b41afd1750967db1ca, type: 3}
   description: nothing lol
   rarity: 1
   basePrice: 55

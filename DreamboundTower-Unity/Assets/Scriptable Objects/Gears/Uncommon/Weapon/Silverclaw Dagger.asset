@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: Silverclaw Dagger
   gearType: 0
-  icon: {fileID: 2182994084055932133, guid: d341c15c8d0a1fe47a22a695462d7010, type: 3}
+  icon: {fileID: 2182994084055932133, guid: 54640c38e1568fd46bed2472443e0ffd, type: 3}
   description: +15% crit chance, 10% proc bleed in 2 turns
   rarity: 1
   basePrice: 20
