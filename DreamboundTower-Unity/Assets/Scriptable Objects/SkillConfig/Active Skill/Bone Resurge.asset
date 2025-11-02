@@ -17,8 +17,8 @@ MonoBehaviour:
   icon: {fileID: 2511625997598199734, guid: 5bd81aaa0144f674d9f6202a5e8c7258, type: 3}
   descriptionTemplate: Immediately restore {heal_amount} HP (25% MaxHP) and gain
     immunity to stun for 1 turn.
-  resource: 0
-  cost: 0
+  resource: 1
+  cost: 10
   cooldown: 6
   target: 2
   vfxPrefab: {fileID: 0}

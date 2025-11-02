@@ -398,7 +398,7 @@ public static class SkillEffectProcessor
         switch (statusName.ToLower())
         {
             case "shield": return new ShieldEffect(intensity, duration);
-            case "reflect": return new ReflectEffect(intensity, duration);
+            case "reflect": return new ReflectEffect(intensity, duration, 0); // Note: radiantShieldAmount = 0 for manual reflect effects
             case "stun": return new StunEffect(duration);
             case "burn": return new BurnEffect(intensity, duration);
             case "poison": return new PoisonEffect(intensity, duration);

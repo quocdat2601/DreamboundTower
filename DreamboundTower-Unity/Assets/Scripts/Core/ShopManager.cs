@@ -158,10 +158,26 @@ public class ShopManager : MonoBehaviour
         if (rootImage == null)
         {
             rootImage = slotGO.AddComponent<Image>();
-            // Transparent but raycastable
-            var c = rootImage.color; c.a = 0.001f; rootImage.color = c;
+            // Set rarity background color
+            RarityColorUtility.ApplyRarityBackground(rootImage, item.rarity);
+        }
+        else
+        {
+            // Apply rarity background color to existing image
+            RarityColorUtility.ApplyRarityBackground(rootImage, item.rarity);
         }
         rootImage.raycastTarget = true;
+        
+        // Also look for a background child object (common in UI prefabs)
+        Transform bgTransform = slotGO.transform.Find("Background");
+        if (bgTransform != null)
+        {
+            Image bgImage = bgTransform.GetComponent<Image>();
+            if (bgImage != null)
+            {
+                RarityColorUtility.ApplyRarityBackground(bgImage, item.rarity);
+            }
+        }
         
         Transform itemIconTransform = slotGO.transform.Find("ItemIcon");
         if (itemIconTransform == null)
@@ -203,11 +219,8 @@ public class ShopManager : MonoBehaviour
             // Darken the icon (similar to disabled event choices)
             itemIcon.color = new Color(0.5f, 0.5f, 0.5f, 0.7f); // Gray with reduced opacity
             
-            // Also darken the button/root image if it has color
-            if (rootImage != null && rootImage.color.a > 0.1f)
-            {
-                rootImage.color = new Color(0.5f, 0.5f, 0.5f, rootImage.color.a);
-            }
+            // DO NOT darken the rootImage - keep the rarity background color visible
+            // The rarity background should remain visible even if unaffordable
             
             // Disable button interaction but keep it visible
             if (slotButton != null)

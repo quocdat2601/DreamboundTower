@@ -18,7 +18,7 @@ MonoBehaviour:
   descriptionTemplate: Your next attack this turn will deal +40% damage and is guaranteed
     to strike first.
   resource: 1
-  cost: 4
+  cost: 6
   baseDamage: 0
   scalingStat: 6
   scalingPercent: 0

@@ -19,7 +19,7 @@ MonoBehaviour:
     damage for {duration} turns. The shield reflects {reflect_percent}% of physical
     damage back to the attacker.
   resource: 1
-  cost: 8
+  cost: 10
   cooldown: 5
   target: 2
   vfxPrefab: {fileID: 5069109496326652748, guid: 1dc8f411814e34e43ae04f7847269877, type: 3}

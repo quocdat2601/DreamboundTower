@@ -17,8 +17,8 @@ MonoBehaviour:
   icon: {fileID: -8433709602813933090, guid: 285f288d1febf3f44bb623fad0d34cb6, type: 3}
   descriptionTemplate: Immediately recover {heal_amount} HP (10% MaxHP) and gain
     +10% damage for 2 turns.
-  resource: 0
-  cost: 0
+  resource: 1
+  cost: 6
   baseDamage: 0
   scalingStat: 6
   scalingPercent: 0

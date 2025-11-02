@@ -330,6 +330,25 @@ public class MysterySceneManager : MonoBehaviour
 
         GameObject slotGO = Instantiate(itemSlotPrefab, rewardContainer);
 
+        // Apply rarity background color to slot
+        Image rootImage = slotGO.GetComponent<Image>();
+        if (rootImage == null)
+        {
+            rootImage = slotGO.AddComponent<Image>();
+        }
+        RarityColorUtility.ApplyRarityBackground(rootImage, itemData.rarity);
+        
+        // Also look for a background child object
+        Transform bgTransform = slotGO.transform.Find("Background");
+        if (bgTransform != null)
+        {
+            Image bgImage = bgTransform.GetComponent<Image>();
+            if (bgImage != null)
+            {
+                RarityColorUtility.ApplyRarityBackground(bgImage, itemData.rarity);
+            }
+        }
+
         // 1. Gán Icon
         Image itemIcon = null;
         Transform iconTransform = slotGO.transform.Find("ItemIcon"); // Tìm đối tượng con

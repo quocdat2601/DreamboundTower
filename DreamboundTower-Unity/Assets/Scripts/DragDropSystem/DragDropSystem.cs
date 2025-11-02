@@ -230,7 +230,15 @@ public class DragDropSystem : MonoBehaviour
             ReturnItemToOriginalPosition();
         }
         
-        // Clean up drag state
+        // Force UI refresh immediately before cleanup to ensure slots are updated
+        // This ensures that when SetHighlight(false) is called, GetCurrentItem() returns correct state
+        var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
+        foreach (var ui in inventoryUIs)
+        {
+            ui.ForceRefreshUI();
+        }
+        
+        // Clean up drag state (this will call SetHighlight(false) which uses GetCurrentItem())
         CleanupDrag();
     }
     

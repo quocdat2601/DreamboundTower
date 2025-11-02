@@ -127,4 +127,16 @@ public class BattleUIManager : MonoBehaviour
             battleManager.OnPlayerSelectSkill(skillSO);
         }
     }
+    
+    /// <summary>
+    /// Deselects the currently selected skill icon (called when skill is used)
+    /// </summary>
+    public void DeselectSkillIcon()
+    {
+        if (selectedIcon != null)
+        {
+            selectedIcon.SetSelected(false);
+            selectedIcon = null;
+        }
+    }
 }
