@@ -979,6 +979,22 @@ public class BattleManager : MonoBehaviour
         }
         // (Tùy chọn: Nếu bạn có UI khác để hiển thị target, ẩn nó ở đây)
     }
+
+    /// <summary>
+    /// Xóa mục tiêu đang chọn (selectedEnemyIndex = -1)
+    /// và ẩn các UI liên quan (khung vàng, nút inspect).
+    /// </summary>
+    public void ClearTargetSelection()
+    {
+        selectedEnemyIndex = -1;
+        HideSelectionVisual(); // Tái sử dụng hàm ẩn khung vàng
+
+        // Ẩn luôn nút "Tag" và "Panel Info" (logic từ ProcessDeathRoutine)
+        if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false); //
+        if (enemyInfoPanel != null) enemyInfoPanel.HidePanel(); //
+
+        Debug.Log("[Battle] Target selection cleared.");
+    }
     /// <summary>
     /// Updates the turn display UI
     /// </summary>

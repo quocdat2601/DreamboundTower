@@ -71,6 +71,7 @@ public class HordeSummonerBehavior : MonoBehaviour
         // 2. Tell BattleManager to spawn the Pillar
         if (battleManager != null)
         {
+            battleManager.ClearTargetSelection();
             // We pass this boss's character component so the Pillar knows who to unfreeze
             battleManager.AttemptSpawnPillar(bossCharacter);
         }
