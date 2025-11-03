@@ -216,6 +216,16 @@ public class DragDropSystem : MonoBehaviour
     {
         if (!isDragging || currentDraggedItem == null) return;
         
+        // First check for TrashBinZone (special delete zone)
+        TrashBinZone trashBin = GetTrashBinZoneUnderMouse(mousePosition);
+        if (trashBin != null && currentDraggedItem != null)
+        {
+            // TrashBinZone handles the deletion via OnDrop
+            // The OnDrop handler will clean up the drag state
+            trashBin.OnDrop(new PointerEventData(EventSystem.current) { position = mousePosition });
+            return;
+        }
+        
         // Find drop zone under mouse
         DropZone targetDropZone = GetDropZoneUnderMouse(mousePosition);
         
@@ -230,7 +240,15 @@ public class DragDropSystem : MonoBehaviour
             ReturnItemToOriginalPosition();
         }
         
-        // Clean up drag state
+        // Force UI refresh immediately before cleanup to ensure slots are updated
+        // This ensures that when SetHighlight(false) is called, GetCurrentItem() returns correct state
+        var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
+        foreach (var ui in inventoryUIs)
+        {
+            ui.ForceRefreshUI();
+        }
+        
+        // Clean up drag state (this will call SetHighlight(false) which uses GetCurrentItem())
         CleanupDrag();
     }
     
@@ -334,6 +352,21 @@ public class DragDropSystem : MonoBehaviour
     void UpdateDropZoneHighlighting()
     {
         Vector3 mousePos = Mouse.current.position.ReadValue();
+        
+        // Check for TrashBinZone first (it handles its own highlighting)
+        TrashBinZone trashBin = GetTrashBinZoneUnderMouse(mousePos);
+        if (trashBin != null)
+        {
+            // TrashBinZone handles its own hover highlighting via IPointerEnterHandler/IPointerExitHandler
+            // Just remove highlight from previous drop zone if any
+            if (currentHoveredDropZone != null)
+            {
+                currentHoveredDropZone.SetHighlight(false);
+                currentHoveredDropZone = null;
+            }
+            return;
+        }
+        
         DropZone hoveredZone = GetDropZoneUnderMouse(mousePos);
         
         // Update highlighting
@@ -385,6 +418,40 @@ public class DragDropSystem : MonoBehaviour
             if (dropZone != null)
             {
                 return dropZone;
+            }
+        }
+        return null;
+    }
+    
+    /// <summary>
+    /// Get the trash bin zone under the mouse position
+    /// </summary>
+    TrashBinZone GetTrashBinZoneUnderMouse(Vector3 mousePosition)
+    {
+        // Use raycast to find UI elements under mouse
+        GraphicRaycaster raycaster = dragCanvas.GetComponent<GraphicRaycaster>();
+        if (raycaster == null) 
+        {
+            return null;
+        }
+        
+        if (EventSystem.current == null)
+        {
+            return null;
+        }
+        
+        PointerEventData eventData = new PointerEventData(EventSystem.current);
+        eventData.position = mousePosition;
+        
+        List<RaycastResult> results = new List<RaycastResult>();
+        raycaster.Raycast(eventData, results);
+        
+        foreach (RaycastResult result in results)
+        {
+            TrashBinZone trashBin = result.gameObject.GetComponent<TrashBinZone>();
+            if (trashBin != null)
+            {
+                return trashBin;
             }
         }
         return null;
@@ -616,7 +683,7 @@ public class DragDropSystem : MonoBehaviour
     /// <summary>
     /// Clean up drag state
     /// </summary>
-    void CleanupDrag()
+    public void CleanupDrag()
     {
         isDragging = false;
         currentDraggedItem = null;
@@ -636,6 +703,21 @@ public class DragDropSystem : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Get the currently dragged item (for external access, e.g. TrashBinZone)
+    /// </summary>
+    public DraggableItem GetCurrentDraggedItem()
+    {
+        return currentDraggedItem;
+    }
+    
+    /// <summary>
+    /// Check if an item is currently being dragged (for external access, e.g. TrashBinZone)
+    /// </summary>
+    public bool IsDragging()
+    {
+        return isDragging;
+    }
     
     /// <summary>
     /// Update the inventory reference to match the LootManager's inventory
@@ -647,7 +729,4 @@ public class DragDropSystem : MonoBehaviour
             inventory = newInventory;
         }
     }
-    
-    
-    
 }

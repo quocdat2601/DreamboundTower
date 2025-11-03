@@ -68,6 +68,25 @@ public class LootPickup : MonoBehaviour
         spawnTime = Time.time;
     }
     
+    /// <summary>
+    /// Get the time when this loot was spawned
+    /// </summary>
+    public float SpawnTime => spawnTime;
+    
+    /// <summary>
+    /// Get the remaining time until auto-collect (0 if auto-collect disabled or already passed)
+    /// </summary>
+    public float RemainingAutoCollectTime()
+    {
+        if (autoCollectDelay <= 0f)
+        {
+            return 0f;
+        }
+        float elapsedTime = Time.time - spawnTime;
+        float remaining = autoCollectDelay - elapsedTime;
+        return Mathf.Max(0f, remaining);
+    }
+    
     void Start()
     {
         // Start despawn timer
@@ -76,10 +95,19 @@ public class LootPickup : MonoBehaviour
             StartCoroutine(DespawnTimer());
         }
         
-        // Start auto-collect timer if enabled
-        if (autoCollectDelay > 0)
+        // Start auto-collect timer (0 = immediate, >0 = delayed)
+        if (autoCollectDelay >= 0)
         {
-            StartCoroutine(AutoCollectTimer());
+            if (autoCollectDelay <= 0f)
+            {
+                // Immediate collection - collect on next frame
+                StartCoroutine(ImmediateAutoCollect());
+            }
+            else
+            {
+                // Delayed collection
+                StartCoroutine(AutoCollectTimer());
+            }
         }
     }
     
@@ -320,6 +348,20 @@ public class LootPickup : MonoBehaviour
         
         // Trigger collection event
         OnCollected?.Invoke(this);
+    }
+    
+    /// <summary>
+    /// Immediate auto-collect coroutine (for 0 delay)
+    /// </summary>
+    IEnumerator ImmediateAutoCollect()
+    {
+        yield return new WaitForEndOfFrame(); // Wait one frame to ensure everything is set up
+        
+        // Mark as auto-collecting to prevent manual collection
+        isAutoCollecting = true;
+        
+        // Auto-collect the item immediately
+        CollectLoot();
     }
     
     /// <summary>

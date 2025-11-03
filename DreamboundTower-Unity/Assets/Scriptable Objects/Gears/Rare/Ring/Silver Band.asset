@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Silver Band
   gearType: 6
   icon: {fileID: -9085040673674097303, guid: f09630d70a1a6a7499f1f4e1c75d2c25, type: 3}
-  description: 
+  description: 5% physic resist
   rarity: 2
   basePrice: 180
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: b6b982a67867b7948a586b6385e98a8c, type: 2}

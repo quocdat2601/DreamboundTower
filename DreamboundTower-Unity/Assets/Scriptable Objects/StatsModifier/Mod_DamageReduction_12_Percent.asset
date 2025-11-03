@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2310dc7171187b84984ab76901368d67, type: 3}
   m_Name: Mod_DamageReduction_12_Percent
   m_EditorClassIdentifier: Assembly-CSharp::StatModifierSO
-  targetStat: 17
+  targetStat: 12
   value: 0.12
   type: 0
+  duration: 0

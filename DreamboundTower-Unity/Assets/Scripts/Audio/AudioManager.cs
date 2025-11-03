@@ -27,6 +27,8 @@ public class AudioManager : MonoBehaviour
     public AudioClip menuOpen;
     public AudioClip menuClose;
 
+    private AudioClip pausedMapClip = null;
+    private float pausedMapClipTime = 0f;
     void Awake()
     {
         if (Instance == null)
@@ -69,22 +71,71 @@ public class AudioManager : MonoBehaviour
 
     public void PlayRandomCombatMusic()
     {
-        if (combatMusicClips != null && combatMusicClips.Count > 0)
+        if (combatMusicClips == null || combatMusicClips.Count == 0)
         {
-            AudioClip clipToPlay = combatMusicClips[Random.Range(0, combatMusicClips.Count)];
-            PlayMusic(clipToPlay);
+            Debug.LogWarning("AudioManager: No Combat Music Clips assigned.");
+            return;
         }
-        else { Debug.LogWarning("AudioManager: No Combat Music Clips assigned."); }
+
+        // --- ✅ LOGIC PAUSE MỚI ---
+        // 1. Kiểm tra xem có phải nhạc Map đang chạy không
+        if (musicSource.isPlaying && mapMusicClips.Contains(musicSource.clip))
+        {
+            // 2. Lưu lại bài nhạc và thời điểm
+            pausedMapClip = musicSource.clip;
+            pausedMapClipTime = musicSource.time;
+            Debug.Log($"[Audio] Pausing map music '{pausedMapClip.name}' at {pausedMapClipTime}s.");
+            // Không cần gọi Pause(), vì PlayMusic() ở dưới sẽ tự Stop
+        }
+        // --- KẾT THÚC LOGIC MỚI ---
+
+        // 3. Phát nhạc combat (logic cũ của bạn)
+        AudioClip clipToPlay = combatMusicClips[Random.Range(0, combatMusicClips.Count)];
+        PlayMusic(clipToPlay); //
     }
 
     public void PlayRandomMapMusic()
     {
-        if (mapMusicClips != null && mapMusicClips.Count > 0)
+        if (mapMusicClips == null || mapMusicClips.Count == 0)
         {
-            AudioClip clipToPlay = mapMusicClips[Random.Range(0, mapMusicClips.Count)];
-            PlayMusic(clipToPlay);
+            Debug.LogWarning("AudioManager: No Map Music Clips assigned.");
+            return;
         }
-        else { Debug.LogWarning("AudioManager: No Map Music Clips assigned."); }
+
+        // --- ✅ LOGIC RESUME MỚI ---
+        // ƯU TIÊN 1: Kiểm tra xem có bài nhạc Map nào đang chờ resume không
+        if (pausedMapClip != null)
+        {
+            Debug.Log($"[Audio] Resuming map music '{pausedMapClip.name}' at {pausedMapClipTime}s.");
+
+            // Lấy lại bài nhạc và thời gian
+            AudioClip clipToResume = pausedMapClip;
+            float timeToResume = pausedMapClipTime;
+
+            // Xóa trạng thái pause
+            pausedMapClip = null;
+            pausedMapClipTime = 0f;
+
+            // Phát lại đúng bài đó
+            PlayMusic(clipToResume); //
+
+            // Tua đến đúng thời điểm
+            musicSource.time = timeToResume;
+            return; // Xong
+        }
+        // --- KẾT THÚC LOGIC RESUME ---
+
+        // ƯU TIÊN 2: (Logic cũ của bạn) Nếu nhạc Map đang phát, không làm gì cả
+        if (musicSource.isPlaying && mapMusicClips.Contains(musicSource.clip))
+        {
+            return; // Đang phát nhạc map rồi, không đổi bài
+        }
+
+        // ƯU TIÊN 3: Nếu không có gì (vừa vào game / vừa hết bài)
+        // Hoặc nếu đang phát nhạc Combat (thì phải đổi)
+        // -> Phát một bài nhạc Map ngẫu nhiên MỚI
+        AudioClip clipToPlay = mapMusicClips[Random.Range(0, mapMusicClips.Count)];
+        PlayMusic(clipToPlay);
     }
 
     // --- HÀM HELPER SFX  ---

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Leather Pants
   gearType: 3
   icon: {fileID: 1388161964112376393, guid: 17bba20f2f41b174cbb4117076c4110f, type: 3}
-  description: 
+  description: nothing special hehe
   rarity: 0
   basePrice: 20
   attackBonus: 0
@@ -24,4 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
+  scalingType: 1
   modifiers: []

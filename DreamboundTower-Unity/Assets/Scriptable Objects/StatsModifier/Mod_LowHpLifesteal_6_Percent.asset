@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2310dc7171187b84984ab76901368d67, type: 3}
   m_Name: Mod_LowHpLifesteal_6_Percent
   m_EditorClassIdentifier: Assembly-CSharp::StatModifierSO
-  targetStat: 18
+  targetStat: 15
   value: 0.06
   type: 0
+  duration: 0

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Arcanum Robe
   gearType: 2
   icon: {fileID: 2981493435779979572, guid: aa249385994eb05428ed53ed37952f7c, type: 3}
-  description: 
+  description: '10% physic resist '
   rarity: 2
   basePrice: 360
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: e2aba5d278c0c5c48b54f34a5e079fc6, type: 2}

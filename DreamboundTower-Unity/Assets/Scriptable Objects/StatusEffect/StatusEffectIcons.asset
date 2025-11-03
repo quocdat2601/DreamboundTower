@@ -25,9 +25,36 @@ MonoBehaviour:
   - effectName: Poison
     icon: {fileID: -5005990984189769374, guid: e3f7525e9ef07a54f91fc6e03d571ae9, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: Bleed
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
   - effectName: Heal Bonus
     icon: {fileID: -2908851593210022704, guid: 5176970fbb7001440a3a338228fe10ac, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - effectName: Pounce
     icon: {fileID: -6857212927279405191, guid: b9ae57dc664d70d48b0d91da7c20d90a, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: Reduced Healing
+    icon: {fileID: 3779765868073547532, guid: a53733d8957a7e5418596f22b23559f3, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: STR_PLUS
+    icon: {fileID: -4573170480541429902, guid: 67313208d3cfe0549b7002e2b795a774, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: STR_MINUS
+    icon: {fileID: -6987600765738582503, guid: de361b2279e61e947bcb880feff7c11e, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: DEF_MINUS
+    icon: {fileID: 5985476061402792069, guid: 82a94271d1d2e074686cf0b11c3d8a93, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: DEF_PLUS
+    icon: {fileID: 5985476061402792069, guid: 82a94271d1d2e074686cf0b11c3d8a93, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: INT_PLUS
+    icon: {fileID: 7658821260701102, guid: d42e094d2949a634caa326c9038a2761, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: AGI_PLUS
+    icon: {fileID: 1472731282914715331, guid: f49bc24d0e2d9a946be83d9f18de21bf, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - effectName: Bleed
+    icon: {fileID: 8344740937980804128, guid: acd188f02561ea642a2b2b090c995a63, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}

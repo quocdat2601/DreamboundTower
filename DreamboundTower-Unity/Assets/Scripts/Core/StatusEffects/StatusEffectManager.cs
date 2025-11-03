@@ -121,10 +121,16 @@ public class StatusEffectManager : MonoBehaviour
     /// </summary>
     public void ProcessEndOfTurnEffects()
     {
+        Debug.Log($"[STATUS EFFECT] ProcessEndOfTurnEffects called - {charactersWithEffects.Count} characters with effects");
         foreach (var character in charactersWithEffects.ToArray())
         {
-            if (character == null) continue;
+            if (character == null)
+            {
+                Debug.LogWarning("[STATUS EFFECT] Found null character in charactersWithEffects, skipping");
+                continue;
+            }
             
+            Debug.Log($"[STATUS EFFECT] Processing end-of-turn effects for {character.name}");
             ProcessCharacterEffects(character, StatusEffects.EffectTiming.EndOfTurn);
         }
     }
@@ -156,16 +162,80 @@ public class StatusEffectManager : MonoBehaviour
         return new List<StatusEffect>(activeEffects[target]);
     }
     
+    /// <summary>
+    /// Returns total heal bonus percent from all HealBonusEffect on target (can be negative)
+    /// </summary>
+    public int GetHealBonusPercent(Character target)
+    {
+        if (target == null || !activeEffects.ContainsKey(target)) return 0;
+        int total = 0;
+        foreach (var effect in activeEffects[target])
+        {
+            var healBonus = effect as StatusEffects.HealBonusEffect;
+            if (healBonus != null)
+            {
+                total += healBonus.intensity;
+            }
+        }
+        return total;
+    }
+    
+    /// <summary>
+    /// Decrements duration for event-based status effects on a character (called at end of battle node)
+    /// Only affects effects marked as isEventBased=true
+    /// </summary>
+    public void DecrementEventBasedEffectsPerBattleNode(Character target)
+    {
+        if (target == null || !activeEffects.ContainsKey(target)) return;
+        
+        var effectsToRemove = new List<StatusEffect>();
+        
+        foreach (var effect in activeEffects[target])
+        {
+            // Only decrement event-based effects
+            if (effect.isEventBased)
+            {
+                effect.duration--;
+                
+                if (effect.duration <= 0)
+                {
+                    effectsToRemove.Add(effect);
+                }
+            }
+        }
+        
+        // Remove expired event-based effects
+        foreach (var effect in effectsToRemove)
+        {
+            effect.OnRemove(target);
+            activeEffects[target].Remove(effect);
+        }
+        
+        // Clean up empty character entries
+        if (activeEffects[target].Count == 0)
+        {
+            charactersWithEffects.Remove(target);
+        }
+    }
+    
     #endregion
     
     #region Private Methods
     
     private void ProcessCharacterEffects(Character character, StatusEffects.EffectTiming timing)
     {
-        if (!activeEffects.ContainsKey(character)) return;
+        if (!activeEffects.ContainsKey(character))
+        {
+            Debug.Log($"[STATUS EFFECT] Character {character?.name} not in activeEffects dictionary");
+            return;
+        }
         
         // Don't process effects on dead characters
-        if (character.currentHP <= 0) return;
+        if (character.currentHP <= 0)
+        {
+            Debug.Log($"[STATUS EFFECT] Character {character?.name} is dead (HP: {character.currentHP}), skipping effects");
+            return;
+        }
         
         var effectsToRemove = new List<StatusEffect>();
         
@@ -173,12 +243,18 @@ public class StatusEffectManager : MonoBehaviour
         {
             if (effect.timing == timing)
             {
+                Debug.Log($"[STATUS EFFECT] Processing {effect.effectName} (timing: {timing}, intensity: {effect.intensity}, duration: {effect.duration}) on {character.name}");
                 effect.OnTick(character);
-                effect.duration--;
-                
-                if (effect.duration <= 0)
+                // Only decrement duration for non-event-based effects (combat effects)
+                // Event-based effects decrement per battle node, not per turn
+                if (!effect.isEventBased)
                 {
-                    effectsToRemove.Add(effect);
+                    effect.duration--;
+                    
+                    if (effect.duration <= 0)
+                    {
+                        effectsToRemove.Add(effect);
+                    }
                 }
             }
         }

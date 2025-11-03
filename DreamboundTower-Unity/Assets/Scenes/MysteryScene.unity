@@ -2266,7 +2266,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LootManager
   lootPickupPrefab: {fileID: 7015218983992643512, guid: eb400acbaa859dc42953db130ffcd71c, type: 3}
   lootDespawnTime: 60
-  globalAutoCollectDelay: 10
+  globalAutoCollectDelay: 0
   playerTransform: {fileID: 4089517639161250682, guid: a27e2eb3858100042940cd56a1935089, type: 3}
   playerInventory: {fileID: 7019581509134334698, guid: a27e2eb3858100042940cd56a1935089, type: 3}
   activeLoot: []

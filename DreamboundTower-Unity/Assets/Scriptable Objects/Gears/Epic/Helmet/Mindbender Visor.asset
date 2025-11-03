@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Mindbender Visor
   gearType: 1
   icon: {fileID: -7184714300349580303, guid: 43c6e0deae166be45a12511bd62bba26, type: 3}
-  description: 
+  description: +30% crit rate
   rarity: 3
   basePrice: 175
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 30
   manaBonus: 40
   agiBonus: 0
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 53901312be6ce2b408f330fed23aa16a, type: 2}

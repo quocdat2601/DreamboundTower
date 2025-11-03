@@ -29,6 +29,8 @@ public class PlayerInfoUIManager : MonoBehaviour
     public TextMeshProUGUI manaStatText;
     [Tooltip("Text hiển thị AGI")]
     public TextMeshProUGUI agiStatText;
+    [Tooltip("Text hiển thị Crit")]
+    public TextMeshProUGUI critStatText;
     // (Thêm các Text khác nếu bạn muốn hiển thị thêm chỉ số)
 
     // Tham chiếu đến Character của người chơi (sẽ lấy trong Start)
@@ -83,7 +85,7 @@ public class PlayerInfoUIManager : MonoBehaviour
     }
     private const int HP_UNIT = 10;
     private const int MANA_UNIT = 5;
-    private void UpdateStatsDisplay()
+    public void UpdateStatsDisplay()
     {
         // Kiểm tra xem đã tìm thấy playerCharacter chưa
         if (playerCharacter == null)
@@ -96,6 +98,7 @@ public class PlayerInfoUIManager : MonoBehaviour
             intStatText.text = "INT: --";
             manaStatText.text = "MANA: --";
             agiStatText.text = "AGI: --";
+            critStatText.text = "CR: --";
             return;
         }
 
@@ -107,16 +110,57 @@ public class PlayerInfoUIManager : MonoBehaviour
             int baseHPStat = Mathf.RoundToInt((float)playerCharacter.baseMaxHP / HP_UNIT);
             hpStatText.text = $"HP: {baseHPStat}"; // Hiển thị chỉ số HP gốc
         }
-        if (strStatText != null) strStatText.text = $"STR: {playerCharacter.attackPower}";
-        if (defStatText != null) defStatText.text = $"DEF: {playerCharacter.defense}";
-        if (intStatText != null) intStatText.text = $"INT: {playerCharacter.intelligence}";
+        if (strStatText != null)
+        {
+            int baseStr = playerCharacter.baseAttackPower;
+            int deltaStr = playerCharacter.attackPower - baseStr;
+            strStatText.text = deltaStr != 0 ? $"STR: {baseStr} {(deltaStr > 0 ? "+" : "")} {deltaStr}".Replace("  ", " ") : $"STR: {baseStr}";
+        }
+        if (defStatText != null)
+        {
+            int baseDef = playerCharacter.baseDefense;
+            int deltaDef = playerCharacter.defense - baseDef;
+            defStatText.text = deltaDef != 0 ? $"DEF: {baseDef} {(deltaDef > 0 ? "+" : "")} {deltaDef}".Replace("  ", " ") : $"DEF: {baseDef}";
+        }
+        if (intStatText != null)
+        {
+            int baseInt = playerCharacter.baseIntelligence;
+            int deltaInt = playerCharacter.intelligence - baseInt;
+            intStatText.text = deltaInt != 0 ? $"INT: {baseInt} {(deltaInt > 0 ? "+" : "")} {deltaInt}".Replace("  ", " ") : $"INT: {baseInt}";
+        }
         if (manaStatText != null)
         {
             // Lấy baseMana và chia cho MANA_UNIT để ra chỉ số gốc
             int baseManaStat = Mathf.RoundToInt((float)playerCharacter.baseMana / MANA_UNIT);
-            manaStatText.text = $"MANA: {baseManaStat}"; // Hiển thị chỉ số MANA gốc
+            int currentManaStat = Mathf.RoundToInt((float)playerCharacter.mana / MANA_UNIT);
+            int deltaMana = currentManaStat - baseManaStat;
+            manaStatText.text = deltaMana != 0 ? $"MANA: {baseManaStat} {(deltaMana > 0 ? "+" : "")} {deltaMana}".Replace("  ", " ") : $"MANA: {baseManaStat}";
         }
-        if (agiStatText != null) agiStatText.text = $"AGI: {playerCharacter.agility}";
+        if (agiStatText != null)
+        {
+            int baseAgi = playerCharacter.baseAgility;
+            int deltaAgi = playerCharacter.agility - baseAgi;
+            agiStatText.text = deltaAgi != 0 ? $"AGI: {baseAgi} {(deltaAgi > 0 ? "+" : "")} {deltaAgi}".Replace("  ", " ") : $"AGI: {baseAgi}";
+        }
+        if (critStatText != null)
+        {
+            // Convert crit rate to percentage (0.5 = 50%, 1.0 = 100%)
+            int critRatePercent = Mathf.RoundToInt(playerCharacter.criticalChance * 100f);
+            // Convert crit damage multiplier to percentage (1.5 = 150%, 2.5 = 250%)
+            int critDmgPercent = Mathf.RoundToInt(playerCharacter.critDamageMultiplier * 100f);
+            // Format very compactly without spaces around pipe to prevent line breaks
+            // Use format: "CR:XX%|CD:XXX%" to minimize width
+            critStatText.text = $"CR: {critRatePercent}%|CD: {critDmgPercent}%";
+            // Disable word wrapping completely - set wrapping mode to NoWrap
+            critStatText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            // Set overflow mode to allow horizontal overflow (no wrapping, no truncation)
+            critStatText.overflowMode = TMPro.TextOverflowModes.Overflow;
+            // Disable auto-sizing to keep consistent font size
+            if (critStatText.enableAutoSizing)
+            {
+                critStatText.enableAutoSizing = false;
+            }
+        }
 
         // (Nếu bạn có thêm Text cho các chỉ số khác, cập nhật chúng ở đây)
         Debug.Log("Stats Panel Updated!"); // Thêm log để biết hàm đã chạy

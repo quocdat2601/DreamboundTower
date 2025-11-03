@@ -51,3 +51,12 @@ MonoBehaviour:
     gimmickName: Summoner
     description: Have 80% to summon minion(s) in which turn divide by 3
     icon: {fileID: 0}
+  - gimmick: 2097152
+    gimmickName: Horde Summoner
+    description: When first time below 50%, summon pillar and freeze itself, destroy
+      the crystal pillar to break freeze
+    icon: {fileID: 0}
+  - gimmick: 1048576
+    gimmickName: Summoner
+    description: Summon another boss for each 5 turns.
+    icon: {fileID: 0}

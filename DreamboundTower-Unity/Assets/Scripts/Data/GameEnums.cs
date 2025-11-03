@@ -19,7 +19,13 @@ namespace Assets.Scripts.Data
         NonBossDamageReduction,   // % giảm sát thương từ non-boss
         LowDefDamageBonus,        // % sát thương với kẻ địch DEF thấp
         ManaRegenPerTurn,         // % hồi mana mỗi turn
-        AdaptiveSpiritBonus       // +2 to all base stats (Adaptive Spirit)
+        AdaptiveSpiritBonus,       // +2 to all base stats (Adaptive Spirit)
+        CritChance,
+        CritDamagePercent,
+        ReflectDamagePercent,
+        HealthRegenPercent,
+        MagicDamageFlat,
+        PhysicalDamageFlat,
     }
 
     // Enum này định nghĩa cách hiệu ứng được áp dụng: cộng vào hay nhân lên.

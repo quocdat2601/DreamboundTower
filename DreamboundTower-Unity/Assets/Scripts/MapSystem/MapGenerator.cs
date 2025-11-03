@@ -348,12 +348,18 @@ namespace Map
             switch (region)
             {
                 case FloorRegion.Early: // Tầng 1-20
-                                        // GDD MỚI: Combat 55%, Event 20%, Rest 12%, Shop 8%, Mystery 5%
-                    if (randomValue < 0.55f) return NodeType.MinorEnemy; // 55%
+                    if (randomValue < 0.55f) // 55% tổng cơ hội Combat
+                    {
+                        // Tầng 1 (absFloor=1): 0.05 + 0.002 = 0.052 (5.2%)
+                        // Tầng 20 (absFloor=20): 0.05 + 0.04 = 0.09 (9%)
+                        float eliteChance = Mathf.Min(0.25f, 0.05f + 0.002f * absoluteFloor);
+                        return UnityEngine.Random.Range(0f, 1f) < eliteChance ? NodeType.EliteEnemy : NodeType.MinorEnemy;
+                    }
+                    // Các node còn lại giữ nguyên
                     if (randomValue < 0.75f) return NodeType.Event;     // 20% (0.75 - 0.55)
                     if (randomValue < 0.87f) return NodeType.RestSite;  // 12% (0.87 - 0.75)
                     if (randomValue < 0.95f) return NodeType.Store;     // 8% (0.95 - 0.87)
-                    return NodeType.Mystery;                           // 5% (1.00 - 0.95)
+                    return NodeType.Mystery;                         // 5% (1.00 - 0.95)
 
                 case FloorRegion.Mid: // Tầng 21-60
                                       // GDD MỚI: Combat 60%, Event 18%, Rest 10%, Shop 7%, Mystery 5%

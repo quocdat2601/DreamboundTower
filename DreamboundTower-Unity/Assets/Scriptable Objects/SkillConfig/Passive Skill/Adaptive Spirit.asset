@@ -17,4 +17,4 @@ MonoBehaviour:
   icon: {fileID: -8438415007518732391, guid: 83d7d0ea26e199245a8922b520c0d10d, type: 3}
   descriptionTemplate: Start with 2 extra attribute points to assign.
   modifiers:
-  - {fileID: 0}
+  - {fileID: 11400000, guid: a1dd8d0b07dfc6247becafc4c1d70097, type: 2}

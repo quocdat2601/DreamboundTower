@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GearItem
   itemName: "Rogue\u2019s Trousers"
   gearType: 3
-  icon: {fileID: -1247965995443253342, guid: 4d0852baee8f8494ea3f1efec7b0d76b, type: 3}
-  description: 
+  icon: {fileID: -1247965995443253342, guid: 0895b9ea1485f534496debef53ecdef4, type: 3}
+  description: nothing lol
   rarity: 1
   basePrice: 80
   attackBonus: 0
@@ -24,4 +24,5 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 7
+  scalingType: 1
   modifiers: []

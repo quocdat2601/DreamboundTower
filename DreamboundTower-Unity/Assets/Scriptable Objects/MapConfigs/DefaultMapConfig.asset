@@ -14,15 +14,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nodeBlueprints:
   - {fileID: 11400000, guid: f09a895d243765545b867adcb10cd13e, type: 2}
-  - {fileID: 11400000, guid: f369b9255d8081740905a1ada3e1b72d, type: 2}
   - {fileID: 11400000, guid: 2cc0c8e74e85bc14d8be96c9a834594d, type: 2}
   - {fileID: 11400000, guid: 97a3dd99dcf39e9428d65410797a0ff4, type: 2}
   - {fileID: 11400000, guid: bb14966bf28c4164ba9c2580c724cdf9, type: 2}
   - {fileID: 11400000, guid: 9686a87dacea8254c959c4f1aec9941f, type: 2}
-  - {fileID: 11400000, guid: 3cd24b2e276b6dc48a3c3842ff38a96c, type: 2}
   - {fileID: 11400000, guid: e1635866d1c2f154e8c9045bd0e000f2, type: 2}
   - {fileID: 11400000, guid: dfb2651849bbba640970aec1f4b8601f, type: 2}
-  randomNodes: 0600000004000000070000000000000002000000
+  - {fileID: 11400000, guid: cd9c08414fe16104fb30c914897a3b89, type: 2}
+  - {fileID: 11400000, guid: e5224e06da836dc4fb52934ae238716f, type: 2}
+  - {fileID: 11400000, guid: fe069a2bac5a199409f89b108e68c353, type: 2}
+  - {fileID: 11400000, guid: 92b9f53c53c7bf24fb45c981198830f0, type: 2}
+  - {fileID: 11400000, guid: be428771d0e8c1d4e8c318349dd560ab, type: 2}
+  - {fileID: 11400000, guid: 823871bde255da0439d2503ce91ccb9b, type: 2}
+  - {fileID: 11400000, guid: cdb4f95f82a4030408c39715c10a9bee, type: 2}
+  - {fileID: 11400000, guid: d2aa4c6b59a672948b0ef697ce4d969b, type: 2}
+  - {fileID: 11400000, guid: 5953007436a3c2a4899a5a0e74c816f4, type: 2}
+  randomNodes: 060000000400000007000000000000000200000001000000
   numOfPreBossNodes:
     min: 4
     max: 5
@@ -104,9 +111,72 @@ MonoBehaviour:
   bossFloorConfigs:
   - floorNumber: 10
     bossBlueprint: {fileID: 11400000, guid: 9686a87dacea8254c959c4f1aec9941f, type: 2}
+    enemyArchetypeID: Skeleton
   - floorNumber: 20
-    bossBlueprint: {fileID: 11400000, guid: 3cd24b2e276b6dc48a3c3842ff38a96c, type: 2}
+    bossBlueprint: {fileID: 11400000, guid: fe069a2bac5a199409f89b108e68c353, type: 2}
+    enemyArchetypeID: Goblin King
+  - floorNumber: 30
+    bossBlueprint: {fileID: 11400000, guid: e5224e06da836dc4fb52934ae238716f, type: 2}
+    enemyArchetypeID: Giant Slime
+  - floorNumber: 40
+    bossBlueprint: {fileID: 11400000, guid: 5953007436a3c2a4899a5a0e74c816f4, type: 2}
+    enemyArchetypeID: The Undying Troll Chief
+  - floorNumber: 50
+    bossBlueprint: {fileID: 11400000, guid: d2aa4c6b59a672948b0ef697ce4d969b, type: 2}
+    enemyArchetypeID: The Orc Warlord
+  - floorNumber: 60
+    bossBlueprint: {fileID: 11400000, guid: 823871bde255da0439d2503ce91ccb9b, type: 2}
+    enemyArchetypeID: The Grand Shaman
+  - floorNumber: 70
+    bossBlueprint: {fileID: 11400000, guid: cd9c08414fe16104fb30c914897a3b89, type: 2}
+    enemyArchetypeID: The Chimera
+  - floorNumber: 80
+    bossBlueprint: {fileID: 11400000, guid: cdb4f95f82a4030408c39715c10a9bee, type: 2}
+    enemyArchetypeID: The Living Fortress
+  - floorNumber: 90
+    bossBlueprint: {fileID: 11400000, guid: be428771d0e8c1d4e8c318349dd560ab, type: 2}
+    enemyArchetypeID: The Endless Horde
+  - floorNumber: 100
+    bossBlueprint: {fileID: 11400000, guid: 92b9f53c53c7bf24fb45c981198830f0, type: 2}
+    enemyArchetypeID: Corrupted Core
   zoneConfigs:
+  - zoneNumber: 1
+    zoneBossBlueprint: {fileID: 11400000, guid: 9686a87dacea8254c959c4f1aec9941f, type: 2}
+    enemyArchetypeID: Skeleton
+    zoneName: Skeleton Zone
   - zoneNumber: 2
-    zoneBossBlueprint: {fileID: 11400000, guid: 3cd24b2e276b6dc48a3c3842ff38a96c, type: 2}
-    zoneName: Spider Zone
+    zoneBossBlueprint: {fileID: 11400000, guid: fe069a2bac5a199409f89b108e68c353, type: 2}
+    enemyArchetypeID: Goblin King
+    zoneName: Goblin Zone
+  - zoneNumber: 3
+    zoneBossBlueprint: {fileID: 11400000, guid: e5224e06da836dc4fb52934ae238716f, type: 2}
+    enemyArchetypeID: Giant Slime
+    zoneName: Slime Zone
+  - zoneNumber: 4
+    zoneBossBlueprint: {fileID: 11400000, guid: 5953007436a3c2a4899a5a0e74c816f4, type: 2}
+    enemyArchetypeID: The Undying Troll Chief
+    zoneName: Troll Zone
+  - zoneNumber: 5
+    zoneBossBlueprint: {fileID: 11400000, guid: d2aa4c6b59a672948b0ef697ce4d969b, type: 2}
+    enemyArchetypeID: The Orc Warlord
+    zoneName: Orc Zone
+  - zoneNumber: 6
+    zoneBossBlueprint: {fileID: 11400000, guid: 823871bde255da0439d2503ce91ccb9b, type: 2}
+    enemyArchetypeID: The Grand Shaman
+    zoneName: GrandShaman Zone
+  - zoneNumber: 7
+    zoneBossBlueprint: {fileID: 11400000, guid: cd9c08414fe16104fb30c914897a3b89, type: 2}
+    enemyArchetypeID: The Chimera
+    zoneName: Chimera Zone
+  - zoneNumber: 8
+    zoneBossBlueprint: {fileID: 11400000, guid: cdb4f95f82a4030408c39715c10a9bee, type: 2}
+    enemyArchetypeID: The Living Fortress
+    zoneName: Fortress Zone
+  - zoneNumber: 9
+    zoneBossBlueprint: {fileID: 11400000, guid: be428771d0e8c1d4e8c318349dd560ab, type: 2}
+    enemyArchetypeID: The Endless Horde
+    zoneName: Endless Zone
+  - zoneNumber: 10
+    zoneBossBlueprint: {fileID: 11400000, guid: 92b9f53c53c7bf24fb45c981198830f0, type: 2}
+    enemyArchetypeID: Corrupted Core
+    zoneName: Corrupted Zone

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Component that makes an inventory item draggable
@@ -228,10 +229,19 @@ public class DraggableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     
     
     /// <summary>
-    /// Handle right click (equip/unequip)
+    /// Handle right click (equip/unequip or sell in shop)
     /// </summary>
     void HandleRightClick()
     {
+        // Check if we're in the shop scene
+        if (IsInShopScene())
+        {
+            // In shop scene: sell the item
+            HandleSellItem();
+            return;
+        }
+        
+        // Not in shop scene: use normal equip/unequip behavior
         // Find the correct equipment and inventory references
         Equipment correctEquipment = FindCorrectEquipment();
         Inventory correctInventory = FindCorrectInventory();
@@ -269,6 +279,54 @@ public class DraggableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
                 // Force UI update
                 ForceUIUpdate();
             }
+        }
+    }
+
+    /// <summary>
+    /// Check if we're currently in the shop scene
+    /// </summary>
+    bool IsInShopScene()
+    {
+        Scene currentScene = SceneManager.GetActiveScene();
+        return currentScene.name == "ShopScene";
+    }
+
+    /// <summary>
+    /// Handle selling an item in the shop scene
+    /// </summary>
+    void HandleSellItem()
+    {
+        // Find ShopManager
+        ShopManager shopManager = FindFirstObjectByType<ShopManager>();
+        if (shopManager == null) return;
+
+        // Find the correct equipment and inventory references
+        Equipment correctEquipment = FindCorrectEquipment();
+        Inventory correctInventory = FindCorrectInventory();
+        
+        if (correctEquipment == null || correctInventory == null) return;
+
+        GearItem itemToSell = null;
+
+        if (isInventorySlot)
+        {
+            // For inventory slots, get the item directly from the inventory slot
+            itemToSell = correctInventory.GetItemAt(slotIndex);
+        }
+        else
+        {
+            // For equipment slots, get the item directly from the equipment slot
+            itemToSell = correctEquipment.GetEquippedItemFromSlot(slotIndex);
+        }
+
+        if (itemToSell == null) return;
+
+        // Sell the item
+        bool success = shopManager.SellItem(itemToSell);
+        if (success)
+        {
+            // Force UI update
+            ForceUIUpdate();
         }
     }
     

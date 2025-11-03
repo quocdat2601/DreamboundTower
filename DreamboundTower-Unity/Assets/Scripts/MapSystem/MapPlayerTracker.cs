@@ -28,8 +28,6 @@ namespace Map
         {
             if (Locked) return;
 
-            // Debug.Log("Selected node: " + mapNode.Node.point);
-
             if (mapManager.CurrentMap.path.Count == 0)
             {
                 // player has not selected the node yet, he can select any of the nodes with y = 0
@@ -52,14 +50,8 @@ namespace Map
 
         private void SendPlayerToNode(MapNode mapNode)
         {
-            //Locked = lockAfterSelecting;
             if (Locked) return;
             Locked = true;
-
-            // TEMPORARY: For testing map progression, treat all nodes the same
-            // For non-combat nodes, mark as completed immediately
-            // if (mapNode.Node.nodeType != NodeType.MinorEnemy)
-            // {
             mapManager.CurrentMap.path.Add(mapNode.Node.point);
             // sync currentFloor with selected node's layer (y + 1)
             int floorInZone = mapNode.Node.point.y + 1;
@@ -86,7 +78,7 @@ namespace Map
         private static void EnterNode(MapNode mapNode)
         {
             Debug.Log("Entering node: " + mapNode.Node.blueprintName + " of type: " + mapNode.Node.nodeType);
-            if (mapNode.Node.nodeType == NodeType.Event || mapNode.Node.nodeType == NodeType.Mystery)
+            if (mapNode.Node.nodeType == NodeType.Event)
             {
                 Instance.SelectAndLoadEvent(mapNode); // Gọi hàm xử lý Event
                 return; // Thoát khỏi EnterNode, vì SelectAndLoadEvent đã xử lý xong
@@ -168,9 +160,14 @@ namespace Map
             {
                 Debug.LogWarning("Event Pool cạn! Đang tái tạo...");
                 foreach (var evt in GameManager.Instance.allEvents) { eventPool.Add(evt.eventID); }
+                Debug.Log($"Đã tái tạo pool với {eventPool.Count} events từ {GameManager.Instance.allEvents.Count} total events.");
             }
 
+            Debug.Log($"[Event Selection] Current Zone: {runData.mapData.currentZone}, Region: {currentRegion}, Pool size: {eventPool.Count}, Player flags: [{string.Join(", ", playerFlags)}]");
+
             // Bắt đầu lọc
+            int skippedRegion = 0;
+            int skippedFlag = 0;
             foreach (string eventId in eventPool)
             {
                 EventDataSO eventData = GameManager.Instance.allEvents.Find(e => e.eventID == eventId);
@@ -185,11 +182,45 @@ namespace Map
                     // Kiểm tra Prerequisite Flag
                     bool flagMatch = string.IsNullOrEmpty(eventData.prerequisiteFlag) || playerFlags.Contains(eventData.prerequisiteFlag);
 
-                    if (regionMatch && flagMatch)
+                    if (!regionMatch)
+                    {
+                        skippedRegion++;
+                    }
+                    else if (!flagMatch)
+                    {
+                        skippedFlag++;
+                    }
+                    else if (regionMatch && flagMatch)
                     {
                         validEvents.Add(eventData);
                     }
                 }
+            }
+
+            Debug.Log($"[Event Selection] Found {validEvents.Count} valid events. Skipped {skippedRegion} (region), {skippedFlag} (flag).");
+
+            // FALLBACK: Nếu không tìm thấy event nào hợp lệ, thử lại với region matching nhẹ hơn (bỏ qua flag requirement)
+            if (validEvents.Count == 0 && eventPool.Count > 0)
+            {
+                Debug.LogWarning("[Event Selection] Không tìm thấy event nào hợp lệ với flag requirement. Thử lại chỉ với region matching...");
+                validEvents.Clear();
+                foreach (string eventId in eventPool)
+                {
+                    EventDataSO eventData = GameManager.Instance.allEvents.Find(e => e.eventID == eventId);
+                    if (eventData != null)
+                    {
+                        bool regionMatch = eventData.region == EventRegion.Any || eventData.region == currentRegion ||
+                                           (currentRegion == EventRegion.Early && eventData.region == EventRegion.EarlyMid) ||
+                                           (currentRegion == EventRegion.Mid && (eventData.region == EventRegion.EarlyMid || eventData.region == EventRegion.MidLate)) ||
+                                           (currentRegion == EventRegion.Late && eventData.region == EventRegion.MidLate);
+                        
+                        if (regionMatch)
+                        {
+                            validEvents.Add(eventData);
+                        }
+                    }
+                }
+                Debug.Log($"[Event Selection] Fallback: Tìm thấy {validEvents.Count} events chỉ với region matching.");
             }
 
             // 2. Chọn ngẫu nhiên từ danh sách hợp lệ
@@ -218,11 +249,31 @@ namespace Map
             }
             else
             {
-                Debug.LogWarning("Không tìm thấy Event nào hợp lệ! Node này sẽ không làm gì cả. Mở khóa Player.");
+                Debug.LogWarning($"[Event Selection] Không tìm thấy Event nào hợp lệ! Zone: {runData.mapData.currentZone}, Region: {currentRegion}, Pool size: {eventPool.Count}, Total events: {GameManager.Instance.allEvents.Count}. Node này sẽ không làm gì cả. Mở khóa Player.");
                 // Mở khóa để người chơi đi tiếp
                 Locked = false;
             }
         }
+
+        //private void SelectAndLoadEvent(MapNode mapNode)
+        //{
+        //    var runData = GameManager.Instance.currentRunData;
+        //    var mapData = runData.mapData;
+
+        //    // --- ✅ HACK ĐỂ TEST EVENT 17 ---
+        //    // (Bỏ qua logic chọn event ngẫu nhiên của bạn)
+        //    string eventID = "EVT_011"; // << ID CỦA "Rival's Return"
+        //    Debug.LogWarning($"--- TEST HACK: Ép chạy Event ID: {eventID} ---");
+        //    // -------------------------
+
+        //    // Lưu thông tin pending như bình thường
+        //    mapData.pendingNodePoint = mapNode.Node.point;
+        //    mapData.pendingNodeSceneName = SceneManager.GetActiveScene().name;
+        //    mapData.pendingEventID = eventID; // Gán ID đã bị ép
+
+        //    RunSaveService.SaveRun(runData);
+        //    SceneManager.LoadScene("EventScene", LoadSceneMode.Single);
+        //}
 
         // (Hàm GetCurrentRegion vẫn giữ nguyên hoặc đặt gần hàm SelectAndLoadEvent)
         private EventRegion GetCurrentRegion(int currentZone)
@@ -237,7 +288,7 @@ namespace Map
         {
             if (mapNode == null || mapManager == null || GameManager.Instance == null) return;
 
-            // 1. Xác định "Cấp bậc" (Kind) cần tìm dựa trên loại node
+            // 1. Xác định "Cấp bậc" (Kind)
             Presets.EnemyKind requiredKind;
             switch (mapNode.Node.nodeType)
             {
@@ -251,17 +302,52 @@ namespace Map
                     requiredKind = Presets.EnemyKind.Boss;
                     break;
                 default:
-                    return; // Không phải node combat, không làm gì cả
+                    return; // Không phải node combat
             }
 
-            // 2. Lọc "Kho" quái vật trong GameManager để tìm các "Binh chủng" phù hợp
+            // 2. Lấy Tầng
             int absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(mapNode.Node.point);
             var runData = GameManager.Instance.currentRunData;
-            runData.mapData.pendingEnemyArchetypeId = "";
+
+            // --- ✅ BẮT ĐẦU LOGIC MỚI ---
+            string bossArchetypeId = ""; // Biến tạm để lưu ID boss
+
+            // 3. Nếu là BOSS, tìm ID cụ thể
+            if (requiredKind == Presets.EnemyKind.Boss)
+            {
+                MapConfig mapConfig = mapManager.config; // Lấy config từ MapManager
+
+                // Ưu tiên 1: Tìm trong BossFloorConfig (Tầng 10, 20, 30...)
+                if (mapConfig.bossFloorConfigs != null)
+                {
+                    var bossConfig = mapConfig.bossFloorConfigs.FirstOrDefault(bc => bc.floorNumber == absoluteFloor);
+                    if (bossConfig != null && !string.IsNullOrEmpty(bossConfig.enemyArchetypeID))
+                    {
+                        bossArchetypeId = bossConfig.enemyArchetypeID;
+                    }
+                }
+
+                // Ưu tiên 2: (Nếu không thấy ở trên) Tìm trong ZoneConfig
+                if (string.IsNullOrEmpty(bossArchetypeId) && mapConfig.zoneConfigs != null)
+                {
+                    int currentZone = mapManager.currentZone; // Lấy zone hiện tại
+                    var zoneConfig = mapConfig.zoneConfigs.FirstOrDefault(zc => zc.zoneNumber == currentZone);
+                    if (zoneConfig != null && !string.IsNullOrEmpty(zoneConfig.enemyArchetypeID))
+                    {
+                        bossArchetypeId = zoneConfig.enemyArchetypeID;
+                    }
+                }
+
+                Debug.Log($"[MAP] Boss Node clicked. Floor: {absoluteFloor}. Found ArchetypeID: '{bossArchetypeId}'");
+            }
+
+            // 4. Ghi dữ liệu vào RunData
+            runData.mapData.pendingEnemyArchetypeId = bossArchetypeId; // Ghi ID boss (hoặc "" nếu là quái thường)
             runData.mapData.pendingEnemyKind = (int)requiredKind;
             runData.mapData.pendingEnemyFloor = absoluteFloor;
+            // --- KẾT THÚC LOGIC MỚI ---
 
-            Debug.Log($"[MAP] Wrote pending combat encounter: kind={requiredKind}, floor={absoluteFloor}");
+            Debug.Log($"[MAP] Wrote pending combat encounter: ID='{bossArchetypeId}', kind={requiredKind}, floor={absoluteFloor}");
         }
 
         private void PlayWarningThatNodeCannotBeAccessed()

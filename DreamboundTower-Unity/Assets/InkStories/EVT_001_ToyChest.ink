@@ -1,12 +1,12 @@
 EXTERNAL GainGold(amount)
 
-You find a worn wooden toy chest. It radiates a warm, familiar feeling.
+A quiet corner of the tower floor is dimly lit. A single, worn wooden toy chest rests on the ground. It radiates a strange, warm, and familiar feeling.
 
 * [Open it.]
     ~ GainGold(50)
-    You grab a handful of shimmering coins from childhood tales. (+50 Gold)
+    You lift the lid, which creaks softly. Inside, a handful of shimmering gold coins rests on velvet lining, like something from a childhood fairy tale. (+50 Gold)
     -> END
 
 * [Walk away.]
-    You let the memory sleep and move on.
+    You decide to let the memory sleep. The chest fades back into the shadows as you move on.
     -> END

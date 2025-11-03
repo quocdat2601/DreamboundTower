@@ -67,6 +67,14 @@ public class BattleManager : MonoBehaviour
     public Button inspectTagButton; // Nút "Tag" duy nhất (Từ Bước 2)
     public TextMeshProUGUI inspectTagButtonText; // Text bên trong nút Tag
     public Button attackButton;
+    private Button defeatRetryButton;
+
+    [Header("Backgrounds")]
+    [Tooltip("Danh sách các background cho trận đấu thường (sẽ chọn ngẫu nhiên)")]
+    public List<Sprite> regularBackgrounds;
+
+    [Tooltip("Danh sách các background đặc biệt cho các boss chỉ định")]
+    public List<BossBackgroundMapping> bossBackgrounds;
 
     [Header("Status Effect Display")]
     public GameObject statusEffectIconPrefab; // Prefab for status effect icons
@@ -78,11 +86,15 @@ public class BattleManager : MonoBehaviour
     [Header("Skill System")]
     public SkillManager skillManager;   // Reference to skill manager
     public PassiveSkillManager passiveSkillManager;   // Reference to passive skill manager
+    
+    [Header("Attack VFX")]
+    [Tooltip("Prefab containing visual effects (VFX) for normal attacks")]
+    public GameObject attackVFXPrefab;
 
     // runtime
     private GameObject playerInstance;
     private GameObject[] enemyInstances;
-    private Character playerCharacter; // Reference to the player's Character component for quick access
+    public Character playerCharacter; // Reference to the player's Character component for quick access (public for cheat access)
     private EnemyTemplateSO[] enemyTemplates; 
 
     // state & selection
@@ -92,6 +104,10 @@ public class BattleManager : MonoBehaviour
     
     // turn counter
     private int currentTurn = 1;
+    
+    // Battle state flags
+    private bool isVictoryRoutineRunning = false;
+    private bool isDefeatRoutineRunning = false;
     
     // Public properties for SkillManager access
     public bool PlayerTurn 
@@ -148,7 +164,7 @@ public class BattleManager : MonoBehaviour
                 yield return null;
                 GameManager.Instance.currentRunData = new RunData();
                 // ✅ BÁO HIỆU RẰNG ĐÂY LÀ CHẾ ĐỘ DEBUG
-    GameManager.Instance.isDebugRun = true;
+                GameManager.Instance.isDebugRun = true;
             }
             else
             {
@@ -159,8 +175,14 @@ public class BattleManager : MonoBehaviour
         // -------------------------
 
         // Các logic khởi tạo cũ
+        // Find DefeatPanel if reference is null (it's now on PersistentUICanvas)
+        FindDefeatPanelIfNull();
         if (defeatPanel != null) defeatPanel.SetActive(false);
 
+        // Reset battle state flags
+        isVictoryRoutineRunning = false;
+        isDefeatRoutineRunning = false;
+        SetBattleBackground();
         // SpawnPlayer giờ chỉ còn 1 nhiệm vụ: tìm và đặt player vào vị trí
         SpawnPlayer();
 
@@ -184,29 +206,52 @@ public class BattleManager : MonoBehaviour
     }
     void Update()
     {
-        // Check for debug key presses if the battle is not busy
-        // Removed busy check - players can now use multiple actions per turn
+        // Debug keys (Editor only)
+        #if UNITY_EDITOR
+        if (Keyboard.current == null) return;
 
-        // Make sure a keyboard is connected before trying to read from it
-        if (Keyboard.current == null) return;
-
-        // Press 'Q' to instantly win the battle
-        if (Keyboard.current.qKey.wasPressedThisFrame)
+        if (Keyboard.current.qKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Victory (Q key pressed).");
             StartCoroutine(VictoryRoutine());
         }
 
-        // Press 'E' to instantly lose the battle
-        if (Keyboard.current.eKey.wasPressedThisFrame)
+        if (Keyboard.current.eKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Defeat (E key pressed).");
             StartCoroutine(DefeatRoutine());
         }
+        #endif
     }
-    #endregion
+    
+    void OnDestroy()
+    {
+        // Unsubscribe from character death events to prevent errors when BattleManager is destroyed
+        if (playerCharacter != null && playerCharacter.OnDeath != null)
+        {
+            playerCharacter.OnDeath -= HandleCharacterDeath;
+            playerCharacter.OnManaChanged -= OnPlayerManaChanged;
+        }
+        
+        // Unsubscribe from all enemy death events
+        if (enemyInstances != null)
+        {
+            foreach (var enemyInstance in enemyInstances)
+            {
+                if (enemyInstance != null)
+                {
+                    Character enemyCharacter = enemyInstance.GetComponent<Character>();
+                    if (enemyCharacter != null && enemyCharacter.OnDeath != null)
+                    {
+                        enemyCharacter.OnDeath -= HandleCharacterDeath;
+                    }
+                }
+            }
+        }
+    }
+    #endregion
 
-    #region Spawning
+    #region Spawning
 
     // Handles finding the persistent player or spawning a fallback for testing
     void SpawnPlayer()
@@ -337,13 +382,15 @@ public class BattleManager : MonoBehaviour
 
         // --- 2. KIỂM TRA MIMIC (SAU KHI ĐÃ CÓ archetypeId) ---
         // Tên file SO của bạn phải là "Mimic"
-        bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
+        //bool isMimicEncounter = (archetypeId == "Mimic"); // ✅ ĐẶT Ở ĐÂY
+        //bool isSpecialEncounter = (archetypeId == "Mimic" || archetypeId == "RivalChild" || archetypeId == "Spirit" );
+        bool isSpecialEncounter = !string.IsNullOrEmpty(archetypeId);
 
         // --- 3. TÍNH TOÁN SỐ LƯỢNG KẺ ĐỊCH ---
         int enemyCount = 1;
-        if (isMimicEncounter)
+        if (isSpecialEncounter)
         {
-            Debug.Log("[BATTLE] MIMIC ENCOUNTER! Ép số lượng quái = 1.");
+            Debug.Log($"[BATTLE] SPECIAL ENCOUNTER ({archetypeId})! Ép số lượng quái = 1.");
             enemyCount = 1;
         }
         else
@@ -359,11 +406,17 @@ public class BattleManager : MonoBehaviour
 
         // --- 4. LỌC DANH SÁCH QUÁI VẬT PHÙ HỢP ---
         List<EnemyTemplateSO> availableEnemies = null;
-        if (!isMimicEncounter && !overrideUseCustomStats) // Chỉ cần lọc nếu không phải Mimic hoặc custom stats
+        if (!isSpecialEncounter && !overrideUseCustomStats) // Chỉ cần lọc nếu không phải Mimic hoặc custom stats
         {
+            int currentFloor = absoluteFloor;
             availableEnemies = GameManager.Instance.allEnemyTemplates
-                .Where(template => template.kind == encounterKind)
-                .ToList();
+                        .Where(template =>
+                            template != null &&
+                            template.kind == encounterKind &&     // 1. Phải đúng loại (Normal/Elite)
+                            !template.isUniqueOrEventOnly &&    // 2. Không phải quái Event (như RivalChild)
+                            template.minFloor <= currentFloor   // 3. Tầng tối thiểu phải <= Tầng hiện tại
+                        )
+                        .ToList();
             if (availableEnemies.Count == 0)
             {
                 Debug.LogError($"[BATTLE] Không tìm thấy EnemyTemplateSO nào có Kind là '{encounterKind}'!");
@@ -377,7 +430,7 @@ public class BattleManager : MonoBehaviour
             if (enemyPrefab == null) continue;
 
             int slotIndex = i; // Vị trí bình thường
-            if (isMimicEncounter)
+            if (isSpecialEncounter)
             {
                 slotIndex = 0; // Ép vào Slot 1 (index 0)
             }
@@ -393,9 +446,14 @@ public class BattleManager : MonoBehaviour
             {
                 finalTemplate = null; // Sẽ chỉ áp dụng custom stats
             }
-            else if (isMimicEncounter)
+            else if (isSpecialEncounter)
             {
-                finalTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Mimic");
+                finalTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == archetypeId);
+                if (finalTemplate == null) // Lỗi bạn gặp ở lần trước
+                {
+                    Debug.LogError($"[BATTLE] Lỗi nghiêm trọng: Không tìm thấy template cho Special Encounter '{archetypeId}' trong GameManager.allEnemyTemplates!");
+                    continue;
+                }
             }
             else
             {
@@ -451,16 +509,6 @@ public class BattleManager : MonoBehaviour
 
             if (template.name == "Mimic") // Tên file SO của bạn phải là "Mimic"
             {
-                // 1. Đổi background (giả sử sprite nền là Element 1)
-                if (battleBackground != null && template.sprites.Count > 1)
-                {
-                    battleBackground.sprite = template.sprites[1];
-                }
-                else if (battleBackground != null)
-                {
-                    Debug.LogWarning("Mimic template cần 2 sprites: [0] cho quái, [1] cho nền.");
-                }
-
                 // 2. Gán sprite cho quái (sprite quái là Element 0)
                 if (enemyImage != null)
                 {
@@ -554,6 +602,20 @@ public class BattleManager : MonoBehaviour
                 Debug.LogWarning($"[BATTLE] {template.name} có gimmick Summoner nhưng danh sách summonableEnemies rỗng!");
             }
         }
+        // Gimmick: HordeSummoner (F90/F100)
+        // (Cũng dùng cờ allowSummonerGimmick)
+        if (allowSummonerGimmick && !isSplitChild && (template.gimmick & EnemyGimmick.HordeSummoner) != 0)
+        {
+            enemyGO.AddComponent<HordeSummonerBehavior>();
+            Debug.Log($"[BATTLE] Đã gán HordeSummonerBehavior cho {enemyGO.name}");
+        }
+
+        // Gimmick: Pillar (Quái được triệu hồi)
+        if ((template.gimmick & EnemyGimmick.Pillar) != 0)
+        {
+            enemyGO.AddComponent<PillarBehavior>();
+            Debug.Log($"[BATTLE] Đã gán PillarBehavior cho {enemyGO.name}");
+        }
         // Set up status effect display for enemy
         SetupEnemyStatusEffectDisplay(enemyGO);
     }
@@ -590,26 +652,39 @@ public class BattleManager : MonoBehaviour
             return;
         }
         
+        // Get HP bar RectTransform to position icons on top of it
+        RectTransform hpBarRect = hpBarTransform.GetComponent<RectTransform>();
+        if (hpBarRect == null)
+        {
+            Debug.LogWarning($"[BATTLE] HpBar does not have RectTransform for {enemyGO.name}");
+            return;
+        }
+        
         // Create container for status effect icons above HP bar
         GameObject statusEffectContainer = new GameObject("StatusEffectContainer");
         statusEffectContainer.transform.SetParent(enemyGO.transform, false);
         RectTransform containerRect = statusEffectContainer.AddComponent<RectTransform>();
         
-        // Position above HP bar (100 units above center)
+        // Position directly on top of HP bar
         containerRect.anchorMin = new Vector2(0.5f, 0.5f);
         containerRect.anchorMax = new Vector2(0.5f, 0.5f);
         containerRect.pivot = new Vector2(0.5f, 0.5f);
-        containerRect.anchoredPosition = new Vector2(0, 100);
+        
+        // Calculate position: HP bar center Y + half HP bar height + larger offset to avoid clipping
+        float hpBarCenterY = hpBarRect.anchoredPosition.y;
+        float hpBarHeight = hpBarRect.sizeDelta.y;
+        float iconOffset = hpBarHeight * 0.5f + 15f; // Half HP bar height + 15 pixels spacing to prevent clipping
+        containerRect.anchoredPosition = new Vector2(0, hpBarCenterY + iconOffset);
         containerRect.sizeDelta = new Vector2(400, 80);
         
         // Configure horizontal layout for icons
         var layoutGroup = statusEffectContainer.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
-        layoutGroup.spacing = 8;
-        layoutGroup.childControlWidth = true;
-        layoutGroup.childControlHeight = true;
+        layoutGroup.spacing = 10; // Spacing between icons (increased from 8 for better visibility)
+        layoutGroup.childControlWidth = false;
+        layoutGroup.childControlHeight = false;
         layoutGroup.childForceExpandWidth = false;
         layoutGroup.childForceExpandHeight = false;
-        layoutGroup.padding = new RectOffset(4, 4, 4, 4);
+        layoutGroup.padding = new RectOffset(5, 5, 5, 5);
         
         // Auto-size container to fit content
         var sizeFitter = statusEffectContainer.AddComponent<UnityEngine.UI.ContentSizeFitter>();
@@ -623,8 +698,8 @@ public class BattleManager : MonoBehaviour
         displayManager.iconDatabase = statusEffectIconDatabase;
         displayManager.SetTargetCharacter(enemyChar);
         
-        // Scale up icons (2x) for better visibility on enemies
-        statusEffectContainer.transform.localScale = new Vector3(2.0f, 2.0f, 1.0f);
+        // Scale icons even smaller (0.5x) to be compact and avoid clipping with HP bar
+        statusEffectContainer.transform.localScale = new Vector3(0.5f, 0.5f, 1.0f);
     }
 
     #endregion
@@ -651,8 +726,13 @@ public class BattleManager : MonoBehaviour
     public void OnPlayerDeselectSkill()
     {
         selectedSkill = null;
-        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
-    }
+        // Deselect skill icon in UI
+        if (uiManager != null)
+        {
+            uiManager.DeselectSkillIcon();
+        }
+        // (Logic để bỏ highlight mục tiêu sẽ ở đây)
+    }
 
     // Called from the UI Attack button's OnClick event
     public void OnAttackButton()
@@ -786,6 +866,12 @@ public class BattleManager : MonoBehaviour
         
         if (enemyInstances == null || index < 0 || index >= enemyInstances.Length || enemyInstances[index] == null) return;
 
+        Character targetChar = enemyInstances[index].GetComponent<Character>();
+        if (targetChar != null && targetChar.isUntargetable)
+        {
+            Debug.LogWarning($"[BATTLE] Cannot select {targetChar.name} - target is untargetable.");
+            return; // Exit the function, do not select
+        }
 
         // If a skill is selected, check if it needs an enemy target
         if (selectedSkill != null)
@@ -893,6 +979,22 @@ public class BattleManager : MonoBehaviour
         }
         // (Tùy chọn: Nếu bạn có UI khác để hiển thị target, ẩn nó ở đây)
     }
+
+    /// <summary>
+    /// Xóa mục tiêu đang chọn (selectedEnemyIndex = -1)
+    /// và ẩn các UI liên quan (khung vàng, nút inspect).
+    /// </summary>
+    public void ClearTargetSelection()
+    {
+        selectedEnemyIndex = -1;
+        HideSelectionVisual(); // Tái sử dụng hàm ẩn khung vàng
+
+        // Ẩn luôn nút "Tag" và "Panel Info" (logic từ ProcessDeathRoutine)
+        if (inspectTagButton != null) inspectTagButton.gameObject.SetActive(false); //
+        if (enemyInfoPanel != null) enemyInfoPanel.HidePanel(); //
+
+        Debug.Log("[Battle] Target selection cleared.");
+    }
     /// <summary>
     /// Updates the turn display UI
     /// </summary>
@@ -922,6 +1024,8 @@ public class BattleManager : MonoBehaviour
         Vector3 originalPlayerPos = playerInstance.transform.position;
         // Characters now attack from their current position - no movement
 
+        // Spawn attack VFX at target position
+        SpawnAttackVFX(target);
 
         // --- KIỂM TRA SPLIT TRƯỚC KHI GÂY SÁT THƯƠNG ---
         // (Kiểm tra này có thể không cần thiết nếu SplitBehavior đáng tin cậy)
@@ -1000,6 +1104,9 @@ public class BattleManager : MonoBehaviour
         // 6. Xử lý cuối lượt chung (Logic gốc của bạn, chạy SAU EnemyTurn)
         if (StatusEffectManager.Instance != null) { StatusEffectManager.Instance.ProcessEndOfTurnEffects(); }
         if (skillManager != null) { skillManager.ReduceSkillCooldowns(); }
+        
+        // Process temporary modifiers from skills (buffs/debuffs)
+        ProcessTemporaryModifiers();
         currentTurn++;
         playerTurn = true; // Player nhận lại lượt cho turn KẾ TIẾP
         hasUsedExtraActionThisTurn = false; // Reset extra action flag for new turn
@@ -1015,9 +1122,9 @@ public class BattleManager : MonoBehaviour
         // Regenerate mana at the start of player turn
         if (playerCharacter != null)
         {
-            // Calculate total mana regeneration: base 5% + passive bonuses
+            // Calculate total mana regeneration: base 8% + passive bonuses
             int oldMana = playerCharacter.currentMana;
-            float totalRegenPercent = 5.0f; // Base 5% per turn
+            float totalRegenPercent = 8.0f; // Base 8% per turn (increased from 5% for better balance)
             // Add passive skill mana regeneration per turn (Divine Resonance)
             var conditionalManager = playerCharacter.GetComponent<ConditionalPassiveManager>();
             if (conditionalManager != null && conditionalManager.manaRegenPerTurn > 0f)
@@ -1116,6 +1223,7 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(attackDelay);
 
         selectedSkill = null; // Reset selected skill after use
+        OnPlayerDeselectSkill(); // Deselect skill UI after use
 
         // Skills do NOT trigger double action - only normal attacks do
         // (CheckForDoubleAction removed from here)
@@ -1183,6 +1291,18 @@ public class BattleManager : MonoBehaviour
 
             var enemyChar = enemyGO.GetComponent<Character>();
             if (enemyChar == null || playerCharacter == null) continue; // Bỏ qua nếu không lấy được Character
+            if (enemyChar.isUntargetable)
+            {
+                Debug.Log($"<color=cyan>[BATTLE] {enemyChar.name}'s turn is skipped (Untargetable/Frozen).</color>");
+                continue; // Skip to the next enemy
+            }
+
+            // ✅ Skip dead enemies - they shouldn't act during death animation
+            if (enemyChar.currentHP <= 0)
+            {
+                Debug.Log($"[BATTLE] Skipping dead enemy {enemyChar.name} in EnemyTurnRoutine");
+                continue;
+            }
 
             // --- ✅ THÔNG BÁO LƯỢT HIỆN TẠI CHO ENEMY NÀY ---
             // Gửi message "OnNewTurnStarted" đến CHỈ enemy hiện tại
@@ -1191,30 +1311,44 @@ public class BattleManager : MonoBehaviour
             // --- KẾT THÚC THÔNG BÁO ---
 
             bool enemyActed = false; // Cờ đánh dấu
-
-            // --- KIỂM TRA SUMMONER ---
-            SummonerBehavior summoner = enemyGO.GetComponent<SummonerBehavior>();
-            // Hàm TryConsumeSummonIntent() sẽ đọc cờ wantsToSummon (được set bởi OnNewTurnStarted vừa gọi)
-            if (summoner != null && summoner.TryConsumeSummonIntent())
+             // KIỂM TRA PILLAR (Ưu tiên cao nhất)
+            PillarBehavior pillar = enemyGO.GetComponent<PillarBehavior>();
+            if (pillar != null)
             {
-                Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Đang thử triệu hồi (Turn {currentTurn})...</color>"); // Thêm log Turn
-                bool summonSuccess = AttemptSummon(enemyChar, summoner.GetSummonableEnemies());
+                pillar.HandleTurn(); // Pillar tự xử lý lượt (summon)
+                enemyActed = true; // Pillar đã hành động (dù chỉ là đếm cooldown)
+                yield return new WaitForSeconds(attackDelay); // Chờ một chút sau lượt Pillar
+            }
+            // KIỂM TRA SUMMONER (Nếu không phải Pillar)
+            if (!enemyActed)
+            {
+                SummonerBehavior summoner = enemyGO.GetComponent<SummonerBehavior>();
+                if (summoner != null && summoner.TryConsumeSummonIntent()) // Hỏi xem có muốn Summon (F50/F60) không
+                {
+                    Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Đang thử triệu hồi (Turn {currentTurn})...</color>");
+                    // Dùng hàm AttemptSummon CŨ (Bạn nói đã thêm ở bước trước)
+                    bool summonSuccess = AttemptSummon(enemyChar, summoner.GetSummonableEnemies());
 
-                if (summonSuccess)
-                {
-                    Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Triệu hồi thành công!</color>");
-                    enemyActed = true;
-                    yield return new WaitForSeconds(attackDelay); // Chờ sau khi summon
-                }
-                else
-                {
-                    Debug.Log($"<color=orange>[{enemyChar.name}] SUMMONER: Triệu hồi thất bại (Turn {currentTurn}). Sẽ tấn công.</color>"); // Thêm log Turn
+                    if (summonSuccess)
+                    {
+                        Debug.Log($"<color=#ADD8E6>[{enemyChar.name}] SUMMONER: Triệu hồi thành công!</color>");
+                        enemyActed = true;
+                        yield return new WaitForSeconds(attackDelay);
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"<color=orange>[{enemyChar.name}] SUMMONER: Triệu hồi thất bại (Turn {currentTurn}). Sẽ tấn công.</color>");
+                    }
                 }
             }
             if (!enemyActed)
             {
                 // Enemies now attack from their current position - no movement
                 AudioManager.Instance?.PlayAttackSFX();
+                
+                // Spawn attack VFX at player position
+                SpawnAttackVFX(playerCharacter);
+                
                 // --- Thực hiện đòn đánh của Enemy ---
                 enemyChar.Attack(playerCharacter); // Enemy tấn công Player
 
@@ -1239,15 +1373,31 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(enemyTurnEndDelay); // Dùng biến delay mới
     }
 
-    #endregion
+    #endregion
 
-    #region Battle Outcome
+    #region Battle Outcome
 
-    // Coroutine for when the player is victorious
+    // Coroutine for when the player is victorious
     IEnumerator VictoryRoutine()
     {
+        // Prevent duplicate calls
+        if (isVictoryRoutineRunning)
+        {
+            Debug.Log("[BATTLE] Victory routine already running, ignoring duplicate call.");
+            yield break;
+        }
+
+        isVictoryRoutineRunning = true;
+
         Debug.Log("[BATTLE] Victory! All enemies defeated!");
         yield return new WaitForSeconds(1.5f);
+
+        // Wait for all loot to be collected before ending battle
+        if (LootManager.Instance != null)
+        {
+            Debug.Log("[BATTLE] Waiting for all loot to be collected before ending battle...");
+            yield return StartCoroutine(LootManager.Instance.WaitForAllLootCollected());
+        }
 
         string sceneToReturnTo = "Zone1"; // Scene mặc định nếu có lỗi
 
@@ -1263,80 +1413,153 @@ public class BattleManager : MonoBehaviour
                 mapData.path.Add(pendingNode);
             }
 
-            // Kiểm tra xem node vừa hoàn thành có phải là boss không
+            // --- ✅ BẮT ĐẦU KHỐI SỬA LỖI ---
+            // 
+            // BƯỚC 1: ĐỒNG BỘ TRẠNG THÁI "SỐNG" (INSTANCE) VÀO "DỮ LIỆU" (RUNDATA) TRƯỚC TIÊN
+            //
+            if (playerCharacter != null)
+            {
+                runData.playerData.currentHP = playerCharacter.currentHP;
+                runData.playerData.currentMana = playerCharacter.currentMana; // (Thêm dòng này để chắc chắn)
+
+                // Decrement event-based status effect durations per battle node (not per turn)
+                if (StatusEffectManager.Instance != null)
+                {
+                    StatusEffectManager.Instance.DecrementEventBasedEffectsPerBattleNode(playerCharacter);
+                    Debug.Log("[BATTLE] Event-based status effect durations decremented per battle node.");
+                }
+
+                // Clear temporary modifiers from skills (they don't persist between battles)
+                TemporaryModifierManager tempMods = playerCharacter.GetComponent<TemporaryModifierManager>();
+                if (tempMods != null)
+                {
+                    tempMods.ClearAllTemporaryModifiers();
+                    Debug.Log("[BATTLE] Cleared all temporary modifiers from player.");
+                }
+
+                // Clear shields (they don't persist between battles)
+                if (StatusEffectManager.Instance != null)
+                {
+                    int shieldBefore = playerCharacter.CurrentShield;
+                    StatusEffectManager.Instance.RemoveEffect(playerCharacter, typeof(StatusEffects.ShieldEffect));
+                    if (shieldBefore > 0)
+                    {
+                        Debug.Log($"[BATTLE] Cleared {shieldBefore} shield from player at battle end.");
+                    }
+                }
+            }
+
+            // QUAN TRỌNG: Đồng bộ (Inventory, Equipment, Gold) TỪ "playerInstance" VÀO "runData.playerData"
+            GameManager.Instance.SavePlayerStateToRunData();
+            Debug.Log("[SAVE SYSTEM] Player state (HP, Gold, Items) synced to RunData in memory.");
+
+            //
+            // BƯỚC 2: SAU KHI DỮ LIỆU ĐÃ ĐÚNG, BÂY GIỜ MỚI XỬ LÝ LOGIC BOSS HOẶC CHECKPOINT
+            //
             if ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss)
             {
+                if (mapData.pendingEnemyFloor == 100)
+                {
+                    Debug.Log("FINAL BOSS DEFEATED! Loading Victory Screen...");
+                    HandleGameVictory(runData); // Gọi hàm chiến thắng mới
+                    yield break; // Dừng VictoryRoutine ngay lập tức
+                }
                 Debug.Log("[BATTLE] Boss defeated! Advancing to the next zone.");
                 // Tăng zone và chuẩn bị scene tiếp theo
                 mapData.currentZone++;
                 mapData.path.Clear(); // Xóa đường đi cũ để bắt đầu zone mới
                 sceneToReturnTo = "Zone" + mapData.currentZone; // Ví dụ: "Zone2", "Zone3"
-            }
+            }
             else
             {
                 // Nếu không phải boss, quay lại scene hiện tại
                 sceneToReturnTo = "Zone" + mapData.currentZone;
+
+                // --- LOGIC CHECKPOINT ĐÃ ĐƯỢC CHUYỂN XUỐNG ĐÂY ---
+                int floor = mapData.pendingEnemyFloor;
+                // Tầng 1, 11, 21, 31, ... 91
+                if (floor == 1 || (floor > 1 && (floor % 10 == 1)))
+                {
+                    Debug.Log($"[BATTLE] Checkpoint floor {floor} reached! Saving current state as checkpoint...");
+                    // Bây giờ, SaveCheckpoint() sẽ sao chép runData.playerData (ĐÃ CẬP NHẬT)
+                    GameManager.Instance.SaveCheckpoint();
+                }
             }
+
+            // --- KẾT THÚC KHỐI SỬA LỖI ---
+
 
             // Xóa trạng thái "đang chờ"
             mapData.pendingNodePoint = new Vector2Int(-1, -1);
             mapData.pendingNodeSceneName = null;
 
-            if (playerCharacter != null)
-            {
-                runData.playerData.currentHP = playerCharacter.currentHP;
-                // runData.playerData.currentMana = playerCharacter.currentMana;
-            }
+            // (Các dòng 'SavePlayerStateToRunData' và 'if (playerCharacter != null)' cũ đã được chuyển lên trên)
 
-            // Lưu lại toàn bộ RunData
-            RunSaveService.SaveRun(runData);
-            Debug.Log("[SAVE SYSTEM] Node completed. Pending status cleared. Game saved.");
+            // Lưu lại toàn bộ RunData (bao gồm cả 'playerData' và 'checkpointPlayerData' mới)
+            RunSaveService.SaveRun(runData);
+            Debug.Log("[SAVE SYSTEM] Node completed. Pending status cleared. Game saved to disk.");
         }
 
         // Chuyển scene về bản đồ
         RestorePersistentPlayer();
         SceneManager.LoadScene(sceneToReturnTo);
     }
-    // Coroutine for when the player is defeated
-    IEnumerator DefeatRoutine()
+    // Coroutine for when the player is defeated
+    IEnumerator DefeatRoutine()
     {
-        Debug.Log("[BATTLE] Player died.");
-
-        // ✅ GỌI GAMEMANAGER ĐỂ XỬ LÝ HẬU QUẢ
-        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
-
-        // Nếu run thực sự kết thúc (hết mạng)
-        if (runEnded)
+        // Prevent duplicate calls
+        if (isDefeatRoutineRunning)
         {
-            // Kích hoạt Defeat Panel với lựa chọn "Quit" hoặc xem kết quả
-            if (defeatPanel != null)
-            {
-                // TODO: Bạn có thể muốn có một panel "Run Over" riêng
-                // Tạm thời vẫn dùng defeatPanel
-                defeatPanel.SetActive(true);
-            }
-            // Ở đây, nút Retry có thể bị vô hiệu hóa vì không thể retry được nữa
-        }
-        // Nếu vẫn còn mạng
-        else
-        {
-            // Vẫn kích hoạt Defeat Panel để cho phép người chơi Quit hoặc Retry
-            if (defeatPanel != null)
-            {
-                defeatPanel.SetActive(true);
-            }
+            Debug.Log("[BATTLE] Defeat routine already running, ignoring duplicate call.");
+            yield break;
         }
 
-        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
-        // Chúng ta sẽ không tự động chuyển scene nữa
-        yield return null; // Chờ vô tận cho đến khi người chơi bấm nút
+        isDefeatRoutineRunning = true;
+
+        Debug.Log("[BATTLE] Player died.");
+
+        // 1. Tìm Panel VÀ kết nối các nút (hàm này sẽ gán defeatRetryButton)
+        FindDefeatPanelIfNull();
+
+        // 2. Kiểm tra xem run đã kết thúc CHƯA (hàm này KHÔNG trừ "mạng")
+        // runEnded = true nếu hết mạng, runEnded = false nếu còn mạng.
+        bool runEnded = GameManager.Instance.HandlePlayerDefeat();
+
+        // Show defeat panel 
+        if (defeatPanel != null)
+        {
+            // 3. Xử lý logic ẩn/hiện nút Retry
+            if (defeatRetryButton != null)
+            {
+                // Nếu run KẾT THÚC (runEnded = true), HIDE retry button
+                // Nếu run CHƯA KẾT THÚC (runEnded = false), SHOW retry button
+                defeatRetryButton.gameObject.SetActive(!runEnded);
+                Debug.Log($"[BATTLE] Defeat Panel: Run ended? {runEnded}. Retry button active: {!runEnded}");
+            }
+            else
+            {
+                Debug.LogWarning("[BATTLE] Không tìm thấy 'RetryButton' trên DefeatPanel. Hãy chắc chắn tên nút chứa 'retry'.");
+            }
+
+            // 4. Hiển thị panel
+            defeatPanel.SetActive(true);
+        }
+        else
+        {
+            Debug.LogWarning("[BATTLE] Defeat panel is null! Could not show defeat screen.");
+        }
+
+        // Loot will auto-collect immediately...
+
+        // Tạm dừng ở màn hình thua, chờ người chơi tương tác
+        yield return null; // Chờ vô tận
     }
 
-    #endregion
+    #endregion
 
-    #region Helpers
+    #region Helpers
     #region Skill VFX
-    
+
     /// <summary>
     /// Spawns skill VFX at the appropriate target location
     /// For buff skills (Self/AllAlly), VFX will track the character
@@ -1420,6 +1643,44 @@ public class BattleManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Spawns attack VFX at target position for normal attacks
+    /// Flips the VFX vertically so basic attack slashes downward instead of upward
+    /// </summary>
+    private void SpawnAttackVFX(Character target)
+    {
+        if (attackVFXPrefab == null || target == null) return;
+        
+        // Find canvas for VFX parent
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogWarning("[BATTLE] No Canvas found for attack VFX!");
+            return;
+        }
+        
+        // Spawn VFX at target position
+        Vector3 spawnPosition = GetCharacterUIPosition(target);
+        GameObject vfx = Instantiate(attackVFXPrefab, canvas.transform);
+        vfx.transform.position = spawnPosition;
+        
+        // Flip vertically by negating the Y scale (only for basic attack, so upward slash becomes downward slash)
+        RectTransform rectTransform = vfx.GetComponent<RectTransform>();
+        if (rectTransform != null)
+        {
+            Vector3 currentScale = rectTransform.localScale;
+            rectTransform.localScale = new Vector3(currentScale.x, -currentScale.y, currentScale.z);
+        }
+        else
+        {
+            // Fallback to regular transform if no RectTransform
+            Vector3 currentScale = vfx.transform.localScale;
+            vfx.transform.localScale = new Vector3(currentScale.x, -currentScale.y, currentScale.z);
+        }
+        
+        Debug.Log($"[BATTLE] Spawned basic attack VFX (flipped downward) at {target.name} position");
+    }
+    
+    /// <summary>
     /// Spawns a VFX at the character's position (for attacking skills)
     /// </summary>
     private void SpawnPositionVFX(GameObject vfxPrefab, Character target, Transform canvasTransform)
@@ -1449,7 +1710,7 @@ public class BattleManager : MonoBehaviour
         // Fallback to transform position
         return character.transform.position;
     }
-    
+
     #endregion
 
     /// <summary>
@@ -1457,7 +1718,7 @@ public class BattleManager : MonoBehaviour
     /// Without this the player instance stays parented to the battle scene's slot and gets
     /// destroyed when the scene unloads, causing the missing player on the map.
     /// </summary>
-    void RestorePersistentPlayer()
+    public void RestorePersistentPlayer()
     {
         if (GameManager.Instance == null) return;
 
@@ -1474,6 +1735,36 @@ public class BattleManager : MonoBehaviour
         //DontDestroyOnLoad(persistentPlayer);
         persistentPlayer.SetActive(false);
     }
+    /// <summary>
+    /// Xử lý khi người chơi chiến thắng toàn bộ game (đánh bại F100).
+    /// </summary>
+    private void HandleGameVictory(RunData runData)
+    {
+        // 1. Lấy thời gian hoàn thành của run này
+        float currentTime = runData.playerData.totalTimePlayed;
+        Debug.Log($"[BATTLE] Run completed in: {currentTime}s");
+
+        // 2. Lưu kỷ lục (nếu đây là kỷ lục mới)
+        RunSaveService.SaveBestTime(currentTime);
+
+        // 3. Lưu thời gian này vào GameManager để VictoryScene có thể đọc
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.lastRunTime = currentTime;
+        }
+
+        // 4. XÓA RUNDATA (RẤT QUAN TRỌNG)
+        // Việc này sẽ khiến MainMenu.cs ẩn nút "Continue"
+        RunSaveService.ClearRun();
+        Debug.Log("[BATTLE] RunData cleared after victory.");
+
+        // 5. Đưa player về DontDestroyOnLoad
+        RestorePersistentPlayer();
+
+        // 6. Chuyển sang Scene Chiến thắng
+        SceneManager.LoadScene("VictoryScene"); // (Bạn cần tạo scene này)
+    }
+
     /// <summary>
     /// Cố gắng triệu hồi một đồng minh mới cho Summoner.
     /// </summary>
@@ -1519,7 +1810,7 @@ public class BattleManager : MonoBehaviour
     /// <summary>
     /// Spawn một quái vật được triệu hồi vào slot cụ thể.
     /// </summary>
-    private void SpawnIndividualSummonedEnemy(int slotIndex, EnemyTemplateSO template)
+    private void SpawnIndividualSummonedEnemy(int slotIndex, EnemyTemplateSO template, int? floorOverride = null)
     {
         if (slotIndex < 0 || slotIndex >= enemySlots.Length || template == null)
         {
@@ -1538,7 +1829,8 @@ public class BattleManager : MonoBehaviour
         slot.gameObject.SetActive(true);
 
         // Lấy tầng hiện tại (để quái mới có chỉ số đúng)
-        int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+        //int absoluteFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+        int absoluteFloor = floorOverride ?? (overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1));
 
         // Tạo GameObject
         var enemyGO = Instantiate(enemyPrefab, slot, false);
@@ -1553,11 +1845,9 @@ public class BattleManager : MonoBehaviour
         // QUAN TRỌNG: KHÔNG truyền isSplitChild = true, để nó có thể tự add gimmick nếu cần
         // Tuy nhiên, ApplyEnemyData nên có kiểm tra để không add SummonerBehavior nếu template có cờ Summoner,
         // tránh triệu hồi đệ quy vô hạn. Cần sửa ApplyEnemyData một chút.
-        ApplyEnemyData(enemyGO, finalStats, template, false, false); // <<< Sẽ sửa ApplyEnemyData ở bước sau
+        ApplyEnemyData(enemyGO, finalStats, template, false, false);
 
-        // Hồi đầy máu (ApplyEnemyData đã làm)
         var ch = enemyGO.GetComponent<Character>();
-        // if (ch != null) { ch.currentHP = ch.maxHP; ch.UpdateHPUI(); } // Không cần nếu ApplyEnemyData đã hồi
 
         // Đăng ký quái mới vào mảng quản lý
         enemyInstances[slotIndex] = enemyGO;
@@ -1743,6 +2033,111 @@ public class BattleManager : MonoBehaviour
             btn.onClick.AddListener(() => SelectEnemy(idx));
         }
     }
+
+    /// <summary>
+    /// (HÀM MỚI) Được gọi bởi HordeSummonerBehavior (F90/F100) khi HP < 50%.
+    /// </summary>
+    public void AttemptSpawnPillar(Character mainBoss)
+    {
+        // 1. Tìm slot trống
+        int emptySlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] == null)
+            {
+                emptySlotIndex = i;
+                break;
+            }
+        }
+
+        if (emptySlotIndex == -1)
+        {
+            Debug.LogError($"[{mainBoss.name}] HordeSummoner: Không còn slot trống để spawn Pillar!");
+            // (Nếu không spawn được Pillar, Boss sẽ không bị đóng băng vĩnh viễn?
+            // Cần xem xét logic BreakFreeze() nếu spawn lỗi)
+            // Tạm thời: gọi BreakFreeze() ngay lập tức để Boss không bị kẹt
+            mainBoss.GetComponent<HordeSummonerBehavior>()?.BreakFreeze(); // Tự mở khóa
+            return;
+        }
+
+        // 2. Tìm Template "Pillar"
+        // (Bạn PHẢI tạo 1 EnemyTemplateSO tên là "Pillar" và thêm Gimmick "Pillar" cho nó)
+        EnemyTemplateSO pillarTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Pillar");
+
+        if (pillarTemplate == null)
+        {
+            Debug.LogError($"[{mainBoss.name}] HordeSummoner: Không tìm thấy 'Pillar.asset' trong GameManager.allEnemyTemplates!");
+            mainBoss.GetComponent<HordeSummonerBehavior>()?.BreakFreeze(); // Tự mở khóa
+            return;
+        }
+
+        // 3. Spawn Pillar (dùng tầng hiện tại của Boss)
+        int currentFloor = overrideUseTemplate ? overrideFloor : (GameManager.Instance?.currentRunData.mapData.pendingEnemyFloor ?? 1);
+        SpawnIndividualSummonedEnemy(emptySlotIndex, pillarTemplate, currentFloor);
+
+        // 4. Lấy tham chiếu Pillar vừa spawn và Gán HP + Boss
+        GameObject pillarGO = enemyInstances[emptySlotIndex];
+        if (pillarGO != null)
+        {
+            Character pillarChar = pillarGO.GetComponent<Character>();
+            PillarBehavior pillarBehavior = pillarGO.GetComponent<PillarBehavior>();
+
+            if (pillarChar != null && pillarBehavior != null)
+            {
+                // Gán HP Pillar = HP Max của Boss
+                pillarChar.baseMaxHP = mainBoss.baseMaxHP; // Gán Base HP
+                pillarChar.ResetToBaseStats(); // Tính lại MaxHP
+                pillarChar.currentHP = pillarChar.maxHP; // Hồi đầy máu
+                pillarChar.UpdateHPUI();
+
+                // Gán tham chiếu Boss cho Pillar
+                pillarBehavior.Initialize(mainBoss);
+                Debug.Log($"[BATTLE] Pillar đã spawn với {pillarChar.maxHP} HP và kết nối với Boss.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// (HÀM MỚI) Được gọi bởi PillarBehavior để spawn Sub-Boss.
+    /// </summary>
+    /// <param name="floorStats">Tầng để tính stats (ví dụ: 80)</param>
+    public bool AttemptSpawnSubBoss(int floorStats)
+    {
+        // 1. Tìm slot trống
+        int emptySlotIndex = -1;
+        for (int i = 0; i < enemyInstances.Length; i++)
+        {
+            if (enemyInstances[i] == null)
+            {
+                emptySlotIndex = i;
+                break;
+            }
+        }
+        if (emptySlotIndex == -1) return false; // Thất bại (Pillar sẽ thử lại)
+
+        // 2. Lọc danh sách Boss phụ (Boss, không phải Unique, minFloor <= 80)
+        List<EnemyTemplateSO> availableSubBosses = GameManager.Instance.allEnemyTemplates
+            .Where(t => t != null &&
+                        t.kind == EnemyKind.Boss &&
+                        !t.isUniqueOrEventOnly &&
+                        t.minFloor <= floorStats)
+            .ToList();
+
+        if (availableSubBosses.Count == 0)
+        {
+            Debug.LogError($"[BATTLE] Pillar: Không tìm thấy Sub-Boss nào (Kind=Boss, minFloor<={floorStats}, !isUnique) để spawn!");
+            return false;
+        }
+
+        // 3. Chọn ngẫu nhiên 1 Boss
+        EnemyTemplateSO bossToSpawn = availableSubBosses[Random.Range(0, availableSubBosses.Count)];
+
+        // 4. Spawn Boss (dùng floorOverride)
+        SpawnIndividualSummonedEnemy(emptySlotIndex, bossToSpawn, floorStats);
+        Debug.Log($"[BATTLE] Pillar đã spawn {bossToSpawn.name} (Stats Tầng {floorStats}) vào slot {emptySlotIndex}.");
+
+        return true; // Thành công
+    }
     #endregion
 
     #region Button Actions
@@ -1758,51 +2153,15 @@ public class BattleManager : MonoBehaviour
         SceneManager.LoadScene("MainMenu");
     }
 
-    public void OnRetryButton()
-    {
-        Debug.Log("Retry button pressed. Reverting to the last checkpoint.");
-
-        var runData = GameManager.Instance.currentRunData;
-
-        // Nếu hết mạng thì không cho retry
-        if (runData.playerData.steadfastDurability <= 0)
-        {
-            Debug.LogWarning("Cannot retry, no durability left. Forcing quit.");
-            OnQuitButton();
-            return;
-        } // --- LOGIC KHÔI PHỤC CHECKPOINT ---
-          // 1. Xóa bản đồ hiện tại để buộc game tạo map mới cho zone
-        runData.mapData.currentMapJson = null;
-
-        // 2. Xóa đường đi cũ trên bản đồ
-        runData.mapData.path.Clear();
-
-        // 3. Khôi phục lại máu/mana (ví dụ: hồi đầy)
-        //    Lưu ý: Chúng ta cần truy cập vào chỉ số max của người chơi
-        //    Cách đơn giản nhất là thêm maxHP, maxMana vào PlayerData
-        //    (Bạn cần thêm public int maxHP; public int maxMana; vào PlayerData.cs)
-        //    Tạm thời, chúng ta sẽ hồi máu dựa trên chỉ số từ Character component
-        var playerChar = GameManager.Instance.playerInstance.GetComponent<Character>();
-        if (playerChar != null)
-        {
-            runData.playerData.currentHP = playerChar.maxHP;
-            //runData.playerData.currentMana = playerChar.maxMana;
-        }
-
-        // 4. Lưu lại trạng thái đã khôi phục
-        RunSaveService.SaveRun(runData);
-
-        // 5. Tải lại scene của zone hiện tại để bắt đầu lại
-        string zoneSceneToLoad = "Zone" + runData.mapData.currentZone;
-        SceneManager.LoadScene(zoneSceneToLoad);
-    }
-
     private void HandleCharacterDeath(Character deadCharacter)
     {
-        Debug.Log($"[BATTLE] Character {deadCharacter.name} has died!");
-        Debug.Log($"[BATTLE] Starting ProcessDeathRoutine for {deadCharacter.name}");
-        // Dùng một coroutine nhỏ để đợi một chút, cho phép các hiệu ứng
-        // như animation chết hoặc gimmick hồi sinh có thời gian để chạy.
+        // Check if BattleManager is still valid (not destroyed)
+        if (gameObject == null || !gameObject.activeInHierarchy || !enabled)
+        {
+            return;
+        }
+        
+        // Start death routine - allows death animations and revival gimmicks time to run
         StartCoroutine(ProcessDeathRoutine(deadCharacter));
     }
     
@@ -1818,9 +2177,20 @@ public class BattleManager : MonoBehaviour
     
     private IEnumerator ProcessDeathRoutine(Character deadCharacter)
     {
-        // Đợi một khoảng thời gian rất ngắn (ví dụ: cuối frame)
-        // để các script gimmick (như Resurrect) có cơ hội can thiệp vào currentHP
+        // Check if BattleManager is still valid before processing death
+        if (gameObject == null || !gameObject.activeInHierarchy || !enabled)
+        {
+            yield break;
+        }
+        
+        // Wait a frame to allow gimmicks (like Resurrect) to intervene with currentHP
         yield return new WaitForEndOfFrame();
+
+        // Check again after waiting (BattleManager might have been destroyed)
+        if (gameObject == null || !gameObject.activeInHierarchy || !enabled)
+        {
+            yield break;
+        }
 
         // 1. KIỂM TRA XEM ĐÓ LÀ NGƯỜI CHƠI HAY KẺ ĐỊCH
 
@@ -1854,6 +2224,37 @@ public class BattleManager : MonoBehaviour
 
                 // Wait for death animation to complete (1 second) before destroying
                 yield return new WaitForSeconds(1.1f); // Đợi animation chạy xong
+
+                // --- TEST ONLY: Thưởng vàng khi quái chết ---
+                try
+                {
+                    if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+                    {
+                        int goldGain = 5; // mặc định
+                        var template = enemyTemplates[i];
+                        if (template != null)
+                        {
+                            // Thưởng cao hơn cho Elite/Boss (giá trị tạm để test)
+                            switch (template.kind)
+                            {
+                                case Presets.EnemyKind.Elite:
+                                    goldGain = 15;
+                                    break;
+                                case Presets.EnemyKind.Boss:
+                                    goldGain = 40;
+                                    break;
+                                default:
+                                    goldGain = 5;
+                                    break;
+                            }
+                        }
+
+                        GameManager.Instance.currentRunData.playerData.gold += goldGain;
+                        GameManager.Instance.UpdatePlayerGoldUI(GameManager.Instance.currentRunData.playerData.gold);
+                        Debug.Log($"[BATTLE][TEST] Awarded {goldGain} gold for killing {deadCharacter.name}. Total: {GameManager.Instance.currentRunData.playerData.gold}");
+                    }
+                }
+                catch { }
 
                 // Destroy the enemy GameObject
                 Destroy(enemyInstances[i]);
@@ -1909,6 +2310,214 @@ public class BattleManager : MonoBehaviour
             }
         }
     }
-    #endregion
+    
+    /// <summary>
+    /// Processes temporary modifiers from skills for all characters
+    /// Called at the end of each turn to decrement duration and remove expired modifiers
+    /// </summary>
+    private void ProcessTemporaryModifiers()
+    {
+        // Process player's temporary modifiers
+        if (playerCharacter != null)
+        {
+            TemporaryModifierManager playerTempMods = playerCharacter.GetComponent<TemporaryModifierManager>();
+            if (playerTempMods != null)
+            {
+                playerTempMods.ProcessTemporaryModifiers();
+            }
+        }
+        
+        // Process enemy temporary modifiers
+        if (enemyInstances != null)
+        {
+            foreach (var enemyGO in enemyInstances)
+            {
+                if (enemyGO != null)
+                {
+                    Character enemyChar = enemyGO.GetComponent<Character>();
+                    if (enemyChar != null)
+                    {
+                        TemporaryModifierManager enemyTempMods = enemyChar.GetComponent<TemporaryModifierManager>();
+                        if (enemyTempMods != null)
+                        {
+                            enemyTempMods.ProcessTemporaryModifiers();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Finds DefeatPanel on PersistentUICanvas if the reference is null
+    /// </summary>
+    private void FindDefeatPanelIfNull()
+    {
+        if (defeatPanel != null)
+        {
+            ConnectDefeatPanelButtons();
+            return;
+        }
+        
+        if (GameManager.Instance != null && GameManager.Instance.playerStatusUI != null)
+        {
+            Transform persistentCanvas = GameManager.Instance.playerStatusUI.transform.parent;
+            if (persistentCanvas != null)
+            {
+                Transform defeatPanelTransform = persistentCanvas.Find("DefeatPanel");
+                if (defeatPanelTransform != null)
+                {
+                    defeatPanel = defeatPanelTransform.gameObject;
+                    ConnectDefeatPanelButtons();
+                    return;
+                }
+            }
+        }
+        
+        // Fallback: Search directly in GameManager's children
+        if (GameManager.Instance != null)
+        {
+            Transform persistentCanvasTransform = GameManager.Instance.transform.Find("PersistentUICanvas");
+            if (persistentCanvasTransform != null)
+            {
+                Transform defeatPanelTransform = persistentCanvasTransform.Find("DefeatPanel");
+                if (defeatPanelTransform != null)
+                {
+                    defeatPanel = defeatPanelTransform.gameObject;
+                    ConnectDefeatPanelButtons();
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Connects the Restart and Quit buttons in DefeatPanel to their handlers
+    /// </summary>
+    private void ConnectDefeatPanelButtons()
+    {
+        if (defeatPanel == null) return;
+
+        Button[] allButtons = defeatPanel.GetComponentsInChildren<Button>(true);
+        bool quitConnected = false;
+        bool retryConnected = false;
+
+        foreach (Button btn in allButtons)
+        {
+            string buttonName = btn.name.ToLower(); // "RetryButton" -> "retrybutton"
+
+            // Tìm nút Quit
+            if (!quitConnected && buttonName.Contains("quit"))
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(OnQuitButton);
+                quitConnected = true;
+                continue; // Đã tìm thấy, qua nút tiếp
+            }
+
+            // Tìm nút Retry
+            if (!retryConnected && buttonName.Contains("retry"))
+            {
+                btn.onClick.RemoveAllListeners();
+
+                // --- THAY ĐỔI DÒNG NÀY ---
+                // btn.onClick.AddListener(GameManager.Instance.RetryAtCheckpoint); // XÓA DÒNG CŨ
+                btn.onClick.AddListener(OnRetryButton); // THÊM DÒNG MỚI NÀY
+                // --- KẾT THÚC THAY ĐỔI ---
+
+                defeatRetryButton = btn; // Lưu tham chiếu
+                retryConnected = true;
+            }
+        }
+    }
+    /// <summary>
+    /// Được gọi bởi nút Retry trên DefeatPanel.
+    /// Hàm này đảm bảo trả player về GameManager TRƯỚC KHI tải lại scene.
+    /// </summary>
+    public void OnRetryButton()
+    {
+        // 1. Trả player về cho GameManager (Fix lỗi mất playerInstance)
+        RestorePersistentPlayer();
+
+        // 2. Gọi logic Retry (tải checkpoint, trừ tim, tải scene)
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RetryAtCheckpoint();
+        }
+    }
+    /// <summary>
+    /// Dùng để map ID của Boss (ArchetypeID) với Sprite background tương ứng
+    /// </summary>
+    [System.Serializable]
+    public class BossBackgroundMapping
+    {
+        [Tooltip("Tên file EnemyTemplateSO của Boss, ví dụ 'SkeletonBoss'")]
+        public string bossArchetypeID;
+        [Tooltip("Sprite background cho boss này")]
+        public Sprite backgroundSprite;
+    }
+
+    /// <summary>
+    /// Quyết định và cài đặt background cho trận đấu dựa trên loại kẻ địch.
+    /// </summary>
+    private void SetBattleBackground()
+    {
+        if (battleBackground == null) return;
+
+        // 1. Lấy thông tin kẻ địch (giống hệt SpawnEnemies)
+        string archetypeId = null;
+        bool isBoss = false;
+
+        if (overrideUseCustomStats)
+        {
+            isBoss = (overrideKind == EnemyKind.Boss);
+        }
+        else if (overrideUseTemplate)
+        {
+            isBoss = (overrideTemplate.kind == EnemyKind.Boss);
+            archetypeId = overrideTemplate.name; //
+        }
+        else if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+        {
+            var mapData = GameManager.Instance.currentRunData.mapData;
+            archetypeId = mapData.pendingEnemyArchetypeId; //
+            isBoss = ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss); //
+        }
+
+        // 2. Ưu tiên 1: Kiểm tra Boss chỉ định (Tầng 10, 20, 30...)
+        if (isBoss && !string.IsNullOrEmpty(archetypeId) && bossBackgrounds != null)
+        {
+            // Tìm trong danh sách bossBackgrounds xem có ID nào khớp không
+            BossBackgroundMapping mapping = bossBackgrounds.FirstOrDefault(b => b.bossArchetypeID == archetypeId);
+
+            if (mapping != null && mapping.backgroundSprite != null)
+            {
+                // Tìm thấy! Gán background boss cụ thể.
+                battleBackground.sprite = mapping.backgroundSprite;
+                Debug.Log($"[Battle] Đã cài đặt background đặc biệt cho Boss: {archetypeId}");
+                return; // Xong
+            }
+        }
+
+        // 3. Ưu tiên 2: Kiểm tra Mimic (logic cũ)
+        if (archetypeId == "Mimic")
+        {
+            EnemyTemplateSO mimicTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Mimic");
+            if (mimicTemplate != null && mimicTemplate.sprites.Count > 1)
+            {
+                battleBackground.sprite = mimicTemplate.sprites[1]; // (Lấy sprite nền từ template)
+                Debug.Log("[Battle] Đã cài đặt background Mimic.");
+                return; // Xong
+            }
+        }
+
+        // 4. Ưu tiên 3: Background ngẫu nhiên (cho quái thường/elite/boss không có ID)
+        if (regularBackgrounds != null && regularBackgrounds.Count > 0)
+        {
+            battleBackground.sprite = regularBackgrounds[Random.Range(0, regularBackgrounds.Count)];
+            Debug.Log("[Battle] Đã cài đặt background ngẫu nhiên.");
+        }
+        // Nếu không có gì trong 3 danh sách, nó sẽ giữ nguyên background mặc định.
+    }
+    #endregion
 
 }

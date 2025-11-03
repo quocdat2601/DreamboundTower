@@ -270,10 +270,63 @@ public class Equipment : MonoBehaviour
     {
         if (character == null) return;
         
-        // Reset to base stats first
+        // IMPORTANT: Passive skills share the same bonus fields as gear modifiers.
+        // We need to preserve passive bonuses before resetting.
+        // Strategy: Remove gear modifiers first to get passive-only values,
+        // then reset, restore passives, and re-apply gear.
+        
+        // Step 1: Store current HP/Mana delta (difference from max) before resetting
+        int hpDelta = character.currentHP - character.maxHP;
+        int manaDelta = character.currentMana - character.mana;
+        
+        // Step 2: Remove all gear modifiers to isolate passive skill contributions
+        for (int i = 0; i < equipmentSlots.Length; i++)
+        {
+            if (equipmentSlots[i] != null && equipmentSlots[i].modifiers != null)
+            {
+                foreach (var mod in equipmentSlots[i].modifiers)
+                {
+                    if (mod != null)
+                    {
+                        character.RemoveGearModifier(mod);
+                    }
+                }
+            }
+        }
+        
+        // Step 3: Store passive-only values (gear contributions removed)
+        float passiveCriticalChance = Mathf.Max(0f, character.criticalChance);
+        float passiveLifesteal = Mathf.Max(0f, character.lifestealPercent);
+        float passivePhysicalDmg = Mathf.Max(0f, character.physicalDamageBonus);
+        float passiveMagicDmg = Mathf.Max(0f, character.magicDamageBonus);
+        float passiveDodge = Mathf.Max(0f, character.dodgeBonusFromGearPassives);
+        float passiveDamageReduction = Mathf.Max(0f, character.damageReduction);
+        float passiveManaRegen = Mathf.Max(0f, character.manaRegenBonus);
+        
+        // Step 4: Reset to base stats (clears all gear-specific and shared fields)
         character.ResetToBaseStats();
         
-        // Apply all equipped gear bonuses from all slots
+        // Step 5: Restore current HP/mana to base values, maintaining the delta
+        // Then when we add gear bonuses, we'll add them to both max and current
+        character.currentHP = character.maxHP + hpDelta;
+        if (character.currentHP < 0) character.currentHP = 0;
+        if (character.currentHP > character.maxHP) character.currentHP = character.maxHP;
+        
+        character.currentMana = character.mana + manaDelta;
+        if (character.currentMana < 0) character.currentMana = 0;
+        if (character.currentMana > character.mana) character.currentMana = character.mana;
+        
+        // Step 6: Restore passive bonuses
+        character.criticalChance = passiveCriticalChance;
+        character.lifestealPercent = passiveLifesteal;
+        character.physicalDamageBonus = passivePhysicalDmg;
+        character.magicDamageBonus = passiveMagicDmg;
+        character.dodgeBonusFromGearPassives = passiveDodge;
+        character.damageReduction = passiveDamageReduction;
+        character.manaRegenBonus = passiveManaRegen;
+        
+        // Step 7: Apply all equipped gear bonuses (adds on top of passives)
+        // AddGearBonus will add HP/mana bonuses to both max and current
         for (int i = 0; i < equipmentSlots.Length; i++)
         {
             if (equipmentSlots[i] != null)
@@ -281,6 +334,9 @@ public class Equipment : MonoBehaviour
                 character.AddGearBonus(equipmentSlots[i]);
             }
         }
+        
+        // Step 8: Update derived stats after all changes
+        character.UpdateDerivedStats();
     }
     
     public void RemoveGearStats(GearItem item)

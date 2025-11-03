@@ -26,6 +26,13 @@ namespace Map
         public GameObject nodePrefab;
         [Tooltip("Offset of the start/end nodes of the map from the edges of the screen")]
         public float orientationOffset;
+
+        [Tooltip("Kéo toàn bộ bản đồ lên/xuống. Âm = đi xuống, Dương = đi lên")]
+        public float verticalOffset = 0f;
+        [Tooltip("Co/giãn toàn bộ bản đồ. 1 = 100%, 0.8 = 80%")]
+        [Range(0.1f, 1.5f)]
+        public float mapScale = 1f;
+
         [Header("Background Settings")]
         [Tooltip("If the background sprite is null, background will not be shown")]
         public Sprite background;
@@ -230,12 +237,19 @@ namespace Map
 
             // set all lines that are a part of the path to visited color:
             // if we have not started moving on the map yet, leave everything as is:
-            if (mapManager.CurrentMap.path.Count == 0)
+            if (mapManager.CurrentMap.path == null || mapManager.CurrentMap.path.Count == 0)
                 return;
 
             // in any case, we mark outgoing connections from the final node with visible/attainable color:
             Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
             Node currentNode = mapManager.CurrentMap.GetNode(currentPoint);
+
+            // Safety: if currentNode is null (e.g., corrupted path like (-1,-1)), bail out gracefully
+            if (currentNode == null)
+            {
+                Debug.LogWarning($"[MapView] SetLineColors: current node not found at {currentPoint}. Skipping line coloring.");
+                return;
+            }
 
             foreach (Vector2Int point in currentNode.outgoing)
             {
@@ -264,7 +278,11 @@ namespace Map
             Debug.Log("Map span in set orientation: " + span + " camera aspect: " + cam.aspect);
 
             // setting first parent to be right in front of the camera first:
-            firstParent.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0f);
+            //firstParent.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0f);
+            // --- SỬA DÒNG NÀY ---
+            firstParent.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y + verticalOffset, 10f);
+            Debug.Log("Map span in set orientation: " + span + " camera aspect: " + cam.aspect);
+            firstParent.transform.localScale = Vector3.one * mapScale;
             float offset = orientationOffset;
             switch (orientation)
             {
@@ -392,14 +410,19 @@ namespace Map
 
             int absoluteFloor;
 
-            if (mapManager.CurrentMap.path.Count > 0)
+            // KIỂM TRA LOGIC MỚI:
+            // Nếu path rỗng (vừa vào map mới), chúng ta phải hiển thị
+            // tầng bắt đầu của Zone HIỆN TẠI (ví dụ: 1, 11, 21, ..., 71).
+            if (mapManager.CurrentMap.path == null || mapManager.CurrentMap.path.Count == 0)
             {
-                Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
-                absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(currentPoint);
+                // Tính tầng bắt đầu dựa trên Zone của MapManager
+                absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + 1;
             }
             else
             {
-                absoluteFloor = (mapManager.currentZone - 1) * mapManager.totalFloorsPerZone + 1;
+                // Nếu đã đi, tính tầng dựa trên node cuối cùng trong path
+                Vector2Int currentPoint = mapManager.CurrentMap.path[mapManager.CurrentMap.path.Count - 1];
+                absoluteFloor = mapManager.GetAbsoluteFloorFromNodePosition(currentPoint);
             }
 
             string floorText = string.Format(floorDisplayFormat, absoluteFloor);

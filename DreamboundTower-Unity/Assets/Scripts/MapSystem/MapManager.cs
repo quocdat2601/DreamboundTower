@@ -26,7 +26,13 @@ namespace Map
         public int currentFloor = 1;          // 1-10 per zone
         public int totalFloorsPerZone = 10;   // GDD: ~10 floors per zone
         public int totalNodesPerFloor = 5;    // GDD: 4-6 nodes per floor (default 5)
-        
+
+        [Header("Zone/Floor System")]
+        [Tooltip("BẬT CÁI NÀY ĐỂ TEST SCENE NÀY RIÊNG LẺ")]
+        public bool overrideZoneForTesting = false;
+        [Tooltip("Zone (1-10) để test")]
+        public int testZone = 1;
+
         // Checkpoint System - GDD: Checkpoints at floors 1, 11, 21, 31...
         public int steadfastHeartRestores = 3; // GDD: 3 times per checkpoint
         public int maxSteadfastHeartRestores = 3;
@@ -38,6 +44,23 @@ namespace Map
         }
         private void Start()
         {
+            if (overrideZoneForTesting)
+            {
+                Debug.LogWarning($"---!!! TEST MODE ON: ĐANG ÉP TẢI ZONE {testZone} !!!---");
+                if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+                {
+                    // Ghi đè RunData để các script khác (như MapGenerator) đọc
+                    GameManager.Instance.currentRunData.mapData.currentZone = testZone;
+                    // Xóa map JSON cũ để buộc tạo map mới
+                    GameManager.Instance.currentRunData.mapData.currentMapJson = null;
+                }
+                else
+                {
+                    // Nếu không có GameManager (chạy test scene riêng lẻ), 
+                    // ít nhất cũng phải đặt currentZone của MapManager
+                    currentZone = testZone;
+                }
+            }
             if (GameManager.Instance == null || GameManager.Instance.currentRunData == null)
             {
                 Debug.LogError("GameManager hoặc RunData không tồn tại! Không thể khởi tạo bản đồ.");
@@ -55,7 +78,17 @@ namespace Map
             {
                 Debug.Log($"Đang tải bản đồ đã lưu cho Zone {currentZone}...");
                 Map map = JsonConvert.DeserializeObject<Map>(mapJson);
-                map.path = runData.mapData.path; // Cập nhật đường đi mới nhất
+                // --- Sanitize saved path to avoid invalid points like (-1,-1) or nodes not in this map ---
+                if (runData.mapData.path == null) runData.mapData.path = new System.Collections.Generic.List<Vector2Int>();
+                var cleanedPath = new System.Collections.Generic.List<Vector2Int>();
+                foreach (var p in runData.mapData.path)
+                {
+                    if (p.x < 0 || p.y < 0) continue; // drop (-1,-1) markers
+                    Node n = map.GetNode(p);
+                    if (n != null) cleanedPath.Add(p);
+                }
+                map.path = cleanedPath; // use sanitized path
+                runData.mapData.path = cleanedPath; // write back
 
                 CurrentMap = map;
                 view.ShowMap(map); // Bây giờ ShowMap sẽ có dữ liệu Zone chính xác
@@ -79,6 +112,7 @@ namespace Map
             if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
             {
                 GameManager.Instance.currentRunData.mapData.path.Clear();
+                GameManager.Instance.currentRunData.mapData.pendingNodePoint = new Vector2Int(-1, -1);
             }
 
             SaveMap();

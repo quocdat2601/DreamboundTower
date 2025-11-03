@@ -1,26 +1,40 @@
 # 🏰 Dreambound Tower — Prototype
 
-> Narrative **roguelite RPG** — climb a dream-forged tower, make impactful choices, and fight tense **turn-based** battles.
+> Narrative Choice‑Driven Roguelite — Climb a dream‑forged tower, make impactful choices, and battle with turn‑based combat.
 
-[![Engine](https://img.shields.io/badge/Unity-6000.2.x-black.svg)]()
-[![Platform](https://img.shields.io/badge/Platform-Windows%20PC-orange.svg)]()
-[![Status](https://img.shields.io/badge/Status-In_Development-purple.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/your-org/DreamboundTower)
+[![Engine](https://img.shields.io/badge/engine-Unity%206000.2.2f1-black.svg)](https://unity.com)
+[![Platform](https://img.shields.io/badge/platform-Windows%20PC-orange.svg)](https://github.com/your-org/DreamboundTower)
+[![Genre](https://img.shields.io/badge/genre-RPG%20%7C%20Roguelite%20%7C%20Turn--based-green.svg)](https://github.com/your-org/DreamboundTower)
+[![Status](https://img.shields.io/badge/status-Prototype-purple.svg)](https://github.com/your-org/DreamboundTower)
+
+<div align="center">
+
+A surreal RPG roguelite blending node‑based progression, turn‑based combat, and visual‑novel choices. Built with Unity 6000.2.2f1.
+
+</div>
 
 ---
 
-## 🌟 Overview
-**Dreambound Tower** is a turn-based roguelite set inside a child’s surreal dream.  
-Progress through **100 floors** using a **node map** (Combat / Elite / Event / Shop / Rest / Treasure), make **choice-driven** decisions, and build a run with **items, relics, and stats**. Checkpoints at **1/11/21/…/91** restore your run-saving “Steadfast Heart”.  
-*Design details are aligned with the current GDD.* :contentReference[oaicite:0]{index=0}
+## 🌟 What is Dreambound Tower?
+You play as a boy falling into a surreal dream world—a colossal tower built from cherished memories and childhood nightmares. Explore node‑based maps (Slay‑the‑Spire inspired), make meaningful choices, and fight turn‑based battles with percentage-based combat mechanics. Climb toward floor 100 to uncover the truth behind the dream and yourself.
+
+### ✨ Key Features
+- **⚔️ Turn‑based Combat**: Percentage-based hit/crit/dodge system with physical and magic damage types
+- **🗺️ Node‑based Exploration**: Combat, Events, Shops, Rests, and Treasures across zones
+- **🧠 Choice‑Driven Events**: Visual‑novel style cards with stat checks and branching outcomes
+- **🧬 RNG Character Creation**: Spin a wheel for Race, Archetype, and base stats (limited rerolls)
+- **❤️ Steadfast Heart**: A 3‑charge run‑saving mechanic restored at checkpoints
+- **👹 Vietnamese Urban‑Legend Bosses**: From Ông Ba Bị to Ma Lai and beyond
 
 ---
 
-## 🎮 Core Features (prototype scope)
-- **Node-based progression:** 4–6 nodes per floor, boss every 10 floors (10/20/…/100).
-- **Turn-based combat:** clear math (no d20). STR/INT scale damage; DEF reduces damage; Crit 1.5x; Dodge from AGI (cap 40%); small chance for extra turn from AGI.
-- **Choice events:** VN-style cards with stat checks, flags, and chained events.
-- **Races & Classes:** 5 **Races** (Human/Demon/Celestial/Undead/Beastfolk) × 4 **Classes** (Warrior/Rogue/Mage/Cleric) with passives + 1 active.
-- **Steadfast Heart:** 3 charges per segment; lose 1 on death; refills to 3 at checkpoints.
+## 🎮 Core Gameplay Loop
+1. **Map** → Pick a route across 4–6 nodes per floor
+2. **Encounter** → Combat (turn‑based) or Event (choice + check)
+3. **Reward** → Loot, items, upgrades
+4. **Progress** → Toward boss floors (10/20/…/100)
+5. **Checkpoint** → Auto‑save at floors 1/11/21/… (restore Steadfast Heart)
 
 ---
 
@@ -33,31 +47,150 @@ Progress through **100 floors** using a **node map** (Combat / Elite / Event / S
 
 ---
 
-## 🧬 Races (base & identity)
-- **Human:** balanced stats; **+5% all stats**. *Active:* **Resolve Surge** – heal 10% MaxHP & +10% dmg (CD 5).
-- **Demon:** high STR; **+5% phys dmg** under 50% HP. *Active:* **Rage Break** – heavy hit, 6 Mana, CD 4, **5% MaxHP recoil**.
-- **Celestial:** tanky/mage; **+5% magic dmg & mana regen**. *Active:* **Radiant Shield** – shield 15% MaxHP + reflect (CD 5).
-- **Undead:** sturdy; **5% lifesteal**. *Active:* **Bone Resurge** – restore 25% HP & 1-turn stun immunity (CD 6).
-- **Beastfolk:** fast; **+8% dodge**. *Active:* **Pounce** – next turn first-strike, +40% dmg (CD 3).
+## 🧩 Systems Overview
 
-## 🛡️ Classes (role & active)
-- **Warrior:** *Passive:* **Iron Will** −10% physical dmg taken. *Active:* **Shield Slam** – STR-scaled hit, 30% Stun (CD 3).
-- **Rogue:** *Passive:* **Evasive Instinct** +6% dodge & +5% dmg vs DEF<5. *Active:* **Flurry Strike** – 3× small hits, heal 25% of dmg (CD 3).
-- **Mage:** *Passive:* **Arcane Overflow** +10% Max Mana & +5% spell power. *Active:* **Arcane Burst** – INT AoE + Burn (CD 4).
-- **Cleric:** *Passive:* **Divine Resilience** DR 12% & lifesteal 6% at HP≤35%. *Actives:* **Sanctified Strike** (INT hit + self-heal, CD 3) / **Sanctuary Ward** (shield, cleanse, CD 5).
+### 🧬 Character RNG
+- **Races**: Human, Demon, Celestial, Undead, Beastfolk
+- **Archetypes**: Warrior, Rogue, Mage, Cleric
+- Wheel rolls base stats 1–10 with limited rerolls
+
+### 📊 Stats
+**Core Stats**: HP, STR (Attack Power), DEF (Defense), MANA, INT (Intelligence), AGI (Agility)
+
+- **HP**: Maximum health points
+- **STR**: Base physical attack power (scales weapon damage)
+- **DEF**: Damage reduction percentage (League of Legends style: `defense / (defense + 100)`, capped at 67%)
+- **MANA**: Maximum mana pool for skills
+- **INT**: Scales magic damage and burn effect intensity
+- **AGI**: Determines dodge chance (0.3% per AGI, capped at 40% from AGI, additional bonuses from gear possible)
+
+**Derived Stats**: Dodge Chance (from AGI + gear bonuses), Critical Chance (from gear/passives), Lifesteal (from gear/passives), Damage Reduction (from gear + DEF)
+
+### ⚔️ Combat System
+- **Turn‑based**: Player turn → Enemy turn → End of turn effects
+- **Damage Types**: Physical (white), Magic (cyan), True (yellow)
+- **Critical Hits**: Percentage-based chance from gear/passives (increases damage by multiplier)
+- **Dodge**: Percentage-based chance from AGI + gear bonuses (prevents all damage)
+- **Defense**: Percentage-based damage reduction (DEF stat + gear, max 80% total)
+- **Shield**: Absorbs damage before HP, can stack
+- **Reflect**: Returns percentage of damage to attacker (active while shield exists)
+
+### 🩸 Status Effects
+**Damage Over Time (DOT)**:
+- **Bleed**: Physical damage per turn (scales with 12% of physical damage dealt when applied)
+- **Burn**: Magic damage per turn (scales with attacker's INT)
+- **Poison**: Physical damage per turn (scales with 2.5% of target's max HP when applied)
+
+**Other Status Effects**:
+- **Shield**: Absorbs damage before HP, stacks additively
+- **Reflect**: Returns percentage of damage to attacker (requires active shield)
+- **Stun**: Prevents actions on start of turn
+- **Heal Bonus**: Increases healing effectiveness percentage
+- **Pounce**: Enhances next attack with damage bonus
+
+Status effects tick at **Start of Turn** (Stun) or **End of Turn** (DOT effects, Shield decay, etc.)
+
+### 🎒 Items & Equipment
+- **Rarities**: Common, Uncommon, Rare, Epic, Legendary
+- **Gear Slots**: Weapon, Armor, Accessory (8 total slots: 1 Weapon, 1 Armor, 6 Accessories)
+- **Item Effects**: Stat boosts, percentage bonuses (crit chance, lifesteal, damage reduction), flat bonuses (damage, defense), status effect procs
+- **Weapons**: Grant base physical/magic damage, can have status effect procs (e.g., bleed on physical damage)
+- **Passives**: Some items grant passive skills with conditional effects
+- **Inventory**: 20 slots for items, drag-and-drop system for equipping
+
+### 👹 Enemies System
+- **Enemy Types**: Normal, Elite, Boss
+  - **Normal**: Standard enemies with base stats
+  - **Elite**: Enhanced enemies (3x HP, 1.6x STR, 1.5x DEF)
+  - **Boss**: Floor-ending bosses with unique abilities
+
+- **Enemy Scaling**: Stats scale exponentially with floor
+  - Formula: `stat(floor) = base × (1 + rate)^(floor - 1) × multipliers`
+  - Growth rate increases after floor 100
+
+- **Enemy Gimmicks**: Special behaviors enemies can have
+  - **Resurrect**: Revives once after death
+  - **SplitOnDamage**: Splits into smaller enemies when damaged
+  - **CounterAttack**: Retaliates when attacked
+  - **Ranged**: Has ranged attacks (invulnerable to melee)
+  - **Enrage**: Gets stronger at low HP
+  - **Bony**: Takes reduced damage
+  - **Thornmail**: Reflects physical damage back to attacker
+  - **Regenerator**: Heals HP each turn
+  - **Summoner**: Summons minions during battle
+  - **HordeSummoner**: Summons waves of enemies (bosses only)
+
+### 💎 Loot System
+- **Drop Mechanics**: Enemies drop items on death based on LootTables
+- **Rarity Scaling**: Drop chances based on enemy type and floor
+  - Normal/Elite: Rarity chances scale with floor progression
+  - Boss: Always drops loot, higher chance for Epic/Legendary items
+- **LootTables**: ScriptableObjects define what enemies can drop
+  - Individual item drop chances (0-1)
+  - Min/max quantities
+  - Rarity-based selection
+- **Auto-Collection**: Loot auto-collects after a delay (configurable)
+- **Manual Collection**: Click or walk into items to collect immediately
+
+### ⚡ Skills System
+- **Active Skills**: Consume mana, have cooldowns
+  - Damage scaling with STR/INT based on skill type
+  - Can apply status effects (burn, bleed, poison, shield, etc.)
+  - Multiple target types: Single Enemy, All Enemies, Self, Ally, All Allies
+  - Physical or Magic damage types
+
+- **Passive Skills**: Always active, no resource cost
+  - From Race/Class selection
+  - From gear items
+  - Conditional effects (e.g., damage reduction at low HP)
+
+- **Skill Cooldowns**: Skills refresh each turn, some have multi-turn cooldowns
+
+### 🛒 Shop System
+- **Node Type**: Shop nodes appear on the map
+- **Item Selection**: Shop offers items based on current floor/zone
+- **Purchase System**: Buy items with gold
+- **Sell System**: Sell unwanted items for gold (right-click item to sell)
+
+### 🏥 Rest Sites
+- **Node Type**: Rest nodes appear on the map
+- **Healing**: Restore HP and Mana
+- **Preparation**: Prepare before boss fights
+
+### 🗺️ Map & Zone System
+- **Zone Structure**: 10 floors per zone, 10 zones total (floors 1-100)
+- **Node Types**: Minor Enemy, Elite Enemy, Boss, Event, Shop, Rest, Treasure
+- **Map Generation**: Procedural map generation per zone
+- **Progression**: Advance floors within zone, transition to next zone at floor 10
+- **Checkpoints**: Floors 1, 11, 21... (restore Steadfast Heart)
+- **Boss Floors**: Every 10th floor (10, 20, 30... 100)
+- **Persistence**: Map state saved per zone, resumes from last visited node
+
+### 🗒️ Events (VN style)
+- Event cards with 2–3 choices; outcomes can include stat changes, items, gold, status effects, or route changes
+- Race‑specific events add personalization
+- Uses Ink scripting system for narrative content
+
+### ❤️ Steadfast Heart
+- Starts with 3 durability; lose 1 on defeat. At 0 → run ends
+- Restored to 3 at checkpoints (1/11/21/…)
+- UI: a 3‑light heart widget
 
 ---
 
-## 💎 Items, Relics, Economy (prototype rules)
-- Prices are **data-driven** from stat sums + rarity base value.
-- Drops scale with floor: Normal < Elite < Boss; rarity weights bump every 10 floors.
-- Gold & EXP growth per floor use smooth exponential factors (see constants).
+## 🛠️ Tech & Data
+- **Engine**: Unity 6000.2.2f1 (ea398eefe1c2)
+- **Architecture**: GameManager (singleton), BattleManager (turn-based combat), MapManager (node progression), StatusEffectManager (status effects)
+- **Data‑Driven**: ScriptableObjects for Skills, Races, Classes, Enemies, Events, Items
+- **Save**: JSON for run state (PlayerData, MapData, Inventory, Equipment)
+- **Audio/VFX**: AudioManager, CombatEffectManager for damage numbers and visual effects
+- **Narrative**: Ink scripting system for events and story content
 
----
-
-## ❤️ Steadfast & Checkpoints
-- **Steadfast Heart:** 3 “durability”. On defeat → −1. At 0 → run ends.
-- **Checkpoints:** floors **1/11/21/…/91**. On restore: Steadfast → 3, HP to % of Max, Mana full (tunable).
+### ScriptableObject Schemas (high‑level)
+- SkillData: id, name, icon, cost, resource, damage, hit bonus, crit threshold, statuses, target, desc
+- RaceData: id, name, base stat mods, innate skills, lore
+- EnemyData: id, name, base stats, skills, phases, portrait
+- EventCardData: id, title, description, choices (checks + outcomes)
 
 ---
 
@@ -79,11 +212,15 @@ Progress through **100 floors** using a **node map** (Combat / Elite / Event / S
 
 ---
 
-## 🔗 References
-- **GDD (latest):** *[DreamboundTower GDD](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0)*  
-- **Data Sheets:** *[Data](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868)*  
+## 🎮 Cheat Codes
 
----
+The game includes several developer cheats for testing purposes:
+
+- **Ctrl + Shift + L**: Load Legendary Run (F100) — Gives player all legendary items and sets floor to 100
+- **Ctrl + Shift + G**: Toggle God Mode — Makes player invincible and deals massive damage (9999x multiplier)
+- **Ctrl + Shift + K**: Kill Player — Instantly kills the player character
+
+**Note**: These cheats are intended for development and testing only. They may not work in all scenes (e.g., Legendary Run cheat only works outside of combat).
 
 ## 🤝 Contributing
 PRs welcome (systems, content, balance).  

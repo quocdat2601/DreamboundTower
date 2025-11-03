@@ -136,12 +136,39 @@ public class TooltipManager : MonoBehaviour
         HideAllTooltips();
         activeTooltipRect = itemTooltipRect;
 
-        // Cập nhật Header (giữ nguyên)
-        if (itemHeaderNameText) itemHeaderNameText.text = item.itemName;
+        // Apply rarity background to tooltip panel
+        Image tooltipPanelImage = itemTooltipPanel.GetComponent<Image>();
+        if (tooltipPanelImage == null)
+        {
+            tooltipPanelImage = itemTooltipPanel.AddComponent<Image>();
+        }
+        RarityColorUtility.ApplyRarityBackground(tooltipPanelImage, item.rarity);
+        
+        // Also look for a background child object in tooltip panel
+        Transform tooltipBgTransform = itemTooltipPanel.transform.Find("Background");
+        if (tooltipBgTransform != null)
+        {
+            Image tooltipBgImage = tooltipBgTransform.GetComponent<Image>();
+            if (tooltipBgImage != null)
+            {
+                RarityColorUtility.ApplyRarityBackground(tooltipBgImage, item.rarity);
+            }
+        }
+
+        // Cập nhật Header với rarity color
+        if (itemHeaderNameText)
+        {
+            itemHeaderNameText.text = item.itemName;
+            // Apply rarity color to name text
+            itemHeaderNameText.color = RarityColorUtility.GetRarityColor(item.rarity);
+        }
         if (itemHeaderCostText) itemHeaderCostText.text = item.basePrice.ToString(); // Thêm .ToString() nếu basePrice là số
 
         // Dọn dẹp và tạo các dòng chỉ số mới (giữ nguyên)
         PopulateStats(item);
+        
+        // Add rarity name to stats (if needed, can be added as a stat line)
+        // For now, we'll add it to the description area or create a separate rarity indicator
 
         // --- SỬA LOGIC ẨN/HIỆN DESCRIPTION ---
         if (itemDescriptionGO != null) // Kiểm tra GameObject cha
@@ -334,6 +361,38 @@ public class TooltipManager : MonoBehaviour
             Destroy(child.gameObject);
         }
 
+        // Add rarity information at the top (as a special stat line with rarity color)
+        if (item != null && statTextPrefab != null && statContainer != null)
+        {
+            GameObject rarityGO = Instantiate(statTextPrefab, statContainer);
+            TextMeshProUGUI rarityText = rarityGO.GetComponent<TextMeshProUGUI>();
+            if (rarityText != null)
+            {
+                string rarityName = RarityColorUtility.GetRarityName(item.rarity);
+                rarityText.text = $"Rarity: {rarityName}";
+                rarityText.color = RarityColorUtility.GetRarityColor(item.rarity);
+                // Make it slightly larger/bolder to stand out
+                rarityText.fontStyle = FontStyles.Bold;
+                if (rarityText.fontSize > 0)
+                {
+                    rarityText.fontSize *= 1.1f;
+                }
+            }
+        }
+
+        // Add weapon scaling type for weapons only
+        if (item.gearType == GearType.Weapon && statTextPrefab != null && statContainer != null)
+        {
+            GameObject scalingGO = Instantiate(statTextPrefab, statContainer);
+            TextMeshProUGUI scalingText = scalingGO.GetComponent<TextMeshProUGUI>();
+            if (scalingText != null)
+            {
+                string scalingName = GetWeaponScalingName(item.scalingType);
+                scalingText.text = $"Scales with: {scalingName}";
+                scalingText.color = GetWeaponScalingColor(item.scalingType);
+            }
+        }
+
         // Tạo dòng mới cho mỗi chỉ số khác 0
         AddStatLine("Max HP", item.hpBonus);
         AddStatLine("MANA", item.manaBonus);
@@ -341,6 +400,36 @@ public class TooltipManager : MonoBehaviour
         AddStatLine("DEF", item.defenseBonus);
         AddStatLine("INT", item.intBonus);
         AddStatLine("AGI", item.agiBonus);
+    }
+
+    private string GetWeaponScalingName(WeaponScalingType scalingType)
+    {
+        switch (scalingType)
+        {
+            case WeaponScalingType.STR:
+                return "Physical";
+            case WeaponScalingType.INT:
+                return "Magical";
+            case WeaponScalingType.Hybrid:
+                return "Hybrid";
+            default:
+                return "Physical";
+        }
+    }
+
+    private Color GetWeaponScalingColor(WeaponScalingType scalingType)
+    {
+        switch (scalingType)
+        {
+            case WeaponScalingType.STR:
+                return new Color(0.9f, 0.7f, 0.7f, 1f); // Light red for physical
+            case WeaponScalingType.INT:
+                return new Color(0.7f, 0.7f, 0.9f, 1f); // Light blue for magical
+            case WeaponScalingType.Hybrid:
+                return new Color(0.9f, 0.9f, 0.7f, 1f); // Light yellow for hybrid
+            default:
+                return Color.white;
+        }
     }
 
     private void AddStatLine(string statName, int value)

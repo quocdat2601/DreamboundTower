@@ -17,11 +17,11 @@ MonoBehaviour:
   maxAbsoluteFloor: 40
   rarityWeights:
   - rarity: 0
-    weight: 50
+    weight: 30
   - rarity: 1
-    weight: 35
+    weight: 42
   - rarity: 2
-    weight: 10
+    weight: 23
   - rarity: 3
     weight: 5
   - rarity: 4

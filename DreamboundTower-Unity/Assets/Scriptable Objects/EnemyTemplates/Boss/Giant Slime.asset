@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
+  m_Name: Giant Slime
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
+  kind: 2
+  gimmick: 65538
+  isUniqueOrEventOnly: 0
+  minFloor: 30
+  summonableEnemies: []
+  manaRegenPerTurnn: 0
+  skills: []
+  sprites:
+  - {fileID: -2803859924812873625, guid: 42d87a1129bc8724b96ace233bd74241, type: 3}
+  baseStatsAtFloor1:
+    HP: 45
+    STR: 22
+    DEF: 9
+    MANA: 0
+    INT: 0
+    AGI: 0
+  hpMultiplier: 1
+  strMultiplier: 1
+  defMultiplier: 1
+  baseRate: 0.012
+  endlessAfterFloor: 100
+  endlessBonus: 0.002

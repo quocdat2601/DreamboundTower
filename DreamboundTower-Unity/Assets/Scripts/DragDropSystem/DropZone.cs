@@ -52,7 +52,7 @@ public class DropZone : MonoBehaviour
     
     // Highlight state
     private bool isHighlighted = false;
-    private Color originalColor;
+    public Color originalColor; // Made public so DragDropInventoryUI can set it
     private Color currentHighlightColor;
     
     void Awake()
@@ -114,6 +114,9 @@ public class DropZone : MonoBehaviour
         
         if (highlighted)
         {
+            // Store current color before highlighting (this preserves rarity color if it was set)
+            originalColor = highlightImage.color;
+            
             // Apply highlight
             currentHighlightColor = color ?? defaultHighlightColor;
             Color highlightColorWithAlpha = currentHighlightColor;
@@ -122,8 +125,54 @@ public class DropZone : MonoBehaviour
         }
         else
         {
-            // Remove highlight
-            highlightImage.color = originalColor;
+            // When highlighting ends, restore to original color
+            // The UI update system will handle proper color restoration via UpdateInventoryUI/UpdateEquipmentUI
+            if (slotImage != null)
+            {
+                GearItem currentItem = GetCurrentItem();
+                if (currentItem != null)
+                {
+                    // Item exists - apply rarity color immediately
+                    RarityColorUtility.ApplyRarityBackground(slotImage, currentItem.rarity);
+                    originalColor = slotImage.color;
+                }
+                else
+                {
+                    // No item - restore to original slot color
+                    if (originalColor.a < 0.1f || originalColor == Color.clear)
+                    {
+                        originalColor = slotImage.color;
+                    }
+                    slotImage.color = originalColor;
+                }
+            }
+            else if (highlightImage != null)
+            {
+                // Fallback if slotImage is null
+                GearItem currentItem = GetCurrentItem();
+                if (currentItem != null)
+                {
+                    RarityColorUtility.ApplyRarityBackground(highlightImage, currentItem.rarity);
+                    originalColor = highlightImage.color;
+                }
+                else
+                {
+                    Color emptyColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
+                    highlightImage.color = emptyColor;
+                    originalColor = emptyColor;
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Update the stored original color (call this when rarity color is applied)
+    /// </summary>
+    public void UpdateOriginalColor()
+    {
+        if (slotImage != null)
+        {
+            originalColor = slotImage.color;
         }
     }
     

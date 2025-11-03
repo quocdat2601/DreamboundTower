@@ -1,5 +1,7 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// Manages loot spawning and collection in the game
@@ -27,7 +29,7 @@ public class LootManager : MonoBehaviour
     public float lootDespawnTime = 60f;
     
     [Tooltip("Auto-collect all loot after this many seconds (0 = disabled)")]
-    public float globalAutoCollectDelay = 0f;
+    public float globalAutoCollectDelay = 0.1f; // Set to 0.1s for immediate collection
     
     
     [Header("References")]
@@ -107,7 +109,65 @@ public class LootManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Spawn loot from a loot table at a specific position
+    /// Spawn loot at a specific position using rarity-based system.
+    /// Items are added directly to player inventory.
+    /// </summary>
+    /// <param name="rarity">The rarity of item to spawn</param>
+    /// <param name="position">Position to spawn loot (unused now, items go to inventory)</param>
+    /// <param name="quantity">Number of items to spawn</param>
+    public void SpawnLootByRarity(ItemRarity rarity, Vector3 position, int quantity = 1)
+    {
+        // Ensure we have the current scene's inventory reference
+        RefreshReferences();
+        
+        if (playerInventory == null || GameManager.Instance == null || GameManager.Instance.allItems == null)
+        {
+            Debug.LogWarning("[LOOT] Cannot spawn loot: Missing inventory or item pool");
+            return;
+        }
+        
+        // Get all items of the requested rarity
+        var availableItems = GameManager.Instance.allItems
+            .Where(item => item != null && item.rarity == rarity)
+            .ToList();
+        
+        if (availableItems.Count == 0)
+        {
+            Debug.LogWarning($"[LOOT] No items of rarity {rarity} found in item pool");
+            return;
+        }
+        
+        bool anyItemAdded = false;
+        
+        // Add random items of the specified rarity
+        for (int i = 0; i < quantity; i++)
+        {
+            GearItem randomItem = availableItems[Random.Range(0, availableItems.Count)];
+            
+            try
+            {
+                bool success = playerInventory.AddItemSilent(randomItem);
+                if (success)
+                {
+                    anyItemAdded = true;
+                    Debug.Log($"[LOOT] Collected {randomItem.itemName} (rarity: {rarity})");
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[LOOT] Error adding item {randomItem.itemName} to inventory: {e.Message}");
+            }
+        }
+        
+        // Trigger UI update once after all items are added
+        if (anyItemAdded)
+        {
+            StartCoroutine(DelayedInventoryUIUpdate());
+        }
+    }
+    
+    /// <summary>
+    /// Spawn loot from a loot table at a specific position (LEGACY - kept for compatibility)
     /// </summary>
     /// <param name="lootTable">The loot table to use</param>
     /// <param name="position">World position to spawn at</param>
@@ -121,52 +181,52 @@ public class LootManager : MonoBehaviour
             return;
         }
         
-        if (lootPickupPrefab == null)
-        {
-            return;
-        }
-        
         // Get random loot from the table
         List<LootTable.LootEntry> lootEntries = lootTable.GetRandomLoot(maxDrops);
         
-        foreach (var entry in lootEntries)
+        // Always add items directly to inventory (no ground spawning)
+        // Ensure we have the current scene's inventory reference
+        RefreshReferences();
+        
+        if (playerInventory != null)
         {
-            if (entry.item == null) continue;
+            bool anyItemAdded = false;
             
-            // Use the position passed from LootDrop (which already handles BattleArea positioning)
-            Vector3 spawnPos = position;
-            
-            // Add scatter if enabled
-            if (scatter)
+            foreach (var entry in lootEntries)
             {
-                Vector2 randomOffset = Random.insideUnitCircle * scatterRadius;
-                spawnPos += new Vector3(randomOffset.x, 0, randomOffset.y);
-            }
-            
-            // Spawn the loot pickup
-            GameObject lootObj = Instantiate(lootPickupPrefab, spawnPos, Quaternion.identity);
-            LootPickup pickup = lootObj.GetComponent<LootPickup>();
-            
-            if (pickup != null)
-            {
-                // Configure the pickup with real item data
-                pickup.SetupLoot(entry.item, entry.minQuantity, entry.maxQuantity, entry.rarity);
-                pickup.SetDespawnTime(lootDespawnTime);
+                if (entry.item == null) continue;
                 
-                // Set auto-collect delay if enabled globally
-                if (globalAutoCollectDelay > 0)
+                // Calculate quantity
+                int quantity = Random.Range(entry.minQuantity, entry.maxQuantity + 1);
+                if (quantity <= 0) quantity = 1;
+                
+                // Add items directly to inventory (silent mode to avoid UI errors)
+                // Collect all items silently first, then trigger a single UI update
+                for (int i = 0; i < quantity; i++)
                 {
-                    pickup.autoCollectDelay = globalAutoCollectDelay;
+                    try
+                    {
+                        // Use silent add to avoid triggering UI updates immediately
+                        bool success = playerInventory.AddItemSilent(entry.item);
+                        if (success)
+                        {
+                            anyItemAdded = true;
+                            Debug.Log($"[LOOT] Collected {entry.item.itemName} x{quantity}");
+                        }
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[LOOT] Error adding item {entry.item.itemName} to inventory: {e.Message}");
+                        // Continue with next item even if this one fails
+                    }
                 }
-                
-                
-                // Add to active loot list
-                activeLoot.Add(pickup);
-                
             }
-            else
+            
+            // Trigger UI update once after all items are added
+            // Use coroutine to wait a frame for UI components to be ready
+            if (anyItemAdded)
             {
-                Destroy(lootObj);
+                StartCoroutine(DelayedInventoryUIUpdate());
             }
         }
     }
@@ -183,42 +243,34 @@ public class LootManager : MonoBehaviour
         // Always ensure we have the current scene's inventory reference
         RefreshReferences();
         
-        // Add to inventory
+        // Add to inventory (use silent mode to avoid UI errors after shop scene)
         if (playerInventory != null)
         {
+            bool anyItemAdded = false;
             for (int i = 0; i < loot.quantity; i++)
             {
-                bool success = playerInventory.AddItem(loot.item);
-                if (success)
+                try
                 {
-                    Debug.Log($"[LOOT] Collected {loot.item.itemName} x{loot.quantity}");
+                    // Use silent add to avoid triggering UI updates immediately
+                    bool success = playerInventory.AddItemSilent(loot.item);
+                    if (success)
+                    {
+                        anyItemAdded = true;
+                        Debug.Log($"[LOOT] Collected {loot.item.itemName} x{loot.quantity}");
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LOOT] Error adding item {loot.item.itemName} to inventory: {e.Message}");
+                    // Continue with next item even if this one fails
                 }
             }
             
-            // Force UI update by finding all inventory UI components
-            var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
-            foreach (var ui in inventoryUIs)
+            // Trigger UI update once after all items are added
+            if (anyItemAdded)
             {
-                // Make sure the UI is using the same inventory instance
-                if (ui.inventory != playerInventory)
-                {
-                    ui.UpdateInventoryReference(playerInventory);
-                }
-                else
-                {
-                    ui.ForceRefreshUI();
-                }
+                StartCoroutine(DelayedInventoryUIUpdate());
             }
-            
-            // Also update DragDropSystem inventory reference
-            var dragDropSystem = FindFirstObjectByType<DragDropSystem>();
-            if (dragDropSystem != null)
-            {
-                dragDropSystem.UpdateInventoryReference(playerInventory);
-            }
-            
-            // The inventory's OnInventoryChanged event should handle SimpleInventoryUI updates
-            // No need to manually call UpdateInventoryUI() since it's private
         }
         
         // Remove from active loot and destroy (with small delay to ensure UI updates)
@@ -303,6 +355,71 @@ public class LootManager : MonoBehaviour
     }
     
     /// <summary>
+    /// Delayed UI update to allow UI components to initialize after scene transitions
+    /// </summary>
+    private IEnumerator DelayedInventoryUIUpdate()
+    {
+        // Wait a frame to ensure UI components are ready
+        yield return new WaitForEndOfFrame();
+        
+        if (playerInventory == null) yield break;
+        
+        // Update UI references safely (with error handling)
+        try
+        {
+            var inventoryUIs = FindObjectsByType<DragDropInventoryUI>(FindObjectsSortMode.None);
+            foreach (var ui in inventoryUIs)
+            {
+                if (ui == null) continue;
+                
+                try
+                {
+                    if (ui.inventory != playerInventory)
+                    {
+                        ui.UpdateInventoryReference(playerInventory);
+                    }
+                    else
+                    {
+                        ui.ForceRefreshUI();
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LOOT] Error updating inventory UI: {e.Message}");
+                    // Continue with next UI
+                }
+            }
+            
+            var dragDropSystem = FindFirstObjectByType<DragDropSystem>();
+            if (dragDropSystem != null)
+            {
+                try
+                {
+                    dragDropSystem.UpdateInventoryReference(playerInventory);
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LOOT] Error updating DragDropSystem: {e.Message}");
+                }
+            }
+            
+            // Trigger inventory change event after UI is ready
+            try
+            {
+                playerInventory.OnInventoryChanged?.Invoke();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[LOOT] Error triggering inventory change event: {e.Message}");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[LOOT] Error during UI update: {e.Message}");
+        }
+    }
+    
+    /// <summary>
     /// Get the number of active loot items
     /// </summary>
     public int GetActiveLootCount()
@@ -310,6 +427,69 @@ public class LootManager : MonoBehaviour
         return activeLoot.Count;
     }
     
+    /// <summary>
+    /// Wait for all loot to be collected before proceeding
+    /// This ensures all loot is picked up (manually or via auto-collect) before battle ends
+    /// </summary>
+    /// <returns>Coroutine that waits until all loot is collected</returns>
+    public IEnumerator WaitForAllLootCollected()
+    {
+        // Clean up null references first
+        activeLoot.RemoveAll(loot => loot == null);
+        
+        // If no active loot, we're done
+        if (activeLoot.Count == 0)
+        {
+            yield break;
+        }
+        
+        // Find the maximum remaining auto-collect time among active loot
+        float maxRemainingTime = 0f;
+        foreach (var loot in activeLoot)
+        {
+            if (loot != null)
+            {
+                float remaining = loot.RemainingAutoCollectTime();
+                if (remaining > maxRemainingTime)
+                {
+                    maxRemainingTime = remaining;
+                }
+            }
+        }
+        
+        // If there's auto-collect enabled, wait until the longest remaining delay has passed
+        if (maxRemainingTime > 0)
+        {
+            Debug.Log($"[LOOT] Waiting for auto-collect delays (max remaining: {maxRemainingTime}s)");
+            yield return new WaitForSeconds(maxRemainingTime + 0.5f); // Add small buffer
+        }
+        
+        // Now wait until all loot is actually collected (might have been manually collected or auto-collected)
+        float waitStartTime = Time.time;
+        float maxWaitTime = 30f; // Safety timeout - don't wait forever
+        
+        while (activeLoot.Count > 0 && (Time.time - waitStartTime) < maxWaitTime)
+        {
+            // Clean up null references each frame
+            activeLoot.RemoveAll(loot => loot == null);
+            
+            if (activeLoot.Count == 0)
+            {
+                break;
+            }
+            
+            yield return null; // Wait one frame
+        }
+        
+        if (activeLoot.Count > 0)
+        {
+            Debug.LogWarning($"[LOOT] Some loot was not collected before battle end. Remaining: {activeLoot.Count}");
+        }
+        else
+        {
+            Debug.Log("[LOOT] All loot collected!");
+        }
+    }
     
     
 }

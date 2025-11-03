@@ -28,6 +28,15 @@ public class PlayerStatusController : MonoBehaviour
         if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
         {
             var playerData = GameManager.Instance.currentRunData.playerData;
+            // Đảm bảo tham chiếu goldValueText được gán (trong trường hợp quên kéo trong Inspector)
+            if (goldValueText == null)
+            {
+                var coinValueTf = transform.Find("Panel/Coin/CoinValue");
+                if (coinValueTf != null)
+                {
+                    goldValueText = coinValueTf.GetComponent<TextMeshProUGUI>();
+                }
+            }
 
             // Kiểm tra xem playerInstance đã tồn tại chưa
             if (GameManager.Instance.playerInstance != null)
@@ -48,6 +57,9 @@ public class PlayerStatusController : MonoBehaviour
 
             // Luôn cập nhật Steadfast Heart
             UpdateSteadfastHeart(playerData.steadfastDurability);
+
+            // Cập nhật hiển thị vàng ngay khi UI bật
+            UpdateGold(playerData.gold);
         }
         
         // Force initial shield update
@@ -89,10 +101,13 @@ public class PlayerStatusController : MonoBehaviour
         
         if (hpText != null)
         {
-            // Show HP + Shield in text
+            // Set text alignment to center
+            hpText.alignment = TMPro.TextAlignmentOptions.Center;
+            
+            // Show HP + Shield in text (shield on new line below HP)
             if (shieldAmount > 0)
             {
-                hpText.text = $"{current} / {max} [Shield: {shieldAmount}]";
+                hpText.text = $"{current} / {max}\n[Shield: {shieldAmount}]";
             }
             else
             {

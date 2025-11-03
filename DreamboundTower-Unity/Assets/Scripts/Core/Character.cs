@@ -2,8 +2,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.Collections;
 using DG.Tweening;
 using StatusEffects;
+using Assets.Scripts.Data;
 public enum DamageType
 {
     Physical, // Vật lý (màu trắng)
@@ -46,12 +48,34 @@ public class Character : MonoBehaviour
     public const float DOUBLE_ACTION_PER_AGI = 0.0015f; // 0.15% double action per AGI point
     public const float DOUBLE_ACTION_CAP = 0.25f; // 25% maximum double action chance
     
-    // Critical Damage formula: Crits deal 1.5x damage (was 2.0x)
-    public const float CRITICAL_DAMAGE_MULTIPLIER = 1.5f; // Critical hits deal 1.5x damage
+    // Critical Damage: Base multiplier (can be modified by gear)
+    public const float BASE_CRITICAL_DAMAGE_MULTIPLIER = 1.5f; // Base critical hits deal 1.5x damage
+    
+    // Defense formula constant (League of Legends style percentage-based reduction)
+    // Formula: damage_reduction% = defense / (defense + DEFENSE_FORMULA_CONSTANT)
+    // Lower constant = faster scaling at low DEF, slower at high DEF (more diminishing returns)
+    // Higher constant = slower scaling at low DEF, faster at high DEF (less diminishing returns)
+    // Tuned for game's DEF range: Early (0-50), Mid (50-200), Late (200-1000+)
+    // Value of 100 provides balanced curve: 25 DEF = 20%, 50 DEF = 33%, 100 DEF = 50%, 200 DEF = 67%
+    // Increased from 75 to 100 to slow down high DEF scaling and prevent excessive reduction
+    public const float DEFENSE_FORMULA_CONSTANT = 100f; // Tuned constant for balanced scaling (slower at high DEF)
+    
+    // Maximum defense-only damage reduction cap (defense stat alone cannot exceed this)
+    // Prevents flat defense from providing excessive reduction on its own
+    // 67% cap means defense stat alone can provide maximum 67% reduction
+    public const float MAX_DEFENSE_DAMAGE_REDUCTION = 0.67f; // 67% maximum defense-only reduction cap
+    
+    // Maximum total damage reduction cap (includes both gear damageReduction and defense reduction)
+    // Prevents near-invincible builds when high DEF + gear damage reduction stack
+    // 80% cap means maximum 80% damage reduction (minimum 20% damage taken)
+    // This ensures combat remains engaging even with very high defense and damage reduction gear
+    public const float MAX_TOTAL_DAMAGE_REDUCTION = 0.80f; // 80% maximum total damage reduction cap
 
     [Header("Passive Bonuses")]
     [Tooltip("Percentage bonus to mana regeneration from passive skills")]
     public float manaRegenBonus = 0f; // <-- THÊM MỚI
+    [Tooltip("Base HP regeneration per turn (percentage of max HP, e.g. 3 = 3% of max HP per turn)")]
+    public float baseHPRegenPerTurn = 3f; // Base HP regen per turn (3% of max HP)
     [Tooltip("Percentage bonus to physical damage from passive skills")]
     public float physicalDamageBonus = 0f; // Physical damage bonus (0.05 = 5%)
     [Tooltip("Percentage bonus to magic damage from passive skills")]
@@ -66,9 +90,33 @@ public class Character : MonoBehaviour
     
     [Tooltip("Percentage damage reduction from all sources")]
     public float damageReduction = 0f; // Damage reduction (0.1 = 10%)
+    
+    [Tooltip("Critical damage multiplier (1.0 = 100%, meaning 2.0x damage on crit. Base is 1.5 = 150%)")]
+    public float critDamageMultiplier = 1.5f; // Critical damage multiplier (variable, modified by gear)
+    
+    [Tooltip("Gear-based reflect damage percentage (separate from status effect reflect)")]
+    public float gearReflectDamagePercent = 0f; // Reflect damage from gear (0.1 = 10%)
+    
+    [Tooltip("Flat magic damage bonus from gear")]
+    public int magicDamageFlat = 0; // Flat magic damage bonus
+    
+    [Tooltip("Flat physical damage bonus from gear")]
+    public int physicalDamageFlat = 0; // Flat physical damage bonus
+    
     [HideInInspector]
     public bool isInvincible = false;
+    
+    [HideInInspector]
+    public float cheatDamageMultiplier = 1.0f;
+    
     private Equipment equipment;
+    
+    // Track applied gear modifiers for cleanup
+    private System.Collections.Generic.List<StatModifierSO> appliedGearModifiers = new System.Collections.Generic.List<StatModifierSO>();
+
+    [HideInInspector]
+    [Tooltip("Nếu true, nhân vật này không thể bị người chơi hoặc quái vật khác chọn làm mục tiêu.")]
+    public bool isUntargetable = false;
 
     /// <summary>
     /// Tracks if the last damage received was magical (for color differentiation)
@@ -115,7 +163,11 @@ public class Character : MonoBehaviour
     private void Awake()
     {
         equipment = GetComponent<Equipment>();
+        
+        // Initialize crit damage multiplier to base value
+        critDamageMultiplier = BASE_CRITICAL_DAMAGE_MULTIPLIER;
     }
+    
     #endregion
 
     #region Stats Management
@@ -127,21 +179,41 @@ public class Character : MonoBehaviour
         mana = baseMana;                 // <-- THÊM MỚI
         intelligence = baseIntelligence; // <-- THÊM MỚI
         agility = baseAgility;           // <-- THÊM MỚI
+        
+        // Reset gear-based bonuses to base values
+        critDamageMultiplier = BASE_CRITICAL_DAMAGE_MULTIPLIER;
+        gearReflectDamagePercent = 0f;
+        magicDamageFlat = 0;
+        physicalDamageFlat = 0;
+        
+        // NOTE: We do NOT reset shared bonus fields here (criticalChance, lifestealPercent, etc.)
+        // These fields are used by BOTH gear modifiers and passive skills.
+        // Equipment.ApplyGearStats() handles preservation of passive bonuses before resetting.
+        
+        // Clear applied gear modifiers list (will be repopulated when gear is re-applied)
+        appliedGearModifiers.Clear();
+        
         UpdateDerivedStats();
     }
     /// <summary>
     /// Tính toán lại các chỉ số phụ thuộc (derived stats) như Dodge Chance.
     /// Gọi hàm này sau khi base stats, gear bonus, hoặc buff/debuff thay đổi.
     /// </summary>
+    // Track dodge bonus from gear/passives separately from AGI-derived dodge
+    public float dodgeBonusFromGearPassives = 0f;
+    
     public void UpdateDerivedStats()
     {
-        // Tính Dodge Chance từ Agility hiện tại
+        // Calculate base dodge chance from Agility
         // agility là chỉ số thực tế đã bao gồm bonus từ trang bị/buff
-        dodgeChance = Mathf.Clamp(agility * DODGE_PER_AGI, 0f, DODGE_CAP);
+        float baseDodgeFromAgi = Mathf.Clamp(agility * DODGE_PER_AGI, 0f, DODGE_CAP);
+        
+        // Total dodge = base from AGI + bonuses from gear/passives
+        dodgeChance = baseDodgeFromAgi + dodgeBonusFromGearPassives;
 
         // (Sau này có thể thêm tính Crit Chance, Block Chance... vào đây nếu cần)
 
-         Debug.Log($"[{name}] Updated Derived Stats: Agility={agility}, DodgeChance={dodgeChance * 100f}%");
+         Debug.Log($"[{name}] Updated Derived Stats: Agility={agility}, BaseDodgeFromAgi={baseDodgeFromAgi * 100f}%, GearBonus={dodgeBonusFromGearPassives * 100f}%, TotalDodgeChance={dodgeChance * 100f}%");
     }
     #endregion
 
@@ -150,6 +222,7 @@ public class Character : MonoBehaviour
     {
         if (gear == null) return;
 
+        // Apply base stat bonuses
         maxHP += gear.hpBonus;
         attackPower += gear.attackBonus;
         defense += gear.defenseBonus;
@@ -157,6 +230,19 @@ public class Character : MonoBehaviour
         mana += gear.manaBonus;
         agility += gear.agiBonus;
 
+        // Add HP bonus to current HP as well (e.g., 50/100 -> 150/200 when +100 HP)
+        if (gear.hpBonus > 0)
+        {
+            currentHP += gear.hpBonus;
+        }
+
+        // Add Mana bonus to current Mana as well
+        if (gear.manaBonus > 0)
+        {
+            currentMana += gear.manaBonus;
+        }
+
+        // Cap current HP/Mana at max (in case it exceeds max due to rounding or edge cases)
         if (currentHP > maxHP)
         {
             currentHP = maxHP;
@@ -165,6 +251,20 @@ public class Character : MonoBehaviour
         {
             currentMana = mana;
         }
+
+        // Apply gear modifiers (effects)
+        if (gear.modifiers != null)
+        {
+            foreach (var modifier in gear.modifiers)
+            {
+                if (modifier != null)
+                {
+                    ApplyGearModifier(modifier);
+                    appliedGearModifiers.Add(modifier);
+                }
+            }
+        }
+
         UpdateDerivedStats();
         UpdateHPUI();
         UpdateManaUI();
@@ -174,6 +274,24 @@ public class Character : MonoBehaviour
     {
         if (gear == null) return;
 
+        // Store old max values for proportional scaling
+        int oldMaxHP = maxHP;
+        int oldMaxMana = mana;
+
+        // Remove gear modifiers (effects) first
+        if (gear.modifiers != null)
+        {
+            foreach (var modifier in gear.modifiers)
+            {
+                if (modifier != null)
+                {
+                    RemoveGearModifier(modifier);
+                    appliedGearModifiers.Remove(modifier);
+                }
+            }
+        }
+
+        // Remove base stat bonuses
         maxHP -= gear.hpBonus;
         attackPower -= gear.attackBonus;
         defense -= gear.defenseBonus;
@@ -188,11 +306,24 @@ public class Character : MonoBehaviour
         mana = Mathf.Max(mana, baseMana);
         agility = Mathf.Max(agility, baseAgility);
 
-        if (currentHP > maxHP)
+        // Scale current HP proportionally if max HP decreased
+        if (oldMaxHP > 0 && maxHP < oldMaxHP)
+        {
+            float hpPercentage = (float)currentHP / oldMaxHP;
+            currentHP = Mathf.RoundToInt(maxHP * hpPercentage);
+        }
+        else if (currentHP > maxHP)
         {
             currentHP = maxHP;
         }
-        if (currentMana > mana)
+
+        // Scale current Mana proportionally if max Mana decreased
+        if (oldMaxMana > 0 && mana < oldMaxMana)
+        {
+            float manaPercentage = (float)currentMana / oldMaxMana;
+            currentMana = Mathf.RoundToInt(mana * manaPercentage);
+        }
+        else if (currentMana > mana)
         {
             currentMana = mana;
         }
@@ -200,6 +331,179 @@ public class Character : MonoBehaviour
         UpdateDerivedStats(); // Recalculate dodge chance after AGI change
         UpdateHPUI();
         UpdateManaUI();
+    }
+    
+    /// <summary>
+    /// Applies a gear modifier (effect) to the character
+    /// Also used by TemporaryModifierManager for skill-based modifiers
+    /// </summary>
+    public void ApplyGearModifier(StatModifierSO modifier)
+    {
+        if (modifier == null) return;
+        
+        float modifierValue = modifier.value;
+        
+        // Apply modifier based on type
+        switch (modifier.type)
+        {
+            case ModifierType.Additive:
+                ApplyGearAdditiveModifier(modifier.targetStat, modifierValue);
+                break;
+                
+            case ModifierType.Multiplicative:
+                ApplyGearMultiplicativeModifier(modifier.targetStat, modifierValue);
+                break;
+                
+            default:
+                Debug.LogWarning($"[GEAR] Unhandled ModifierType in ApplyGearModifier: {modifier.type}");
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Removes a gear modifier (effect) from the character
+    /// </summary>
+    public void RemoveGearModifier(StatModifierSO modifier)
+    {
+        if (modifier == null) return;
+        
+        float modifierValue = -modifier.value; // Reverse the modifier
+        
+        // Remove modifier based on type
+        switch (modifier.type)
+        {
+            case ModifierType.Additive:
+                ApplyGearAdditiveModifier(modifier.targetStat, modifierValue);
+                break;
+                
+            case ModifierType.Multiplicative:
+                ApplyGearMultiplicativeModifier(modifier.targetStat, modifierValue);
+                break;
+                
+            default:
+                Debug.LogWarning($"[GEAR] Unhandled ModifierType in RemoveGearModifier: {modifier.type}");
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Applies an additive gear modifier (flat stat bonus)
+    /// </summary>
+    private void ApplyGearAdditiveModifier(StatType statType, float value)
+    {
+        switch (statType)
+        {
+            case StatType.HP:
+                maxHP += Mathf.RoundToInt(value);
+                if (currentHP > maxHP) currentHP = maxHP;
+                break;
+            case StatType.STR:
+                attackPower += Mathf.RoundToInt(value);
+                break;
+            case StatType.DEF:
+                defense += Mathf.RoundToInt(value);
+                break;
+            case StatType.MANA:
+                mana += Mathf.RoundToInt(value);
+                if (currentMana > mana) currentMana = mana;
+                break;
+            case StatType.INT:
+                intelligence += Mathf.RoundToInt(value);
+                break;
+            case StatType.AGI:
+                agility += Mathf.RoundToInt(value);
+                UpdateDerivedStats(); // Recalculate dodge after AGI change
+                break;
+            case StatType.MagicDamageFlat:
+                magicDamageFlat += Mathf.RoundToInt(value);
+                break;
+            case StatType.PhysicalDamageFlat:
+                physicalDamageFlat += Mathf.RoundToInt(value);
+                break;
+            default:
+                Debug.LogWarning($"[GEAR] Unhandled StatType in ApplyGearAdditiveModifier: {statType} ({(int)statType})");
+                break;
+        }
+    }
+    
+    /// <summary>
+    /// Applies a multiplicative gear modifier (percentage bonus)
+    /// </summary>
+    private void ApplyGearMultiplicativeModifier(StatType statType, float percentageValue)
+    {
+        // If the value is already a percentage (like 10 for 10%), use it directly
+        // If the value is a decimal (like 0.1 for 10% or 1.0 for 100%), multiply by 100
+        // Values <= 1.0 are treated as decimals (0.5 = 50%, 1.0 = 100%)
+        // Values > 1.0 are treated as percentages (10 = 10%, 100 = 100%)
+        float actualPercentage = percentageValue <= 1.0f ? percentageValue * 100.0f : percentageValue;
+        
+        switch (statType)
+        {
+            case StatType.HP:
+                maxHP = Mathf.RoundToInt(maxHP * (1.0f + actualPercentage / 100.0f));
+                if (currentHP > maxHP) currentHP = maxHP;
+                break;
+            case StatType.STR:
+                attackPower = Mathf.RoundToInt(attackPower * (1.0f + actualPercentage / 100.0f));
+                break;
+            case StatType.DEF:
+                defense = Mathf.RoundToInt(defense * (1.0f + actualPercentage / 100.0f));
+                break;
+            case StatType.MANA:
+                mana = Mathf.RoundToInt(mana * (1.0f + actualPercentage / 100.0f));
+                if (currentMana > mana) currentMana = mana;
+                break;
+            case StatType.INT:
+                intelligence = Mathf.RoundToInt(intelligence * (1.0f + actualPercentage / 100.0f));
+                break;
+            case StatType.AGI:
+                agility = Mathf.RoundToInt(agility * (1.0f + actualPercentage / 100.0f));
+                UpdateDerivedStats(); // Recalculate dodge after AGI change
+                break;
+            case StatType.ManaRegenPercent:
+                // Add mana regeneration bonus (multiplicative)
+                manaRegenBonus += actualPercentage / 100f;
+                break;
+            case StatType.PhysicalDamagePercent:
+                // Add physical damage bonus (multiplicative)
+                float oldPhysicalDamageBonus = physicalDamageBonus;
+                physicalDamageBonus += actualPercentage / 100f;
+                Debug.Log($"[GEAR] PhysicalDamagePercent: {actualPercentage}% -> physicalDamageBonus changed from {oldPhysicalDamageBonus:F3} to {physicalDamageBonus:F3}");
+                break;
+            case StatType.MagicDamagePercent:
+                // Add magic damage bonus (multiplicative)
+                magicDamageBonus += actualPercentage / 100f;
+                break;
+            case StatType.LifestealPercent:
+                // Add lifesteal percentage (multiplicative)
+                lifestealPercent += actualPercentage / 100f;
+                break;
+            case StatType.DodgeChance:
+                // Add dodge chance bonus (multiplicative)
+                dodgeBonusFromGearPassives += actualPercentage / 100f;
+                UpdateDerivedStats(); // Recalculate total dodge
+                break;
+            case StatType.DamageReduction:
+                // Add damage reduction (multiplicative)
+                damageReduction += actualPercentage / 100f;
+                break;
+            case StatType.CritChance:
+                // Add critical chance (multiplicative)
+                criticalChance += actualPercentage / 100f;
+                break;
+            case StatType.CritDamagePercent:
+                // Add critical damage multiplier (multiplicative)
+                // If value is 1.0 (100%), add 1.0x multiplier (total becomes 2.5x base 1.5x)
+                critDamageMultiplier += actualPercentage / 100f;
+                break;
+            case StatType.ReflectDamagePercent:
+                // Add reflect damage percentage (multiplicative)
+                gearReflectDamagePercent += actualPercentage / 100f;
+                break;
+            default:
+                Debug.LogWarning($"[GEAR] Unhandled StatType in ApplyGearMultiplicativeModifier: {statType} ({(int)statType})");
+                break;
+        }
     }
     #endregion
 
@@ -221,7 +525,6 @@ public class Character : MonoBehaviour
         if (physicalBase > 0)
         {
             isPhysicalCrit = CheckCritical();
-            //AudioManager.Instance?.PlayCriticalHitSFX(); // set tạm để test coi đúng không
             if (isPhysicalCrit)
             {
                 Debug.Log($"[CRITICAL] {name} Physical attack will CRIT!");
@@ -238,25 +541,31 @@ public class Character : MonoBehaviour
         }
 
         // 2. Áp dụng Multiplier (ví dụ: CounterAttack) cho CẢ HAI
-        int modifiedPhysical = Mathf.RoundToInt(physicalBase * damageMultiplier);
-        int modifiedMagic = Mathf.RoundToInt(magicBase * damageMultiplier);
+        float finalDamageMultiplier = damageMultiplier * cheatDamageMultiplier;
+        int modifiedPhysical = Mathf.RoundToInt(physicalBase * finalDamageMultiplier);
+        int modifiedMagic = Mathf.RoundToInt(magicBase * finalDamageMultiplier);
         
         // Apply critical damage multiplier if that type crit
         if (isPhysicalCrit)
         {
-            modifiedPhysical = Mathf.RoundToInt(modifiedPhysical * CRITICAL_DAMAGE_MULTIPLIER);
+            modifiedPhysical = Mathf.RoundToInt(modifiedPhysical * critDamageMultiplier);
         }
         if (isMagicCrit)
         {
-            modifiedMagic = Mathf.RoundToInt(modifiedMagic * CRITICAL_DAMAGE_MULTIPLIER);
+            modifiedMagic = Mathf.RoundToInt(modifiedMagic * critDamageMultiplier);
         }
 
         // 3. Apply passive bonuses separately for each damage type
         int finalPhysicalDamage = CalculatePhysicalDamage(modifiedPhysical, target);
         int finalMagicDamage = CalculateMagicDamage(modifiedMagic);
 
+        // Debug summary: Show total damage before defense
+        Debug.Log($"[ATTACK] {name} attacks {target.name}: PhysicalBase={physicalBase}, ModifiedPhysical={modifiedPhysical}, FinalPhysical={finalPhysicalDamage} | MagicBase={magicBase}, ModifiedMagic={modifiedMagic}, FinalMagic={finalMagicDamage}");
+
         // 4. Apply damage and effects sequentially
         bool hitConnected = false;
+        int actualPhysicalDamageDealt = 0;
+        int actualMagicDamageDealt = 0;
 
         // --- Áp dụng sát thương VẬT LÝ (Nếu > 0) ---
         if (finalPhysicalDamage > 0)
@@ -268,13 +577,14 @@ public class Character : MonoBehaviour
             }
 
             // Gây sát thương Vật lý (Gọi hàm đã nâng cấp với crit flag)
+            // Capture actual damage dealt (after DEF/shield reduction)
             if (target.isPlayer)
             {
-                target.TakeDamageWithShield(finalPhysicalDamage, this, DamageType.Physical, isPhysicalCrit); // Truyền Type và Crit
+                actualPhysicalDamageDealt = target.TakeDamageWithShield(finalPhysicalDamage, this, DamageType.Physical, isPhysicalCrit); // Truyền Type và Crit
             }
             else
             {
-                target.TakeDamage(finalPhysicalDamage, this, DamageType.Physical, isPhysicalCrit); // Truyền Type và Crit
+                actualPhysicalDamageDealt = target.TakeDamage(finalPhysicalDamage, this, DamageType.Physical, isPhysicalCrit); // Truyền Type và Crit
             }
             hitConnected = true; // Đánh dấu đã đánh trúng
         }
@@ -290,36 +600,97 @@ public class Character : MonoBehaviour
             }
 
             // Gây sát thương Phép (Gọi hàm đã nâng cấp với crit flag)
+            // Capture actual damage dealt (after DEF/shield reduction)
             if (target.isPlayer)
             {
-                target.TakeDamageWithShield(finalMagicDamage, this, DamageType.Magic, isMagicCrit); // Truyền Type và Crit
+                actualMagicDamageDealt = target.TakeDamageWithShield(finalMagicDamage, this, DamageType.Magic, isMagicCrit); // Truyền Type và Crit
             }
             else
             {
-                target.TakeDamage(finalMagicDamage, this, DamageType.Magic, isMagicCrit); // Truyền Type và Crit
+                actualMagicDamageDealt = target.TakeDamage(finalMagicDamage, this, DamageType.Magic, isMagicCrit); // Truyền Type và Crit
             }
             hitConnected = true; // Đánh dấu đã đánh trúng
         }
 
-        // 5. Xử lý Lifesteal (Ví dụ: Chỉ tính trên phần sát thương vật lý)
+        // 5. Xử lý Lifesteal (Tính trên actual damage dealt - sau khi trừ DEF/shield)
         if (hitConnected && lifestealPercent > 0f)
         {
-            int totalDamageDealtForLifesteal = finalPhysicalDamage; // Chỉ tính phần vật lý
-                                                                    // Hoặc: int totalDamageDealtForLifesteal = finalPhysicalDamage + finalMagicDamage; // Nếu muốn tính cả hai
-
-            int healAmount = Mathf.RoundToInt(totalDamageDealtForLifesteal * lifestealPercent);
-            if (healAmount > 0) // Chỉ hồi máu nếu lifesteal > 0
+            // Use actual damage dealt for lifesteal calculation
+            int totalActualDamageDealt = actualPhysicalDamageDealt + actualMagicDamageDealt;
+            int healAmount = Mathf.RoundToInt(totalActualDamageDealt * lifestealPercent);
+            if (healAmount > 0)
             {
+                Debug.Log($"[ATTACK LIFESTEAL] {name} healed for {healAmount} HP from {totalActualDamageDealt} actual damage (Physical: {actualPhysicalDamageDealt}, Magic: {actualMagicDamageDealt}) - {lifestealPercent * 100f}%");
                 RestoreHealth(healAmount);
-                // Debug.Log($"[PASSIVE] Lifesteal: {healAmount} HP restored from {totalDamageDealtForLifesteal} physical damage");
+                
+                // Show green healing number for lifesteal
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                    CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+                }
             }
         }
-        // (Code Conditional Lifesteal giữ nguyên nếu có)
+        
         var conditionalManager = GetComponent<ConditionalPassiveManager>();
-        if (conditionalManager != null && hitConnected) // Chỉ apply nếu đánh trúng
+        if (conditionalManager != null && hitConnected)
         {
-            // Truyền tổng sát thương gây ra (trước khi trừ DEF) vào hàm conditional lifesteal
-            conditionalManager.ApplyConditionalLifesteal(finalPhysicalDamage + finalMagicDamage);
+            // Use actual damage dealt for conditional lifesteal (not pre-DEF damage)
+            int totalActualDamage = actualPhysicalDamageDealt + actualMagicDamageDealt;
+            conditionalManager.ApplyConditionalLifesteal(totalActualDamage);
+            Debug.Log($"[CONDITIONAL LIFESTEAL] {name} using {totalActualDamage} actual damage (Physical: {actualPhysicalDamageDealt}, Magic: {actualMagicDamageDealt}) for conditional lifesteal");
+        }
+        
+        // 6. Process gear modifiers that apply status effects on hit (e.g., bleed)
+        if (hitConnected && equipment != null && StatusEffectManager.Instance != null)
+        {
+            ProcessGearStatusEffectProcs(target, actualPhysicalDamageDealt);
+        }
+    }
+    
+    /// <summary>
+    /// Processes gear modifiers that apply status effects on attack (e.g., bleed proc)
+    /// Bleed scales with actual physical damage dealt (after DEF/damage reduction)
+    /// </summary>
+    private void ProcessGearStatusEffectProcs(Character target, int actualPhysicalDamageDealt)
+    {
+        if (target == null || equipment == null || equipment.equipmentSlots == null) return;
+        
+        // Check all equipped gear for modifiers with duration > 0 and targetStat == None
+        // These are proc-on-attack modifiers (e.g., ApplyBleed)
+        foreach (var gear in equipment.equipmentSlots)
+        {
+            if (gear == null || gear.modifiers == null) continue;
+            
+            foreach (var modifier in gear.modifiers)
+            {
+                if (modifier == null) continue;
+                
+                // Check if this is a proc modifier (duration > 0 and targetStat == None)
+                if (modifier.duration > 0 && modifier.targetStat == Assets.Scripts.Data.StatType.None)
+                {
+                    // Roll chance to proc (modifier.value is the proc chance, e.g., 0.1 = 10%)
+                    float procChance = modifier.value;
+                    if (UnityEngine.Random.value <= procChance)
+                    {
+                        // Apply bleed effect
+                        // Bleed only procs if physical damage was dealt
+                        if (actualPhysicalDamageDealt > 0)
+                        {
+                            // Damage per turn is calculated as 12% of actual physical damage dealt (after DEF/damage reduction)
+                            int bleedDamagePerTurn = Mathf.Max(1, Mathf.RoundToInt(actualPhysicalDamageDealt * 0.12f));
+                            var bleedEffect = new StatusEffects.BleedEffect(bleedDamagePerTurn, modifier.duration);
+                            
+                            StatusEffectManager.Instance.ApplyEffect(target, bleedEffect);
+                            Debug.Log($"[GEAR PROC] {name} applied BLEED to {target.name} ({bleedDamagePerTurn} damage/turn for {modifier.duration} turns) from {gear.itemName} (based on {actualPhysicalDamageDealt} physical damage dealt, {procChance * 100f}% chance)");
+                        }
+                        else
+                        {
+                            Debug.Log($"[GEAR PROC] {name} attempted to apply BLEED to {target.name} but no physical damage was dealt, so bleed cannot proc");
+                        }
+                    }
+                }
+            }
         }
     }
     /// <summary>
@@ -337,24 +708,23 @@ public class Character : MonoBehaviour
         {
             equippedWeapon = equipment.equipmentSlots[3]; // Đã sửa thành slot 3
         }
-        // Debug.Log($"[CalculateAttackDamage] Weapon in slot 3: {(equippedWeapon != null ? equippedWeapon.itemName : "None")}"); // Giữ log này
 
         if (equippedWeapon != null && equippedWeapon.gearType == GearType.Weapon)
         {
-            // Debug.Log($"[CalculateAttackDamage] Reading scalingType from {equippedWeapon.itemName}: {equippedWeapon.scalingType}"); // Giữ log này
             scaling = equippedWeapon.scalingType;
         }
         else
         {
-            // Debug.Log($"[CalculateAttackDamage] No weapon or not a weapon. Defaulting to STR."); // Giữ log này
             scaling = WeaponScalingType.STR;
         }
 
         // Tính toán sát thương gốc dựa trên scaling
+        // Note: The weapon's attackBonus is already included in attackPower via AddGearBonus()
+        // So we don't need to add it again - just use attackPower for scaling
         switch (scaling)
         {
             case WeaponScalingType.STR:
-                physicalBase = attackPower; // 100% STR -> Vật lý
+                physicalBase = attackPower; // 100% STR -> Vật lý (includes weapon's attackBonus)
                 magicBase = 0;
                 break;
             case WeaponScalingType.INT:
@@ -372,6 +742,16 @@ public class Character : MonoBehaviour
                 break;
         }
 
+        // Debug logging to help diagnose damage issues
+        if (equippedWeapon != null && equippedWeapon.gearType == GearType.Weapon)
+        {
+            Debug.Log($"[DAMAGE CALC] Weapon equipped: {equippedWeapon.itemName}, attackPower={attackPower} (includes weapon bonus {equippedWeapon.attackBonus}), physicalBase={physicalBase}");
+        }
+        else
+        {
+            Debug.Log($"[DAMAGE CALC] No weapon equipped, attackPower={attackPower}, physicalBase={physicalBase}");
+        }
+
         physicalBase = Mathf.Max(0, physicalBase);
         magicBase = Mathf.Max(0, magicBase);
 
@@ -382,18 +762,27 @@ public class Character : MonoBehaviour
     // Nó nhận sát thương đã tính theo vũ khí làm đầu vào
     public int CalculatePhysicalDamage(int baseDamageFromWeapon, Character target) // Đổi tên tham số cho rõ
     {
+        // Apply flat physical damage bonus from gear
+        int damageWithFlatBonus = baseDamageFromWeapon + physicalDamageFlat;
+        
         float bonusMultiplier = 1f + physicalDamageBonus; // Bonus bị động % vật lý
+        
+        Debug.Log($"[DAMAGE CALC] PhysicalDamage: base={baseDamageFromWeapon}, flatBonus={physicalDamageFlat}, percentBonus={physicalDamageBonus:F3} ({physicalDamageBonus*100f:F1}%), multiplier={bonusMultiplier:F3}, damageWithFlat={damageWithFlatBonus}");
 
         // Áp dụng bonus có điều kiện (nếu có)
         var conditionalManager = GetComponent<ConditionalPassiveManager>();
         if (conditionalManager != null)
         {
-            // Truyền sát thương đã nhân bonus bị động vào hàm điều kiện
-            return conditionalManager.CalculatePhysicalDamage(Mathf.RoundToInt(baseDamageFromWeapon * bonusMultiplier), target);
+            // Truyền sát thương đã nhân bonus bị động vào hàm điều kiện (with flat bonus applied)
+            int conditionalDamage = conditionalManager.CalculatePhysicalDamage(Mathf.RoundToInt(damageWithFlatBonus * bonusMultiplier), target);
+            Debug.Log($"[DAMAGE CALC] After conditional bonuses: {conditionalDamage}");
+            return conditionalDamage;
         }
 
-        // Trả về sát thương cuối cùng trước khi trừ DEF
-        return Mathf.RoundToInt(baseDamageFromWeapon * bonusMultiplier);
+        // Trả về sát thương cuối cùng trước khi trừ DEF (with flat bonus applied)
+        int finalDamage = Mathf.RoundToInt(damageWithFlatBonus * bonusMultiplier);
+        Debug.Log($"[DAMAGE CALC] Final physical damage (before DEF): {finalDamage}");
+        return finalDamage;
     }
 
     /// <summary>
@@ -401,8 +790,11 @@ public class Character : MonoBehaviour
     /// </summary>
     public int CalculateMagicDamage(int baseDamage)
     {
+        // Apply flat magic damage bonus from gear
+        int damageWithFlatBonus = baseDamage + magicDamageFlat;
+        
         float bonusMultiplier = 1f + magicDamageBonus;
-        return Mathf.RoundToInt(baseDamage * bonusMultiplier);
+        return Mathf.RoundToInt(damageWithFlatBonus * bonusMultiplier);
     }
     
     /// <summary>
@@ -410,22 +802,17 @@ public class Character : MonoBehaviour
     /// </summary>
     public bool CheckDodge()
     {
-        // TEMPORARY: 100% dodge for PLAYER ONLY (for testing)
-        if (isPlayer)
-        {
-            dodgeChance = 1.0f;
-        }
+        // NOTE: Removed hardcoded 100% dodge for player - now uses actual dodge chance from gear/passives
+        // This allows gear modifiers to work correctly
         
         if (dodgeChance <= 0f) return false;
         
         float roll = UnityEngine.Random.Range(0f, 1f);
         bool dodged = roll < dodgeChance;
         
-        Debug.Log($"[DODGE CHECK] {name}: Roll={roll:F2}, DodgeChance={dodgeChance:F2}, Result={(dodged ? "MISSED" : "HIT")}");
-        
         if (dodged)
         {
-            Debug.Log($"[PASSIVE] {name} dodged! Roll: {roll:F2} < {dodgeChance:F2}");
+            Debug.Log($"[DODGE] {name} dodged! Roll: {roll:F2} < {dodgeChance:F2}");
         }
         
         return dodged;
@@ -436,11 +823,8 @@ public class Character : MonoBehaviour
     /// </summary>
     public bool CheckCritical()
     {
-        // TEMPORARY: 100% crit for PLAYER ONLY (for testing)
-        if (isPlayer)
-        {
-            criticalChance = 1.0f;
-        }
+        // NOTE: Removed hardcoded 100% crit for player - now uses actual criticalChance from gear/passives
+        // This allows gear modifiers to work correctly
         
         if (criticalChance <= 0f) return false;
         
@@ -485,30 +869,38 @@ public class Character : MonoBehaviour
     
 
     // ✅ Hàm TakeDamage nhận tham số "attacker", "damageType", và "isCritical"
-    public void TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false)
+    /// <summary>
+    /// Takes damage and returns the actual damage dealt after all reductions
+    /// </summary>
+    /// <param name="suppressDamageNumber">If true, suppresses the damage number display (used by status effects that show their own damage numbers)</param>
+    /// <returns>The actual damage dealt to HP</returns>
+    public int TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false, bool bypassDodge = false, bool suppressDamageNumber = false)
     {
         if (isInvincible)
         {
             Debug.Log($"[BATTLE] {name} Bất tử! Đã chặn {damage} sát thương.");
-           return;
+           return 0;
         }
-        // Check for dodge first
-        bool dodged = CheckDodge();
-        
-        if (dodged)
+        // Check for dodge first (unless bypassed for status effects like DOT or reflected damage)
+        if (!bypassDodge)
         {
-            // Play miss animation
-            PlayMissAnimation();
-            PlayDodgeAnimation();
-            AudioManager.Instance?.PlayMissSFX();
-            // Show "MISS" text
-            if (CombatEffectManager.Instance != null)
-            {
-                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
-                CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
-            }
+            bool dodged = CheckDodge();
             
-            return; // Attack missed, no damage taken
+            if (dodged)
+            {
+                // Play miss animation
+                PlayMissAnimation();
+                PlayDodgeAnimation();
+                AudioManager.Instance?.PlayMissSFX();
+                // Show "MISS" text
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                    CombatEffectManager.Instance.ShowDamageNumber(uiPosition, 0, false, false, true);
+                }
+                
+                return 0; // Attack missed, no damage taken
+            }
         }
         
         // Apply conditional damage reduction first if ConditionalPassiveManager exists
@@ -519,12 +911,63 @@ public class Character : MonoBehaviour
             conditionallyReducedDamage = conditionalManager.ApplyConditionalDamageReduction(damage, attacker);
         }
         
-        // Apply regular damage reduction
-        int reducedDamage = ApplyDamageReduction(conditionallyReducedDamage);
+        // Get gear/passive damage reduction percentage (not applied yet - will be part of total calculation)
+        float gearDamageReduction = damageReduction; // Percentage from gear/passives
         
-        // NOTE: Currently, defense applies to BOTH physical and magic
-        // TODO: If you want separate Magic Resistance, add int magicDefense stat and check damageType here
-        int actualDamage = Mathf.Max(1, reducedDamage - defense);
+        // Calculate defense-based damage reduction (League of Legends style: percentage-based)
+        // Formula: damage reduction % = defense / (defense + DEFENSE_FORMULA_CONSTANT)
+        // This provides diminishing returns and scales better across all levels
+        // Lower DEF values scale faster (each point gives more % reduction)
+        // Higher DEF values scale slower (diminishing returns - each point gives less % reduction)
+        // 
+        // Scaling examples with DEFENSE_FORMULA_CONSTANT = 100:
+        // DEF 10  → 9.1% reduction (slower scaling at low DEF)
+        // DEF 25  → 20.0% reduction
+        // DEF 50  → 33.3% reduction (good mid-game scaling)
+        // DEF 100 → 50.0% reduction
+        // DEF 200 → 66.7% reduction (slower scaling at high DEF - maxes near 67%)
+        // DEF 500 → 83.3% reduction (but capped at 67% total with gear)
+        //
+        // Constant of 100 provides better balance: Slower early game, but prevents excessive late game scaling
+        float defenseReductionPercent = 0f;
+        
+        if (defense > 0)
+        {
+            // League of Legends style: defense / (defense + constant)
+            // Calculate base defense reduction
+            float rawDefenseReduction = defense / (defense + DEFENSE_FORMULA_CONSTANT);
+            
+            // Cap defense reduction alone at 67% (prevents flat DEF from providing excessive reduction)
+            // This ensures defense stat alone cannot exceed 67%, but gear can push total higher (up to 80%)
+            defenseReductionPercent = Mathf.Min(rawDefenseReduction, MAX_DEFENSE_DAMAGE_REDUCTION);
+        }
+        
+        // Calculate total damage reduction (multiplicative stacking)
+        // Total reduction = 1 - (1 - gearReduction) * (1 - defenseReduction)
+        // This ensures gear and defense stack multiplicatively, not additively
+        // Example: 10% gear + 40% defense = 1 - (0.9 * 0.6) = 1 - 0.54 = 46% total reduction
+        float totalDamageReduction = 1f - ((1f - gearDamageReduction) * (1f - defenseReductionPercent));
+        
+        // Apply maximum total damage reduction cap (gear + defense combined can go up to 80%)
+        // This ensures combat remains engaging even with very high defense + damage reduction gear
+        // Cap ensures minimum 20% damage is always taken (maximum 80% reduction)
+        bool wasCapped = false;
+        if (totalDamageReduction > MAX_TOTAL_DAMAGE_REDUCTION)
+        {
+            totalDamageReduction = MAX_TOTAL_DAMAGE_REDUCTION;
+            wasCapped = true;
+        }
+        
+        // Calculate final damage after all reductions
+        // Apply total reduction to the conditional damage (after conditional passives)
+        int actualDamage = Mathf.Max(1, Mathf.RoundToInt(conditionallyReducedDamage * (1f - totalDamageReduction)));
+        
+        // Debug logging for damage calculation
+        bool defenseWasCapped = defense > 0 && (defense / (defense + DEFENSE_FORMULA_CONSTANT)) > MAX_DEFENSE_DAMAGE_REDUCTION;
+        string defenseCappedMsg = defenseWasCapped ? $" (DEF capped at {MAX_DEFENSE_DAMAGE_REDUCTION*100f:F1}%)" : "";
+        string totalCappedMsg = wasCapped ? $" (TOTAL capped at {MAX_TOTAL_DAMAGE_REDUCTION*100f:F1}%)" : "";
+        Debug.Log($"[DAMAGE REDUCTION] {name} took {damage} damage (type: {damageType}) -> after conditional: {conditionallyReducedDamage}, gear reduction: {gearDamageReduction*100f:F1}%, defense: {defense} ({defenseReductionPercent*100f:F1}% reduction{defenseCappedMsg}), total reduction: {totalDamageReduction*100f:F1}%{totalCappedMsg}, final damage: {actualDamage}");
+        
         currentHP -= actualDamage;
         if (currentHP < 0) currentHP = 0;
         
@@ -548,7 +991,8 @@ public class Character : MonoBehaviour
         }
 
         // Show damage with appropriate color based on damage type and crit
-        if (CombatEffectManager.Instance != null)
+        // Skip damage number display if suppressed (e.g., status effects show their own damage numbers)
+        if (!suppressDamageNumber && CombatEffectManager.Instance != null)
         {
             Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
             
@@ -590,6 +1034,8 @@ public class Character : MonoBehaviour
         {
             Die();
         }
+        
+        return actualDamage; // Return actual damage dealt for accurate lifesteal calculation
     }
     #endregion
 
@@ -627,9 +1073,26 @@ public class Character : MonoBehaviour
     #region Health Management
     public void Heal(int amount)
     {
-        currentHP += amount;
+        if (amount <= 0) return;
+        
+        int finalAmount = amount;
+        // Apply heal bonus/malus from status effects if available
+        int bonusPercent = StatusEffectManager.Instance != null ? StatusEffectManager.Instance.GetHealBonusPercent(this) : 0;
+        if (bonusPercent != 0)
+        {
+            finalAmount = Mathf.RoundToInt(amount * (1f + bonusPercent / 100f));
+        }
+        currentHP += finalAmount;
         if (currentHP > maxHP) currentHP = maxHP;
         OnHealthChanged?.Invoke(currentHP, maxHP);
+        UpdateHPUI(); // Ensure UI updates
+        
+        // Show green healing number for Heal() method
+        if (CombatEffectManager.Instance != null)
+        {
+            Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+            CombatEffectManager.Instance.ShowHealingNumber(uiPosition, finalAmount);
+        }
     }
 
     public void HealPercent(int percent)
@@ -645,27 +1108,97 @@ public class Character : MonoBehaviour
     public void HealPercentage(float percentage)
     {
         int healAmount = Mathf.FloorToInt(maxHP * percentage);
+        if (healAmount <= 0) return;
+        
         currentHP += healAmount;
         if (currentHP > maxHP) currentHP = maxHP;
         OnHealthChanged?.Invoke(currentHP, maxHP);
+        UpdateHPUI(); // Ensure UI updates
+        
+        // Show green healing number for HealPercentage() method
+        if (CombatEffectManager.Instance != null)
+        {
+            Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+            CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+        }
     }
 
+    /// <summary>
+    /// Restores health. If overheal occurs, converts 40% of excess healing to shield (2 turns).
+    /// Shield cap: Maximum shield from overheal cannot exceed 100% of maxHP.
+    /// </summary>
     public void RestoreHealth(int amount)
     {
-        currentHP = Mathf.Min(currentHP + amount, maxHP);
+        if (amount <= 0) return;
+        
+        int hpBeforeHeal = currentHP;
+        int healAmount = amount;
+        
+        // Calculate how much would heal and how much would overheal
+        int hpAfterHeal = currentHP + healAmount;
+        int overhealAmount = Mathf.Max(0, hpAfterHeal - maxHP);
+        
+        // Heal to max HP (cap at maxHP)
+        currentHP = Mathf.Min(currentHP + healAmount, maxHP);
+        int actualHealAmount = currentHP - hpBeforeHeal;
+        
+        // If there's overheal, convert 40% to shield (2 turns duration)
+        if (overhealAmount > 0)
+        {
+            const float OVERHEAL_TO_SHIELD_CONVERSION = 0.40f; // 40% of overheal becomes shield
+            const int SHIELD_DURATION_TURNS = 2; // Shield lasts 2 turns
+            const float MAX_SHIELD_PERCENT_OF_HP = 1.0f; // Shield cap: 100% of maxHP
+            
+            // Calculate shield amount from overheal (before cap)
+            float shieldFromOverhealFloat = overhealAmount * OVERHEAL_TO_SHIELD_CONVERSION;
+            int shieldFromOverheal = Mathf.RoundToInt(shieldFromOverhealFloat);
+            
+            // Apply shield cap: Cannot exceed 100% of maxHP
+            int currentShield = CurrentShield;
+            int maxShieldFromOverheal = Mathf.RoundToInt(maxHP * MAX_SHIELD_PERCENT_OF_HP) - currentShield;
+            int shieldBeforeCap = shieldFromOverheal;
+            shieldFromOverheal = Mathf.Min(shieldFromOverheal, Mathf.Max(0, maxShieldFromOverheal));
+            
+            Debug.Log($"[OVERHEAL] {name}: Heal amount={amount}, HP before={hpBeforeHeal}, HP after (would be)={hpAfterHeal}, Overheal={overhealAmount}, Shield calc={shieldFromOverhealFloat:F2}, Shield rounded={shieldBeforeCap}, Current shield={currentShield}, Max shield={Mathf.RoundToInt(maxHP * MAX_SHIELD_PERCENT_OF_HP)}");
+            
+            if (shieldFromOverheal > 0)
+            {
+                // Apply shield from overheal
+                ShieldEffectHandler.ApplyShield(this, shieldFromOverheal, SHIELD_DURATION_TURNS);
+                Debug.Log($"[OVERHEAL] {name} overhealed by {overhealAmount} HP -> Converted {shieldFromOverheal} to shield ({OVERHEAL_TO_SHIELD_CONVERSION * 100f}% conversion, {SHIELD_DURATION_TURNS} turns). Shield before: {currentShield}, Shield after: {CurrentShield}");
+            }
+            else
+            {
+                Debug.Log($"[OVERHEAL] {name} overhealed by {overhealAmount} HP but shield cap reached. Calculated shield: {shieldBeforeCap}, Current shield: {currentShield}, Max allowed: {Mathf.RoundToInt(maxHP * MAX_SHIELD_PERCENT_OF_HP)}");
+            }
+        }
+        
         UpdateHPUI();
     }
 
     public void TakeDamagePercent(int percent)
     {
         int amountToDamage = Mathf.RoundToInt(maxHP * (percent / 100f));
-        TakeDamage(amountToDamage, null);
+        // Percentage damage is typically from events/narrative and cannot be dodged (bypassDodge = true)
+        TakeDamage(amountToDamage, null, DamageType.Physical, false, bypassDodge: true);
     }
 
     void Die()
     {
         //PlayDeathAnimation();
         OnDeath?.Invoke(this);
+    }
+    
+    /// <summary>
+    /// Instantly kills the character (cheat method)
+    /// </summary>
+    public void Kill()
+    {
+        if (currentHP <= 0) return; // Already dead
+        
+        currentHP = 0;
+        UpdateHPUI();
+        Die();
     }
     #endregion
 
@@ -678,12 +1211,15 @@ public class Character : MonoBehaviour
         currentMana += amount;
         if (currentMana > mana) currentMana = mana;
         OnManaChanged?.Invoke(currentMana, mana);
+        UpdateManaUI(); // Ensure UI updates
     }
 
     public void UseMana(int amount)
     {
         currentMana -= amount;
+        if (currentMana < 0) currentMana = 0;
         OnManaChanged?.Invoke(currentMana, mana);
+        UpdateManaUI(); // Ensure UI updates
     }
 
     public void RestoreManaPercent(int percent)
@@ -728,13 +1264,56 @@ public class Character : MonoBehaviour
         int regenAmount = Mathf.RoundToInt(mana * totalPercent / 100.0f);
         RegenerateMana(regenAmount);
     }
+    
+    /// <summary>
+    /// Called when a new turn starts - regenerates HP based on percentage of max HP
+    /// Only works for player characters (enemies should not regenerate HP automatically)
+    /// </summary>
+    /// <param name="turn">The current turn number</param>
+    public void OnNewTurnStarted(int turn)
+    {
+        // Only regenerate if this is the player, HP is below max, and character is alive
+        if (isPlayer && currentHP < maxHP && currentHP > 0 && baseHPRegenPerTurn > 0f)
+        {
+            // Calculate heal amount as percentage of max HP
+            int healAmount = Mathf.RoundToInt(maxHP * (baseHPRegenPerTurn / 100f));
+            
+            // Ensure we heal at least 1 HP if regen is enabled
+            if (healAmount < 1 && baseHPRegenPerTurn > 0f)
+            {
+                healAmount = 1;
+            }
+            
+            // Heal up to max HP
+            int hpBefore = currentHP;
+            currentHP = Mathf.Min(currentHP + healAmount, maxHP);
+            int actualHeal = currentHP - hpBefore;
+            
+            if (actualHeal > 0)
+            {
+                // Update UI
+                OnHealthChanged?.Invoke(currentHP, maxHP);
+                UpdateHPUI();
+                
+                // Show green healing number (same as normal Heal() method)
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
+                    CombatEffectManager.Instance.ShowHealingNumber(uiPosition, actualHeal);
+                }
+            }
+        }
+    }
     #endregion
 
     #region Status Effects Integration
     // Generic Status Effect Integration
     public int CurrentShield => ShieldEffectHandler.GetShieldAmount(this);
     public int ShieldTurnsRemaining => ShieldEffectHandler.GetShieldTurns(this);
-    public float DamageReflectionPercent => ShieldEffectHandler.GetReflectPercent(this);
+    /// <summary>
+    /// Gets total reflect damage percentage from both status effects and gear
+    /// </summary>
+    public float DamageReflectionPercent => ShieldEffectHandler.GetReflectPercent(this) + gearReflectDamagePercent;
     
     /// <summary>
     /// Checks if character has a specific status effect
@@ -790,26 +1369,36 @@ public class Character : MonoBehaviour
         int currentShield = CurrentShield;
         float reflectPercent = DamageReflectionPercent;
 
-        // Shield absorbs damage first
+        // Shield absorbs damage first (if present)
         if (currentShield > 0)
         {
             int shieldAbsorbed = Mathf.Min(damage, currentShield);
             actualDamagePassedToHP = damage - shieldAbsorbed;
             ShieldEffectHandler.ReduceShieldAmount(this, shieldAbsorbed);
+        }
 
-            if (reflectPercent > 0 && attacker != null)
+        // Apply reflect damage (status effect reflect is tied to shield, gear-based reflect works independently)
+        if (reflectPercent > 0 && attacker != null)
+        {
+            // reflectPercent is already a decimal (0.1 = 10%), so multiply directly
+            reflectedDamage = Mathf.RoundToInt(damage * reflectPercent);
+            if (reflectedDamage > 0)
             {
-                reflectedDamage = Mathf.RoundToInt(damage * reflectPercent / 100f);
-                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical);
+                // Reflected damage cannot be dodged (bypassDodge = true)
+                attacker.TakeDamage(reflectedDamage, this, DamageType.Physical, false, bypassDodge: true);
+                Debug.Log($"[REFLECT] {name} reflected {reflectedDamage} damage ({reflectPercent * 100f}%) back to {attacker.name}");
             }
         }
 
-        // Apply remaining damage
+        // Apply remaining damage and get actual damage dealt
+        int actualDamageDealt = 0;
         if (actualDamagePassedToHP > 0)
         {
-            TakeDamage(actualDamagePassedToHP, attacker, damageType, isCritical);
+            actualDamageDealt = TakeDamage(actualDamagePassedToHP, attacker, damageType, isCritical);
         }
-        return reflectedDamage;
+        
+        // Return actual damage dealt (not reflected damage) for accurate lifesteal calculation
+        return actualDamageDealt;
     }
     #endregion
 
@@ -831,8 +1420,9 @@ public class Character : MonoBehaviour
         physicalDamageBonus = 0f;
         magicDamageBonus = 0f;
         lifestealPercent = 0f;
-        dodgeChance = 0f;
+        dodgeBonusFromGearPassives = 0f;
         damageReduction = 0f;
+        criticalChance = 0f;
         
         var conditionalManager = GetComponent<ConditionalPassiveManager>();
         if (conditionalManager != null)
@@ -979,6 +1569,13 @@ public class Character : MonoBehaviour
     /// </summary>
     public void PlayDeathAnimation()
     {
+        // Kill any active DOTween animations to prevent conflicts
+        if (characterImage != null)
+        {
+            characterImage.DOKill();
+        }
+        transform.DOKill();
+        
         if (characterImage != null)
         {
             // Fade out and scale down over 1 second

@@ -85,8 +85,18 @@ public class ConditionalPassiveManager : MonoBehaviour
         if (GetHpPercentage() <= 0.35f && lowHpLifesteal > 0f)
         {
             int healAmount = Mathf.RoundToInt(damage * lowHpLifesteal);
-            character.RestoreHealth(healAmount);
-            Debug.Log($"[CONDITIONAL PASSIVE] Low HP Lifesteal: {healAmount} HP restored from {damage} damage");
+            if (healAmount > 0)
+            {
+                character.RestoreHealth(healAmount);
+                Debug.Log($"[CONDITIONAL PASSIVE] Low HP Lifesteal: {healAmount} HP restored from {damage} damage");
+                
+                // Show green healing number for conditional lifesteal
+                if (CombatEffectManager.Instance != null)
+                {
+                    Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(character);
+                    CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+                }
+            }
             return healAmount;
         }
         return 0;

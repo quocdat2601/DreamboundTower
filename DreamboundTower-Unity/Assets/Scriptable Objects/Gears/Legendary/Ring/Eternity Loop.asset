@@ -15,13 +15,14 @@ MonoBehaviour:
   itemName: Eternity Loop
   gearType: 6
   icon: {fileID: -3027154427226560534, guid: 6c7d213ac8479794980d9dda3ddb7d0d, type: 3}
-  description: 
+  description: tons of stats wut da hel
   rarity: 4
   basePrice: 775
-  attackBonus: 10
-  defenseBonus: 25
-  hpBonus: 400
-  intBonus: 10
-  manaBonus: 150
-  agiBonus: 0
+  attackBonus: 100
+  defenseBonus: 100
+  hpBonus: 100
+  intBonus: 100
+  manaBonus: 100
+  agiBonus: 100
+  scalingType: 1
   modifiers: []

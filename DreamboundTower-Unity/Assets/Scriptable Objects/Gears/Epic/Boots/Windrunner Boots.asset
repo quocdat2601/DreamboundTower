@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Windrunner Boots
   gearType: 4
   icon: {fileID: -5384817152452107416, guid: d332a62bb5f33d840ad7f952361317f9, type: 3}
-  description: 
+  description: +5% physical dmg (str) and 6% dodge
   rarity: 3
   basePrice: 270
   attackBonus: 0
@@ -24,4 +24,7 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 25
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 304d3b420cab70e4c8969c6e0160e1ee, type: 2}
+  - {fileID: 11400000, guid: 716be726316368247ad396e925445676, type: 2}

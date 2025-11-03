@@ -18,7 +18,7 @@ MonoBehaviour:
   descriptionTemplate: Deals {damage} {scaling_info} magic damage and heals you for
     20% of the damage dealt.
   resource: 1
-  cost: 8
+  cost: 10
   cooldown: 3
   target: 0
   vfxPrefab: {fileID: 5069109496326652748, guid: db4502e22a538f947a1b372aa7e1542e, type: 3}

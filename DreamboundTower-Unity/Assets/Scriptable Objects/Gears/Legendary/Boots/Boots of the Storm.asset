@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Boots of the Storm
   gearType: 4
   icon: {fileID: -6714243799619896381, guid: 287a7e589b89cbc4fa1e172602aac064, type: 3}
-  description: 
+  description: 'DodgeChance (value: 0.8) PhysicalDamagePercent (value: 0.10)'
   rarity: 4
   basePrice: 590
   attackBonus: 0
@@ -24,4 +24,7 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 40
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 9dbed601452fa4a46a5e77ad244a2ee8, type: 2}
+  - {fileID: 11400000, guid: c3bac90ea353d7943bddef3c3d763949, type: 2}

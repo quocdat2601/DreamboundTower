@@ -45,7 +45,7 @@ public static class SkillEffectProcessor
         ProcessDamageEffects(skillData, caster, actualTarget);
         ProcessHealingEffects(skillData, caster, actualTarget);
         ProcessShieldEffects(skillData, actualTarget);
-        ProcessStatusEffects(skillData, actualTarget);
+        ProcessStatusEffects(skillData, caster, actualTarget);
         ProcessBuffDebuffEffects(skillData, actualTarget);
         ProcessSpecialEffects(skillData, actualTarget);
         ProcessRecoilEffects(skillData, caster);
@@ -84,6 +84,12 @@ public static class SkillEffectProcessor
             Debug.Log($"[SKILL EFFECT] Bonus damage to stunned target: +{bonusDamage} damage (total: {totalDamage})");
         }
         
+        // Apply cheat damage multiplier
+        if (caster != null && caster.cheatDamageMultiplier > 1.0f)
+        {
+            totalDamage = Mathf.RoundToInt(totalDamage * caster.cheatDamageMultiplier);
+        }
+        
         // Process multiple hits
         int hitCount = Mathf.Max(1, skillData.hitCount);
         int totalDamageDealt = 0;
@@ -97,37 +103,37 @@ public static class SkillEffectProcessor
             {
                 int magicDamage = caster.CalculateMagicDamage(totalDamage); // Tính bonus phép
 
-                // Gọi hàm mới với DamageType.Magic
-                // (Lưu ý: TakeDamageWithShield giờ trả về int là sát thương phản lại, không phải sát thương gây ra)
-                target.TakeDamageWithShield(magicDamage, caster, DamageType.Magic);
-
-                // Ước tính sát thương gây ra (Cần cách chính xác hơn nếu muốn dùng cho lifesteal chính xác)
-                // Tạm thời lấy giá trị trước khi qua khiên/def
-                damageDealtThisHit = magicDamage;
+                // TakeDamageWithShield now returns actual damage dealt (after DEF/shield reduction)
+                damageDealtThisHit = target.TakeDamageWithShield(magicDamage, caster, DamageType.Magic);
             }
             else // Nếu skill là vật lý
             {
                 int physicalDamage = caster.CalculatePhysicalDamage(totalDamage, target); // Tính bonus vật lý
 
-                // Gọi hàm mới với DamageType.Physical
-                target.TakeDamageWithShield(physicalDamage, caster, DamageType.Physical);
-
-                // Ước tính sát thương gây ra
-                damageDealtThisHit = physicalDamage;
+                // TakeDamageWithShield now returns actual damage dealt (after DEF/shield reduction)
+                damageDealtThisHit = target.TakeDamageWithShield(physicalDamage, caster, DamageType.Physical);
             }
             // --- KẾT THÚC SỬA ---
 
-            totalDamageDealt += damageDealtThisHit; // Cộng dồn sát thương (ước tính)
+            totalDamageDealt += damageDealtThisHit; // Cộng dồn sát thương thực tế
 
-            // --- Xử lý Lifesteal (Dùng damageDealtThisHit) ---
+            // --- Xử lý Lifesteal (Dùng actual damage dealt) ---
             if (skillData.lifesteal && skillData.lifestealPercent > 0)
             {
-                // Tính lifesteal dựa trên sát thương ƯỚC TÍNH gây ra TRƯỚC KHI qua DEF/Shield của mục tiêu
-                // Để chính xác hơn, hàm TakeDamage/TakeDamageWithShield cần trả về lượng sát thương thực tế đã trừ
+                // Calculate lifesteal based on actual damage dealt (after DEF/shield reduction)
+                // This is now accurate since TakeDamageWithShield returns the actual damage dealt
                 int healAmount = Mathf.RoundToInt(damageDealtThisHit * skillData.lifestealPercent);
                 if (healAmount > 0) // Chỉ hồi máu nếu có giá trị
                 {
                     caster.RestoreHealth(healAmount);
+                    Debug.Log($"[SKILL LIFESTEAL] {caster.name} healed for {healAmount} HP from {damageDealtThisHit} actual damage ({skillData.lifestealPercent * 100f}%)");
+                    
+                    // Show green healing number for skill lifesteal
+                    if (CombatEffectManager.Instance != null)
+                    {
+                        Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(caster);
+                        CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+                    }
                 }
             }
 
@@ -175,6 +181,13 @@ public static class SkillEffectProcessor
             
             Debug.Log($"[SKILL EFFECT] Healing {target.name} for {healAmount} HP");
             target.RestoreHealth(healAmount);
+            
+            // Show green healing number for skill healing
+            if (CombatEffectManager.Instance != null)
+            {
+                Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(target);
+                CombatEffectManager.Instance.ShowHealingNumber(uiPosition, healAmount);
+            }
         }
     }
     
@@ -211,14 +224,14 @@ public static class SkillEffectProcessor
     /// <summary>
     /// Processes status effects (apply and remove)
     /// </summary>
-    private static void ProcessStatusEffects(SkillData skillData, Character target)
+    private static void ProcessStatusEffects(SkillData skillData, Character caster, Character target)
     {
         if (StatusEffectManager.Instance == null) return;
         
         // Apply status effects
         foreach (var statusName in skillData.statusEffectsToApply)
         {
-            StatusEffect effect = CreateStatusEffect(statusName, skillData.statusEffectIntensity, skillData.statusEffectDuration);
+            StatusEffect effect = CreateStatusEffect(statusName, skillData.statusEffectIntensity, skillData.statusEffectDuration, caster, target);
             if (effect != null)
             {
                 StatusEffectManager.Instance.ApplyEffect(target, effect);
@@ -241,14 +254,38 @@ public static class SkillEffectProcessor
     #region Private Methods - Buff/Debuff Effects
     
     /// <summary>
-    /// Processes buff/debuff effects
-    /// Note: Stat modifiers are handled by PassiveSkillManager in BattleManager
+    /// Processes buff/debuff effects from skill stat modifiers
+    /// Applies temporary stat modifiers with duration tracking
     /// </summary>
     private static void ProcessBuffDebuffEffects(SkillData skillData, Character target)
     {
-        // Note: Stat modifiers are handled by PassiveSkillManager in BattleManager
-        // This method is kept for future implementation if needed
-        // For now, stat modifiers are applied through the passive skill system
+        if (skillData == null || target == null) return;
+        
+        // Skip if no stat modifiers or buff duration is 0
+        if (skillData.statModifiers == null || skillData.statModifiers.Count == 0) return;
+        
+        // If buffDuration is 0, modifiers are permanent for the battle (or until removed)
+        // If buffDuration > 0, modifiers are temporary and will expire after that many turns
+        int duration = skillData.buffDuration;
+        
+        // Get or create TemporaryModifierManager for the target character
+        TemporaryModifierManager tempModManager = TemporaryModifierManager.GetOrAdd(target);
+        if (tempModManager == null)
+        {
+            Debug.LogError("[SKILL EFFECT] Failed to get or create TemporaryModifierManager for target character!");
+            return;
+        }
+        
+        // Apply each stat modifier
+        foreach (var modifier in skillData.statModifiers)
+        {
+            if (modifier != null)
+            {
+                tempModManager.ApplyTemporaryModifier(modifier, duration);
+                
+                Debug.Log($"[SKILL EFFECT] Applied stat modifier {modifier.name} to {target.name} for {duration} turns (0 = permanent for battle)");
+            }
+        }
     }
     
     #endregion
@@ -302,7 +339,8 @@ public static class SkillEffectProcessor
         int recoilDamage = Mathf.RoundToInt(caster.maxHP * skillData.recoilDamagePercent);
         Debug.Log($"[SKILL EFFECT] Applying recoil damage: {recoilDamage} HP ({skillData.recoilDamagePercent * 100f}% MaxHP) to {caster.name}");
         
-        caster.TakeDamage(recoilDamage, caster);
+        // Recoil damage is self-damage and cannot be dodged (bypassDodge = true)
+        caster.TakeDamage(recoilDamage, caster, DamageType.Physical, false, bypassDodge: true);
     }
     
     #endregion
@@ -361,15 +399,16 @@ public static class SkillEffectProcessor
     /// <summary>
     /// Creates a status effect from string name
     /// </summary>
-    private static StatusEffect CreateStatusEffect(string statusName, int intensity, int duration)
+    private static StatusEffect CreateStatusEffect(string statusName, int intensity, int duration, Character attacker = null, Character target = null)
     {
         switch (statusName.ToLower())
         {
             case "shield": return new ShieldEffect(intensity, duration);
-            case "reflect": return new ReflectEffect(intensity, duration);
+            case "reflect": return new ReflectEffect(intensity, duration, 0); // Note: radiantShieldAmount = 0 for manual reflect effects
             case "stun": return new StunEffect(duration);
-            case "burn": return new BurnEffect(intensity, duration);
-            case "poison": return new PoisonEffect(intensity, duration);
+            case "burn": return new BurnEffect(intensity, duration, attacker); // Pass attacker for INT scaling
+            case "poison": return new PoisonEffect(intensity, duration, false, target); // Pass target for max HP scaling
+            case "bleed": return new BleedEffect(intensity, duration);
             case "healbonus": return new HealBonusEffect(intensity, duration);
             case "pounce": return new PounceEffect(intensity, duration);
             default: return null;
@@ -388,6 +427,7 @@ public static class SkillEffectProcessor
             case "stun": return typeof(StunEffect);
             case "burn": return typeof(BurnEffect);
             case "poison": return typeof(PoisonEffect);
+            case "bleed": return typeof(BleedEffect);
             case "healbonus": return typeof(HealBonusEffect);
             case "pounce": return typeof(PounceEffect);
             default: return null;

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: "Scout\u2019s Leggings"
   gearType: 3
   icon: {fileID: -116122077602426741, guid: ba06b85a83b08474c873d3053cd5c7f1, type: 3}
-  description: 
+  description: '5% physic resist '
   rarity: 2
   basePrice: 100
   attackBonus: 0
@@ -24,4 +24,6 @@ MonoBehaviour:
   intBonus: 0
   manaBonus: 0
   agiBonus: 15
-  modifiers: []
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: b6b982a67867b7948a586b6385e98a8c, type: 2}

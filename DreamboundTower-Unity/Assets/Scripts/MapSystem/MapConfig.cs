@@ -37,11 +37,13 @@ namespace Map
         public int floorNumber;
         [Tooltip("Boss Node Blueprint for this floor")]
         public NodeBlueprint bossBlueprint;
-        
+        [Tooltip("The ID (EnemyTemplateSO file name) of the boss to spawn, e.g., 'Skeleton' or 'GoblinKing'")]
+        public string enemyArchetypeID;
         public BossFloorConfig(int floor, NodeBlueprint blueprint)
         {
             floorNumber = floor;
             bossBlueprint = blueprint;
+            enemyArchetypeID = "";
         }
     }
     
@@ -52,6 +54,8 @@ namespace Map
         public int zoneNumber;
         [Tooltip("Boss Node Blueprint for this zone (boss at floor 10, 20, 30, etc.)")]
         public NodeBlueprint zoneBossBlueprint;
+        [Tooltip("The ID (EnemyTemplateSO file name) of the boss to spawn, e.g., 'Skeleton' or 'GoblinKing'")]
+        public string enemyArchetypeID;
         [Tooltip("Zone name for display")]
         public string zoneName;
         
@@ -60,6 +64,7 @@ namespace Map
             zoneNumber = zone;
             zoneBossBlueprint = bossBlueprint;
             zoneName = string.IsNullOrEmpty(name) ? $"Zone {zone}" : name;
+            enemyArchetypeID = "";
         }
     }
 }
