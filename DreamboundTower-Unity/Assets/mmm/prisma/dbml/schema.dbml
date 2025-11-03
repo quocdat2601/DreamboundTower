@@ -1,0 +1,148 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table Account {
+  id String [pk]
+  userId String [not null]
+  type String [not null]
+  provider String [not null]
+  providerAccountId String [not null]
+  refresh_token String
+  access_token String
+  expires_at Int
+  token_type String
+  scope String
+  id_token String
+  session_state String
+  user User [not null]
+
+  indexes {
+    (provider, providerAccountId) [unique]
+  }
+}
+
+Table Session {
+  id String [pk]
+  sessionToken String [unique, not null]
+  userId String [not null]
+  expires DateTime [not null]
+  user User [not null]
+}
+
+Table User {
+  id String [pk]
+  email String [unique, not null]
+  passwordHash String
+  name String
+  image String
+  emailVerified DateTime
+  socketId String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  accounts Account [not null]
+  blogs Blog [not null]
+  photos PhotoData [not null]
+  sessions Session [not null]
+  tripPlans TripPlan [not null]
+  volgs Vlog [not null]
+  membersOfTrip TripPlan [not null]
+}
+
+Table TripPlan {
+  id String [pk]
+  authorId String [not null]
+  data Json [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  location String
+  blogs Blog [not null]
+  notifications Notification [not null]
+  photos PhotoData [not null]
+  author User [not null]
+  vlogs Vlog [not null]
+  members User [not null]
+}
+
+Table Notification {
+  id String [pk]
+  tripPlanId String [not null]
+  content String [not null]
+  read Boolean [not null, default: false]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  tripPlan TripPlan [not null]
+}
+
+Table Blog {
+  id String [pk]
+  title String [not null]
+  content String [not null]
+  authorId String [not null]
+  status STAUS [not null, default: 'PRIVATE']
+  tripPlanId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  author User [not null]
+  tripPlan TripPlan [not null]
+}
+
+Table Vlog {
+  id String [pk]
+  title String [not null]
+  content String [not null]
+  authorId String [not null]
+  status STAUS [not null, default: 'PRIVATE']
+  tripPlanId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  author User [not null]
+  tripPlan TripPlan [not null]
+}
+
+Table PhotoData {
+  id String [pk]
+  url String [not null]
+  tripPlanId String [not null]
+  authorId String [not null]
+  caption String
+  status STAUS [not null, default: 'PRIVATE']
+  location String
+  features String
+  timeInString String
+  device String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  author User [not null]
+  tripPlan TripPlan [not null]
+}
+
+Table TripPlanMembers {
+  membersoftripId String [ref: > TripPlan.id]
+  membersId String [ref: > User.id]
+}
+
+Enum STAUS {
+  PUBLIC
+  PRIVATE
+}
+
+Ref: Account.userId > User.id [delete: Cascade]
+
+Ref: Session.userId > User.id [delete: Cascade]
+
+Ref: TripPlan.authorId > User.id
+
+Ref: Notification.tripPlanId > TripPlan.id
+
+Ref: Blog.authorId > User.id
+
+Ref: Blog.tripPlanId > TripPlan.id
+
+Ref: Vlog.authorId > User.id
+
+Ref: Vlog.tripPlanId > TripPlan.id
+
+Ref: PhotoData.authorId > User.id
+
+Ref: PhotoData.tripPlanId > TripPlan.id

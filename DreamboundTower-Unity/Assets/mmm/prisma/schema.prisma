@@ -1,0 +1,139 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+generator dbml {
+  provider   = "prisma-dbml-generator"
+  extensions = ["(function)"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  passwordHash  String?
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  socketId      String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  accounts      Account[]
+  blogs         Blog[]
+  photos        PhotoData[]
+  sessions      Session[]
+  tripPlans     TripPlan[]
+  volgs         Vlog[]
+  membersOfTrip TripPlan[]  @relation("TripPlanMembers")
+
+  @@index([email])
+}
+
+model TripPlan {
+  id            String         @id @default(cuid())
+  authorId      String
+  data          Json
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  location      String?
+  blogs         Blog[]
+  notifications Notification[]
+  photos        PhotoData[]
+  author        User           @relation(fields: [authorId], references: [id])
+  vlogs         Vlog[]
+  members       User[]         @relation("TripPlanMembers")
+
+  @@index([authorId])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  tripPlanId String
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tripPlan   TripPlan @relation(fields: [tripPlanId], references: [id])
+}
+
+model Blog {
+  id         String   @id @default(cuid())
+  title      String
+  content    String
+  authorId   String
+  status     STAUS    @default(PRIVATE)
+  tripPlanId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  author     User     @relation(fields: [authorId], references: [id])
+  tripPlan   TripPlan @relation(fields: [tripPlanId], references: [id])
+}
+
+model Vlog {
+  id         String   @id @default(cuid())
+  title      String
+  content    String
+  authorId   String
+  status     STAUS    @default(PRIVATE)
+  tripPlanId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  author     User     @relation(fields: [authorId], references: [id])
+  tripPlan   TripPlan @relation(fields: [tripPlanId], references: [id])
+}
+
+model PhotoData {
+  id           String   @id @default(cuid())
+  url          String
+  tripPlanId   String
+  authorId     String
+  caption      String?
+  status       STAUS    @default(PRIVATE)
+  location     String?
+  features     String?
+  timeInString String?
+  device       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  author       User     @relation(fields: [authorId], references: [id])
+  tripPlan     TripPlan @relation(fields: [tripPlanId], references: [id])
+}
+
+enum STAUS {
+  PUBLIC
+  PRIVATE
+}
