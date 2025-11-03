@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d384fef01dce3d47a4f4e5b5f3a29da, type: 3}
+  m_Name: Mage Config
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.ClassPresetSO
+  id: class_mage
+  displayName: Mage
+  passiveSkill: {fileID: 11400000, guid: 993162ab417f9d040a6a082805981ab8, type: 2}
+  activeSkills:
+  - {fileID: 11400000, guid: c28d66ddc5f003e49839e2a0cd242daf, type: 2}

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Aegis of Valor
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Arcanum Robe
+  gearType: 2
+  icon: {fileID: 2621328955673635600, guid: 1f9177977e85996488e3097b0559e751, type: 3}
+  description: DamageReduction 10%, ReflectDamagePercent 10%
+  rarity: 4
+  basePrice: 955
+  attackBonus: 25
+  defenseBonus: 80
+  hpBonus: 600
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 0
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: e2aba5d278c0c5c48b54f34a5e079fc6, type: 2}
+  - {fileID: 11400000, guid: be0a8783b0ee4d342be562da72920894, type: 2}

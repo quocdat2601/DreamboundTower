@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Mindbender Visor
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Mindbender Visor
+  gearType: 1
+  icon: {fileID: -7184714300349580303, guid: 43c6e0deae166be45a12511bd62bba26, type: 3}
+  description: +30% crit rate
+  rarity: 3
+  basePrice: 175
+  attackBonus: 0
+  defenseBonus: 25
+  hpBonus: 0
+  intBonus: 30
+  manaBonus: 40
+  agiBonus: 0
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 53901312be6ce2b408f330fed23aa16a, type: 2}

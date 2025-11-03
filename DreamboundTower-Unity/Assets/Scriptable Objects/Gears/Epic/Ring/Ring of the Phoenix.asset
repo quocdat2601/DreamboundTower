@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Ring of the Phoenix
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Ring of the Phoenix
+  gearType: 6
+  icon: {fileID: 7964818525235743423, guid: bbcbfb2d556aeee4085bb8eb7346a36b, type: 3}
+  description: just so freaking tanky
+  rarity: 3
+  basePrice: 460
+  attackBonus: 0
+  defenseBonus: 10
+  hpBonus: 1000
+  intBonus: 0
+  manaBonus: 80
+  agiBonus: 0
+  scalingType: 1
+  modifiers: []

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a47fec276ce0244c9a4217e4b8e10bc, type: 3}
+  m_Name: Human Config
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.RacePresetSO
+  id: race_human
+  displayName: Human
+  baseStats:
+    HP: 10
+    STR: 10
+    DEF: 10
+    MANA: 10
+    INT: 10
+    AGI: 10
+  passiveSkill: {fileID: 11400000, guid: 996494f9e60c3be4bbbeef644450436e, type: 2}
+  activeSkill: {fileID: 11400000, guid: c8ded6ec502730841adbaa564661387d, type: 2}
+  clericSprite: {fileID: 1350988106599333187, guid: 12f24eb159258394e84e18c933573d65, type: 3}
+  mageSprite: {fileID: 3981692578837126391, guid: d3f985af3ea1c9e4ba3f97aa3745c343, type: 3}
+  rogueSprite: {fileID: 8523479326416698493, guid: 0be371a77ca2e1549bdd7ba30c8965cf, type: 3}
+  warriorSprite: {fileID: -1755407613584059112, guid: 380e73a2389f95d4d8875bcdc10b15d0, type: 3}

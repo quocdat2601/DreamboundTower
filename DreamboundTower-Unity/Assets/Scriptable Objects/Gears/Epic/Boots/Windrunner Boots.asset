@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Windrunner Boots
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Windrunner Boots
+  gearType: 4
+  icon: {fileID: -5384817152452107416, guid: d332a62bb5f33d840ad7f952361317f9, type: 3}
+  description: +5% physical dmg (str) and 6% dodge
+  rarity: 3
+  basePrice: 270
+  attackBonus: 0
+  defenseBonus: 15
+  hpBonus: 150
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 25
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 304d3b420cab70e4c8969c6e0160e1ee, type: 2}
+  - {fileID: 11400000, guid: 716be726316368247ad396e925445676, type: 2}

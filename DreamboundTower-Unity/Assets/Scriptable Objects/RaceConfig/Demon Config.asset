@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a47fec276ce0244c9a4217e4b8e10bc, type: 3}
+  m_Name: Demon Config
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.RacePresetSO
+  id: race_demon
+  displayName: Demon
+  baseStats:
+    HP: 11
+    STR: 13
+    DEF: 10
+    MANA: 8
+    INT: 11
+    AGI: 7
+  passiveSkill: {fileID: 11400000, guid: cbffef9c0c0b00d469189a5f5e82048c, type: 2}
+  activeSkill: {fileID: 11400000, guid: da1bc15dafe1ee948bab5564121ce00d, type: 2}
+  clericSprite: {fileID: 2853569469468017370, guid: c5092cb73eb0f5040bd2269dba271864, type: 3}
+  mageSprite: {fileID: 2620067799875098489, guid: 0436633aabf57dd43b15e3c460d1368b, type: 3}
+  rogueSprite: {fileID: -4569850758236665517, guid: 980a3f9dd72f4614b834f2ce9e92d97f, type: 3}
+  warriorSprite: {fileID: 4598574739232409015, guid: 5198c7ae512f62643907cdd6d4c0d5c8, type: 3}

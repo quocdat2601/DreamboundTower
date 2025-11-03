@@ -1,0 +1,70 @@
+# ---------------------------
+# Unity Generated Folders
+# ---------------------------
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild*/
+[Ll]ogs/
+MemoryCaptures/
+Recordings/
+
+# ---------------------------
+# User / Local Settings
+# ---------------------------
+UserSettings/
+*.user
+*.userprefs
+*.suo
+
+# ---------------------------
+# IDE / Editor
+# ---------------------------
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.sln
+
+# ---------------------------
+# Builds
+# ---------------------------
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.exe
+*.dll
+*.mdb
+*.pdb
+
+# ---------------------------
+# Cache / Crash / Misc
+# ---------------------------
+.gradle/
+ExportedObj/
+sysinfo.txt
+*.dmp
+mono_crash.*
+
+# ---------------------------
+# Addressables / Asset Bundles
+# ---------------------------
+[Aa]ssets/StreamingAssets/aa*
+ServerData/
+Assets/AddressableAssetsData/*/*.bin*
+
+# ---------------------------
+# OS Junk
+# ---------------------------
+.DS_Store
+Thumbs.db
+
+# ---------------------------
+# ProjectSettings
+# ---------------------------
+# Keep ProjectSettings in repo (important for scenes/UI consistency)
+!ProjectSettings/
+
+# Ignore only user settings folder (machine specific)
+UserSettings/

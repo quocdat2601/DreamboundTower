@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Blade of Nightmares
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Blade of Nightmares
+  gearType: 0
+  icon: {fileID: -1992353352110844402, guid: e8b1321d817acb7489e0971136886a85, type: 3}
+  description: 50% cr and 100% cd
+  rarity: 4
+  basePrice: 300
+  attackBonus: 100
+  defenseBonus: 0
+  hpBonus: 0
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 0
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 0766d5c0e4d9ebf4f915edfe4f4f2bc2, type: 2}
+  - {fileID: 11400000, guid: ae249a6ca689ec841a9655e0df174959, type: 2}

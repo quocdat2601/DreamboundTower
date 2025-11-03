@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Heart of the Archmage
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Heart of the Archmage
+  gearType: 5
+  icon: {fileID: -5572269279992391383, guid: bbe04959bb2648f46932d980fefb1260, type: 3}
+  description: '100% crit chance and 100% magic damage bonus
+
+'
+  rarity: 4
+  basePrice: 375
+  attackBonus: 0
+  defenseBonus: 5
+  hpBonus: 150
+  intBonus: 25
+  manaBonus: 100
+  agiBonus: 0
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 2fe10bf8ad0a8bd45ac11460ec40414f, type: 2}
+  - {fileID: 11400000, guid: 4bbf7909b2cd4ad4985606da592e539b, type: 2}

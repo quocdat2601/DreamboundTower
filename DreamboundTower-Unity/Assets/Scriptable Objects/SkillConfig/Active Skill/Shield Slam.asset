@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b18cb1b2b3ac244c9bcbbdcc046a493, type: 3}
+  m_Name: Shield Slam
+  m_EditorClassIdentifier: Assembly-CSharp::SkillData
+  id: warrior_shield_slam
+  displayName: Shield Slam
+  icon: {fileID: 8596996755651271570, guid: 76b0e16fd2b75d644b2b19f3b68609dc, type: 3}
+  descriptionTemplate: Deals {damage} physical damage. Has a 30% chance to Stun the
+    target for 1 turn. Deals +25% damage to already stunned targets.
+  resource: 1
+  cost: 10
+  baseDamage: 30
+  scalingStat: 0
+  scalingPercent: 1
+  cooldown: 3
+  target: 0
+  isMagicDamage: 0
+  healAmount: 0
+  healPercent: 0
+  lifesteal: 0
+  lifestealPercent: 0
+  shieldAmount: 0
+  shieldPercent: 0
+  shieldDuration: 0
+  reflectPercent: 0
+  statusEffectsToApply:
+  - stun
+  statusEffectsToRemove: []
+  statusEffectDuration: 1
+  statusEffectIntensity: 0
+  statModifiers: []
+  buffDuration: 0
+  removeAllDebuffs: 0
+  removeOneDebuff: 0
+  healingEffectivenessBonus: 0
+  healingEffectivenessDuration: 0
+  recoilDamagePercent: 0
+  stunChance: 0.3
+  bonusDamageToStunned: 0.25

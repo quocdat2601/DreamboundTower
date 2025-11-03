@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9389ec5754aa81049a8f0ea440d9b6bc, type: 3}
+  m_Name: Orc Grunt
+  m_EditorClassIdentifier: Assembly-CSharp::Presets.EnemyTemplateSO
+  kind: 1
+  gimmick: 65536
+  isUniqueOrEventOnly: 0
+  minFloor: 1
+  summonableEnemies: []
+  manaRegenPerTurnn: 0
+  skills: []
+  sprites:
+  - {fileID: 6671450624033266136, guid: 5042aec8727fb8245a812ad193440522, type: 3}
+  baseStatsAtFloor1:
+    HP: 25
+    STR: 16
+    DEF: 8
+    MANA: 2
+    INT: 2
+    AGI: 0
+  hpMultiplier: 3
+  strMultiplier: 1.6
+  defMultiplier: 1.5
+  baseRate: 0.012
+  endlessAfterFloor: 100
+  endlessBonus: 0.002

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3257a7a6247dd4bad96783381dbaa3, type: 3}
+  m_Name: Silverclaw Dagger
+  m_EditorClassIdentifier: Assembly-CSharp::GearItem
+  itemName: Silverclaw Dagger
+  gearType: 0
+  icon: {fileID: 2182994084055932133, guid: 54640c38e1568fd46bed2472443e0ffd, type: 3}
+  description: +15% crit chance, 10% proc bleed in 2 turns
+  rarity: 1
+  basePrice: 20
+  attackBonus: 7
+  defenseBonus: 0
+  hpBonus: 0
+  intBonus: 0
+  manaBonus: 0
+  agiBonus: 10
+  scalingType: 1
+  modifiers:
+  - {fileID: 11400000, guid: 70618a30727274247b7b60c5f4fcfacf, type: 2}
+  - {fileID: 11400000, guid: c286dad07573e5c46837999891c33e87, type: 2}
