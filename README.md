@@ -52,7 +52,6 @@ You play as a boy falling into a surreal dream world—a colossal tower built fr
 ### 🧬 Character RNG
 - **Races**: Human, Demon, Celestial, Undead, Beastfolk
 - **Archetypes**: Warrior, Rogue, Mage, Cleric
-- Wheel rolls base stats 1–10 with limited rerolls
 
 ### 📊 Stats
 **Core Stats**: HP, STR (Attack Power), DEF (Defense), MANA, INT (Intelligence), AGI (Agility)
