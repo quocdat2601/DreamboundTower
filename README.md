@@ -38,11 +38,12 @@ You play as a boy falling into a surreal dream world—a colossal tower built fr
 
 ---
 
-## 📖 Story & Lore (brief)
-A bright childhood dims: distant parents, scattered friends, pressure, fear of abandonment, and loss. To hide, the boy forges a dream tower—only to face nightmares within. The prologue reveals a shadowy figure (his future self) who kills him, proving pain is real here. In the void, a small fairy (later: his lost sister) introduces the system: race, archetype, stats, RNG creation, and a 100‑floor goal.
-
-- **Boss inspirations (VN urban legends)**: Ông Ba Bị, Ma Dã, Ma Thần Vòng, Quỷ Nhập Tràng, Ma Tràng, Ma Gà, Ma Lai, Thần Trùng, Ma Vú Dài (+ a personal twist boss)
-- **Prototype bosses**: T10, T20, T40 (T40 scripted defeat for story trigger)
+## ⚔️ Combat — quick math
+- DamageRaw = SkillBase * (1 + ATK/100) // ATK = STR (phys) or INT (magic)
+- DamageFinal = DamageRaw * (100 / (100 + DEF)) // smooth mitigation
+- Crit = 1.5x // base; subject to item buffs
+- Dodge = min(0.40, 0.003 * AGI) // 0.3%/AGI, cap 40%
+- ExtraTurn% ≈ min(25%, 0.15% * AGI) // optional, per design
 
 ---
 
@@ -193,18 +194,21 @@ Status effects tick at **Start of Turn** (Stun) or **End of Turn** (DOT effects,
 
 ---
 
-## 🚀 Getting Started (Dev)
-- Requirements: Unity 6000.2.2f1, Git LFS (recommended for large assets)
-- Clone and open the `DreamboundTower` folder in Unity Hub
-- Recommended Editor settings: Visible Meta Files + Force Text
+## 🧱 Tech & Data
+- **Engine:** Unity 6000.2.x, C#.
+- **Architecture:** State Machine (Menu/Map/Combat/Event), TurnManager, Data-driven using **ScriptableObjects**.
+- **Save:** JSON (checkpoint snapshots + meta progression).
+- **Assets:** placeholder packs (Kenney / OpenGameArt / Itch/ AI).
 
-### Project Structure
-- `DreamboundTower/Assets` — assets and scripts
-- `DreamboundTower/Packages` — package manifest and lock
-- `DreamboundTower/ProjectSettings` — editor/project settings
+---
 
-### Build Targets
-- **Windows**: URP 2D defaults
+## 🧪 Prototype Roadmap (internal)
+- Core combat loop, HUD, and formulas
+- Map/Node generation per zone (10-floor bands)
+- Event system (flags/requirements/outcomes)
+- Boss T10/T20 (baseline patterns), scaling tables
+- Save/Load & checkpoints; Steadfast UI
+- Content pass: ~25 events, ~30 items, ~10 relics
 
 ---
 
@@ -219,18 +223,11 @@ The game includes several developer cheats for testing purposes:
 **Note**: These cheats are intended for development and testing only. They may not work in all scenes (e.g., Legendary Run cheat only works outside of combat).
 
 ## 🤝 Contributing
-PRs welcome for content (events, skills), systems, UI, and balancing. Please open issues for discussions first.
-
-## 🙏 Credits
-Prototype for educational purposes. For placeholders, consider assets from Kenney, Itch.io, and OpenGameArt (respect licenses).
-
-## 🔗 Useful Links
-- Design highlights: see sections above
-- Future docs folder suggestion: `Docs/` for boss sheets, schemas, checklists, asset sources
+PRs welcome (systems, content, balance).  
+Please open an issue for discussion before large changes.
 
 ---
+
 <div align="center">
-
-**Climb the dream. Face the nightmare. Find yourself.**
-
-</div> 
+Climb the dream. Face the nightmare. Find yourself.
+</div>
