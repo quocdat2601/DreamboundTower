@@ -23,9 +23,7 @@ You play as a boy falling into a surreal dream world—a colossal tower built fr
 - **⚔️ Turn‑based Combat**: Percentage-based hit/crit/dodge system with physical and magic damage types
 - **🗺️ Node‑based Exploration**: Combat, Events, Shops, Rests, and Treasures across zones
 - **🧠 Choice‑Driven Events**: Visual‑novel style cards with stat checks and branching outcomes
-- **🧬 RNG Character Creation**: Spin a wheel for Race, Archetype, and base stats (limited rerolls)
 - **❤️ Steadfast Heart**: A 3‑charge run‑saving mechanic restored at checkpoints
-- **👹 Vietnamese Urban‑Legend Bosses**: From Ông Ba Bị to Ma Lai and beyond
 
 ---
 
@@ -218,6 +216,7 @@ The game includes several developer cheats for testing purposes:
 - **Ctrl + Shift + L**: Load Legendary Run (F100) — Gives player all legendary items and sets floor to 100
 - **Ctrl + Shift + G**: Toggle God Mode — Makes player invincible and deals massive damage (9999x multiplier)
 - **Ctrl + Shift + K**: Kill Player — Instantly kills the player character
+- **Ctrl + Shift + Q**: Instantly win battle
 
 **Note**: These cheats are intended for development and testing only. They may not work in all scenes (e.g., Legendary Run cheat only works outside of combat).
 

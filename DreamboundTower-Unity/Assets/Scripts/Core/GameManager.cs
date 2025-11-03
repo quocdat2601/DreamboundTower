@@ -1091,7 +1091,7 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private IEnumerator LoadCheatRun()
     {
-        // 1. Đảm bảo có RunData (Giữ nguyên)
+        // 1. Đảm bảo có RunData
         if (currentRunData == null)
         {
             Debug.LogWarning("[Cheat] Không tìm thấy RunData, tạo mới...");
@@ -1099,15 +1099,15 @@ public class GameManager : MonoBehaviour
             currentRunData.playerData.steadfastDurability = 99;
         }
 
-        // 2. Đảm bảo có Player Instance (Giữ nguyên)
+        // 2. Đảm bảo có Player Instance
         if (playerInstance == null)
         {
             Debug.LogWarning("[Cheat] Không tìm thấy PlayerInstance, khởi tạo bằng Fallback...");
             InitializePlayerCharacter();
-            yield return null;
+            yield return null; // Đợi 1 frame để player được khởi tạo
         }
 
-        // 3. Lấy Inventory của Player (Giữ nguyên)
+        // 3. Lấy Inventory
         Inventory inventory = playerInstance.GetComponent<Inventory>();
         if (inventory == null)
         {
@@ -1115,20 +1115,58 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
-        // --- ✅ SỬA LẠI LOGIC NẠP ĐỒ ---
-        Debug.Log("[Cheat] Đang nạp đồ Legendary (chỉ vào data)...");
-        inventory.items.Clear(); // Xóa list data
+        // 4. Nạp đồ Legendary
+        Debug.Log("[Cheat] Đang nạp đồ Legendary...");
+        inventory.items.Clear();
         foreach (GearItem item in allItems)
         {
             if (item.rarity == ItemRarity.Legendary)
             {
-                // THAY ĐỔI: Thêm trực tiếp vào List data, KHÔNG GỌI inventory.AddItem(item)
                 inventory.items.Add(item);
-                // Debug.Log($"[Cheat] Đã thêm data: {item.itemName}"); // Bỏ log này để tránh spam
             }
         }
-        // XÓA: Không gọi cập nhật UI của scene cũ
-        // inventory.OnInventoryChanged?.Invoke(); 
+        // (Chúng ta sẽ KHÔNG gọi OnInventoryChanged vì không cần cập nhật UI ở scene cũ)
+
+
+        // --- ✅ BẮT ĐẦU LOGIC BỊ THIẾU ---
+
+        // 5. LƯU item vào RunData
+        // (Hàm này cũng sẽ lưu HP, Mana, Vàng... hiện tại của bạn)
+        SavePlayerStateToRunData();
+        Debug.Log("[Cheat] Đã lưu Legendary items vào RunData.");
+
+        // 6. Tìm một Boss F100
+        // (Tìm một boss bất kỳ từ Tầng 80+ trong danh sách của bạn)
+        EnemyTemplateSO f100Boss = allEnemyTemplates.FirstOrDefault(t =>
+            t.kind == Presets.EnemyKind.Boss &&
+            !t.isUniqueOrEventOnly &&
+            t.minFloor >= 80); // (Bạn có thể đổi 80 thành 90, 100)
+
+        if (f100Boss == null)
+        {
+            Debug.LogError("[Cheat] Không tìm thấy Boss nào phù hợp (F80+) trong allEnemyTemplates!");
+            yield break;
+        }
+
+        Debug.Log($"[Cheat] Đã chọn F100 Boss: {f100Boss.name}");
+
+        // 7. Thiết lập RunData để "đang chờ" (pending) trận F100
+        currentRunData.mapData.currentZone = 10;
+        currentRunData.mapData.pendingEnemyFloor = 100;
+        currentRunData.mapData.pendingEnemyKind = (int)Presets.EnemyKind.Boss;
+        currentRunData.mapData.pendingEnemyArchetypeId = f100Boss.name;
+
+        // (Quan trọng) Lưu tên scene hiện tại (ví dụ: MainMenu) để BattleManager biết
+        // đây không phải là một node map bình thường
+        currentRunData.mapData.pendingNodeSceneName = SceneManager.GetActiveScene().name;
+
+        // 8. LƯU LẠI TOÀN BỘ RunData đã cheat
+        RunSaveService.SaveRun(currentRunData);
+
+        // 9. TẢI TRẬN ĐẤU
+        SceneManager.LoadScene("MainGame");
+
+        // --- KẾT THÚC LOGIC BỊ THIẾU ---
     }
 
     /// <summary>
