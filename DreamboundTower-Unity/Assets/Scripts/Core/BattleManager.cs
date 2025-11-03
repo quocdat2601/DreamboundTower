@@ -210,16 +210,13 @@ public class BattleManager : MonoBehaviour
         #if UNITY_EDITOR
         if (Keyboard.current == null) return;
 
-        if (Keyboard.current.qKey.wasPressedThisFrame)
+        if (Keyboard.current != null &&
+            (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
+            (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed) &&
+            Keyboard.current.qKey.wasPressedThisFrame)
         {
             Debug.LogWarning("DEBUG: Force Victory (Q key pressed).");
             StartCoroutine(VictoryRoutine());
-        }
-
-        if (Keyboard.current.eKey.wasPressedThisFrame)
-        {
-            Debug.LogWarning("DEBUG: Force Defeat (E key pressed).");
-            StartCoroutine(DefeatRoutine());
         }
         #endif
     }
@@ -1468,7 +1465,8 @@ public class BattleManager : MonoBehaviour
                 // Tăng zone và chuẩn bị scene tiếp theo
                 mapData.currentZone++;
                 mapData.path.Clear(); // Xóa đường đi cũ để bắt đầu zone mới
-                sceneToReturnTo = "Zone" + mapData.currentZone; // Ví dụ: "Zone2", "Zone3"
+                mapData.currentMapJson = null;
+                sceneToReturnTo = "Zone" + mapData.currentZone; // Ví dụ: "Zone2", "Zone3"
             }
             else
             {
