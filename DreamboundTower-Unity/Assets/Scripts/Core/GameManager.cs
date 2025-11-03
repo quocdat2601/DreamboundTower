@@ -506,7 +506,7 @@ public class GameManager : MonoBehaviour
             {
                 AudioManager.Instance.PlayRandomMapMusic();
             }
-            else if (scene.name == "BattleScene") // <<-- THAY "BattleScene" bằng tên scene Combat của bạn
+            else if (scene.name == "MainGame") // <<-- THAY "BattleScene" bằng tên scene Combat của bạn
             {
                 AudioManager.Instance.PlayRandomCombatMusic();
             }
