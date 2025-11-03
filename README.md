@@ -220,6 +220,12 @@ The game includes several developer cheats for testing purposes:
 
 **Note**: These cheats are intended for development and testing only. They may not work in all scenes (e.g., Legendary Run cheat only works outside of combat).
 
+## Referral Docs
+- 🧾 **GDD (Game Design Document)** | Full gameplay, systems, races, events, and design notes for Dreambound Tower | [📖 View GDD](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0#bookmark=id.xsn53ui2ti82) |
+- 📊 **DATA Sheet** | Master data table — weapons, items, races, skills, events, and balance values | [📘 View DATA](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868) |
+
+---
+
 ## 🤝 Contributing
 PRs welcome (systems, content, balance).  
 Please open an issue for discussion before large changes.
