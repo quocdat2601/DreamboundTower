@@ -39,7 +39,6 @@ You play as a boy falling into a surreal dream world—a colossal tower built fr
 ## 📖 Story & Lore (brief)
 A bright childhood dims: distant parents, scattered friends, pressure, fear of abandonment, and loss. To hide, the boy forges a dream tower—only to face nightmares within. The prologue reveals a shadowy figure (his future self) who kills him, proving pain is real here. In the void, a small fairy (later: his lost sister) introduces the system: race, archetype, stats, RNG creation, and a 100‑floor goal.
 
-- **Boss inspirations (VN urban legends)**: Ông Ba Bị, Ma Dã, Ma Thần Vòng, Quỷ Nhập Tràng, Ma Tràng, Ma Gà, Ma Lai, Thần Trùng, Ma Vú Dài (+ a personal twist boss)
 - **Prototype bosses**: T10, T20, T40 (T40 scripted defeat for story trigger)
 
 ---
@@ -49,7 +48,6 @@ A bright childhood dims: distant parents, scattered friends, pressure, fear of a
 ### 🧬 Character RNG
 - **Races**: Human, Demon, Celestial, Undead, Beastfolk
 - **Archetypes**: Warrior, Rogue, Mage, Cleric
-- Wheel rolls base stats 1–10 with limited rerolls
 
 ### 📊 Stats
 **Core Stats**: HP, STR (Attack Power), DEF (Defense), MANA, INT (Intelligence), AGI (Agility)
@@ -216,6 +214,12 @@ The game includes several developer cheats for testing purposes:
 - **Ctrl + Shift + Q**: Instantly win battle
 
 **Note**: These cheats are intended for development and testing only. They may not work in all scenes (e.g., Legendary Run cheat only works outside of combat).
+---
+
+| 🧾 *GDD (Game Design Document)* | Full gameplay, systems, races, events, and design notes for Dreambound Tower | [📖 View GDD](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0#bookmark=id.xsn53ui2ti82) |
+| 📊 *DATA Sheet* | Master data table — weapons, items, races, skills, events, and balance values | [📘 View DATA](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868) |
+
+---
 
 ## 🤝 Contributing
 PRs welcome for content (events, skills), systems, UI, and balancing. Please open issues for discussions first.
