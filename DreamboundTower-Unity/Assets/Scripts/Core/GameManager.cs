@@ -53,7 +53,7 @@ public class GameManager : MonoBehaviour
     public float lastRunTime = 0f;
     private bool isPaused = false;
     private bool isPausable = false;
-    
+
     // Cheat system flags
     private bool godModeCheatActive = false;
 
@@ -75,19 +75,19 @@ public class GameManager : MonoBehaviour
         {
             DontDestroyOnLoad(playerStatusUI.gameObject.transform.root.gameObject);
         }
-        
+
         // Setup PassiveSkillManager
         SetupPassiveSkillManager();
-        
+
         // Setup StatusEffectManager
         SetupStatusEffectManager();
-        
+
         // Setup SkillDatabase
 
         if (pauseMenuPanel != null) pauseMenuPanel.SetActive(false);
         if (settingsPanel != null) settingsPanel.SetActive(false);
         if (blockerPanel != null) blockerPanel.SetActive(false);
-        
+
         // Disable DefeatPanel on PersistentUICanvas on startup
         DisableDefeatPanel();
 
@@ -133,7 +133,7 @@ public class GameManager : MonoBehaviour
         }
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
-    
+
     void SetupPassiveSkillManager()
     {
         // Check if PassiveSkillManager already exists
@@ -142,14 +142,14 @@ public class GameManager : MonoBehaviour
             // Create a new GameObject with PassiveSkillManager
             GameObject passiveSkillManagerGO = new GameObject("PassiveSkillManager");
             passiveSkillManagerGO.AddComponent<PassiveSkillManager>();
-            
+
             // Make it persistent across scenes
             DontDestroyOnLoad(passiveSkillManagerGO);
-            
+
             Debug.Log("[GAMEMANAGER] Created PassiveSkillManager GameObject");
         }
     }
-    
+
     /// <summary>
     /// Helper method to find and disable DefeatPanel on PersistentUICanvas
     /// </summary>
@@ -169,7 +169,7 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
-        
+
         // Fallback: Search directly in GameManager's children for PersistentUICanvas
         Transform persistentCanvasTransform = transform.Find("PersistentUICanvas");
         if (persistentCanvasTransform != null)
@@ -181,7 +181,7 @@ public class GameManager : MonoBehaviour
                 return;
             }
         }
-        
+
         // Last resort: Search all children recursively
         Transform defeatPanel = FindChildRecursive(transform, "DefeatPanel");
         if (defeatPanel != null)
@@ -189,7 +189,7 @@ public class GameManager : MonoBehaviour
             defeatPanel.gameObject.SetActive(false);
         }
     }
-    
+
     /// <summary>
     /// Recursively search for a child by name
     /// </summary>
@@ -209,7 +209,7 @@ public class GameManager : MonoBehaviour
         }
         return null;
     }
-    
+
     void SetupStatusEffectManager()
     {
         // Check if StatusEffectManager already exists
@@ -218,14 +218,14 @@ public class GameManager : MonoBehaviour
             // Create a new GameObject with StatusEffectManager
             GameObject statusEffectManagerGO = new GameObject("StatusEffectManager");
             statusEffectManagerGO.AddComponent<StatusEffectManager>();
-            
+
             // Make it persistent across scenes
             DontDestroyOnLoad(statusEffectManagerGO);
-            
+
             // StatusEffectManager created
         }
     }
-    
+
 
     private void Update()
     {
@@ -243,7 +243,9 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Legendary Run cheat (Ctrl + Shift + L)
+        // Kiểm tra tổ hợp phím (Ví dụ: Ctrl + shift + L cho Legendary)
+
+        // Chúng ta sẽ cho phép cheat ở bất cứ đâu:
         if (Keyboard.current != null &&
             (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
             (Keyboard.current.leftShiftKey.isPressed || Keyboard.current.rightShiftKey.isPressed) &&
@@ -261,7 +263,7 @@ public class GameManager : MonoBehaviour
         {
             currentRunData.playerData.totalTimePlayed += Time.unscaledDeltaTime;
         }
-        
+
         // God Mode cheat (Ctrl + Shift + G)
         if (Keyboard.current != null &&
             (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
@@ -270,7 +272,7 @@ public class GameManager : MonoBehaviour
         {
             ToggleGodModeCheat();
         }
-        
+
         // Kill Player cheat (Ctrl + Shift + K)
         if (Keyboard.current != null &&
             (Keyboard.current.leftCtrlKey.isPressed || Keyboard.current.rightCtrlKey.isPressed) &&
@@ -360,43 +362,78 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Chức năng mới: Thử lại từ checkpoint gần nhất.
+    /// Chức năng mới: Thử lại từ checkpoint GẦN NHẤT.
+    /// Sẽ trừ 1 Steadfast Heart và kiểm tra hết "mạng".
     /// </summary>
     public void RetryAtCheckpoint()
     {
         Time.timeScale = 1f;
-
         if (currentRunData == null) return;
-
-        // 1. Kiểm tra xem còn "mạng" để thử lại không
+        if (SceneManager.GetActiveScene().name == "MainGame")
+        {
+            BattleManager battleManager = FindFirstObjectByType<BattleManager>();
+            if (battleManager != null)
+            {
+                battleManager.RestorePersistentPlayer();
+                Debug.Log("[GameManager] Đã gọi RestorePersistentPlayer() từ RetryAtCheckpoint.");
+            }
+            else
+            {
+                Debug.LogWarning("[GameManager] Đang ở MainGame nhưng không tìm thấy BattleManager!");
+            }
+        }
+        // 1. Kiểm tra xem CÓ còn "mạng" không (lớn hơn 0)
         if (currentRunData.playerData.steadfastDurability <= 0)
         {
-            Debug.LogWarning("Không còn Steadfast Heart để thử lại. Buộc thoát ra Main Menu.");
-            QuitToMainMenu();
+            Debug.LogWarning("RetryAtCheckpoint: Đã hết Steadfast Heart. Hiển thị Defeat Panel.");
+            ShowDefeatPanel(); // Hiển thị màn hình thua (theo yêu cầu mới của bạn)
             return;
         }
 
-        // 2. Trừ 1 Steadfast Heart
+        // 2. TRỪ 1 "MẠNG"
         currentRunData.playerData.steadfastDurability--;
         if (playerStatusUI != null)
             playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
 
-        // 3. Reset lại trạng thái map về đầu zone (logic tương tự trong BattleManager)
-        currentRunData.mapData.currentMapJson = null;
-        currentRunData.mapData.path.Clear();
-
-        // 4. Hồi phục HP/Mana về trạng thái an toàn (ví dụ: 100%)
-        var playerChar = playerInstance.GetComponent<Character>();
-        if (playerChar != null)
+        // 3. KIỂM TRA LẠI (theo yêu cầu mới của bạn)
+        // Nếu vừa dùng "mạng" cuối cùng
+        if (currentRunData.playerData.steadfastDurability <= 0)
         {
-            currentRunData.playerData.currentHP = playerChar.maxHP;
-            currentRunData.playerData.currentMana = playerChar.mana;
+            Debug.LogWarning("RetryAtCheckpoint: Vừa dùng Steadfast Heart cuối cùng. Hiển thị Defeat Panel.");
+            RunSaveService.SaveRun(currentRunData); // Lưu lại số "mạng" = 0
+            ShowDefeatPanel(); // Hiển thị màn hình thua
+            return;
         }
 
-        // 5. Lưu lại trạng thái mới
+        // 4. LƯU LẠI SỐ "MẠNG" VỪA BỊ TRỪ
+        int durabilityAfterCost = currentRunData.playerData.steadfastDurability;
+
+        // 5. TẢI LẠI CHECKPOINT (Nếu vẫn còn "mạng")
+        if (currentRunData.checkpointPlayerData == null || currentRunData.checkpointPlayerData.currentHP == 0)
+        {
+            Debug.LogError("RetryAtCheckpoint: checkpointPlayerData bị null hoặc rỗng! Không thể tải checkpoint.");
+            QuitToMainMenu(); // Lỗi nghiêm trọng, thoát ra menu
+            return;
+        }
+
+        // Clone() để đảm bảo chúng không tham chiếu cùng một đối tượng
+        currentRunData.playerData = currentRunData.checkpointPlayerData.Clone();
+
+        // 6. PHỤC HỒI LẠI SỐ "MẠNG" ĐÚNG (vì checkpointPlayerData chứa số mạng cũ)
+        currentRunData.playerData.steadfastDurability = durabilityAfterCost;
+
+        Debug.Log($"[GameManager] CHECKPOINT LOADED. HP: {currentRunData.playerData.currentHP}, Gold: {currentRunData.playerData.gold}, Hearts: {currentRunData.playerData.steadfastDurability}");
+
+        // 7. Reset map
+        currentRunData.mapData.currentMapJson = null;
+        currentRunData.mapData.path.Clear();
+        currentRunData.mapData.pendingNodePoint = new Vector2Int(-1, -1);
+        currentRunData.mapData.pendingNodeSceneName = null;
+
+        // 8. Lưu lại trạng thái (đã tải checkpoint và bị trừ "mạng")
         RunSaveService.SaveRun(currentRunData);
 
-        // 6. Tải lại scene của zone hiện tại
+        // 9. Tải lại scene map
         string zoneSceneToLoad = "Zone" + currentRunData.mapData.currentZone;
         SceneManager.LoadScene(zoneSceneToLoad);
     }
@@ -445,13 +482,13 @@ public class GameManager : MonoBehaviour
             // Thêm dòng log này để biết nếu playerStatusUI bị null
             Debug.LogError("LỖI: playerStatusUI trong GameManager đang bị null!");
         }
-        
+
         // Disable DefeatPanel in MainMenu and map scenes (it should only show in battle scenes)
         if (scene.name == "MainMenu" || scene.name.StartsWith("Zone"))
         {
             DisableDefeatPanel();
         }
-        
+
         // Load player state (inventory, equipment) from RunData when entering gameplay scenes
         if (playerInstance != null && currentRunData != null)
         {
@@ -461,7 +498,7 @@ public class GameManager : MonoBehaviour
                 Debug.Log($"[GameManager] Loaded player state from RunData for scene: {scene.name}");
             }
         }
-        
+
         if (AudioManager.Instance != null)
         {
             // Kiểm tra tên scene để quyết định nhạc
@@ -559,10 +596,10 @@ public class GameManager : MonoBehaviour
             if (overridePlayerStats)
             {
                 // Dùng chỉ số override
-                
+
                 // Initialize PlayerData.currentStats to override stats if uninitialized (all zeros)
-                if (currentRunData.playerData.currentStats.STR == 0 && currentRunData.playerData.currentStats.DEF == 0 && 
-                     currentRunData.playerData.currentStats.INT == 0 && currentRunData.playerData.currentStats.MANA == 0 && 
+                if (currentRunData.playerData.currentStats.STR == 0 && currentRunData.playerData.currentStats.DEF == 0 &&
+                     currentRunData.playerData.currentStats.INT == 0 && currentRunData.playerData.currentStats.MANA == 0 &&
                      currentRunData.playerData.currentStats.AGI == 0)
                 {
                     currentRunData.playerData.currentStats = new StatBlock
@@ -576,7 +613,7 @@ public class GameManager : MonoBehaviour
                     };
                     Debug.Log("[GameManager] Initialized PlayerData.currentStats from override stats.");
                 }
-                
+
                 // Set Character base stats from PlayerData.currentStats (includes permanent gains from events)
                 StatBlock playerStats = currentRunData.playerData.currentStats;
                 playerCharacter.baseMaxHP = playerStats.HP * HP_UNIT;
@@ -591,10 +628,10 @@ public class GameManager : MonoBehaviour
             {
                 // 3.1. GÁN "GIẤY KHAI SINH" (BASE STATS) TỪ RACE SO
                 StatBlock baseStats = raceData.baseStats;
-                
+
                 // Initialize PlayerData.currentStats to race stats if uninitialized (all zeros)
-                if (currentRunData.playerData.currentStats.STR == 0 && currentRunData.playerData.currentStats.DEF == 0 && 
-                     currentRunData.playerData.currentStats.INT == 0 && currentRunData.playerData.currentStats.MANA == 0 && 
+                if (currentRunData.playerData.currentStats.STR == 0 && currentRunData.playerData.currentStats.DEF == 0 &&
+                     currentRunData.playerData.currentStats.INT == 0 && currentRunData.playerData.currentStats.MANA == 0 &&
                      currentRunData.playerData.currentStats.AGI == 0)
                 {
                     // First time: initialize from race
@@ -609,7 +646,7 @@ public class GameManager : MonoBehaviour
                     };
                     Debug.Log("[GameManager] Initialized PlayerData.currentStats from race stats.");
                 }
-                
+
                 // Set Character base stats from PlayerData.currentStats (includes permanent gains from events)
                 StatBlock playerStats = currentRunData.playerData.currentStats;
                 playerCharacter.baseMaxHP = playerStats.HP * HP_UNIT;
@@ -626,8 +663,23 @@ public class GameManager : MonoBehaviour
             equipment.ApplyGearStats(); // Hàm này cần đảm bảo nó đọc trang bị từ RunData
 
             // 3.4. HỒI ĐẦY MÁU VÀ MANA CHO LẦN ĐẦU TIÊN
-            playerCharacter.currentHP = playerCharacter.maxHP;
-            playerCharacter.currentMana = playerCharacter.mana;
+            if (currentRunData.playerData.currentHP <= 0)
+            {
+                // Đây là lần đầu (New Game), hồi đầy
+                playerCharacter.currentHP = playerCharacter.maxHP;
+                playerCharacter.currentMana = playerCharacter.mana;
+
+                // --- ✅ QUAN TRỌNG: Cập nhật RunData (trong memory) ---
+                // Đồng bộ HP/Mana mới tạo vào RunData
+                currentRunData.playerData.currentHP = playerCharacter.currentHP;
+                currentRunData.playerData.currentMana = playerCharacter.currentMana;
+            }
+            else
+            {
+                // Đây là lần "Continue" hoặc "Retry", tải từ RunData
+                playerCharacter.currentHP = currentRunData.playerData.currentHP;
+                playerCharacter.currentMana = currentRunData.playerData.currentMana;
+            }
 
             // BƯỚC 3.5: ĐĂNG KÝ LẮNG NGHE SỰ KIỆN TỪ NHÂN VẬT
             if (playerCharacter != null && playerStatusUI != null)
@@ -677,7 +729,12 @@ public class GameManager : MonoBehaviour
         Debug.Log("Player Character Initialized from RunData!");
 
         // Bước 5: Lưu trạng thái ban đầu và cập nhật giao diện
-        SavePlayerStateToRunData();
+        //SavePlayerStateToRunData();
+        if (currentRunData.checkpointPlayerData.currentHP == 0 || currentRunData.mapData.pendingEnemyFloor <= 1)
+        {
+            SaveCheckpoint();
+            Debug.Log("[GameManager] Initial checkpoint (Floor 1) saved.");
+        }
         if (playerCharacter != null && playerStatusUI != null)
         {
             playerStatusUI.UpdateHealth(playerCharacter.currentHP, playerCharacter.maxHP);
@@ -774,12 +831,18 @@ public class GameManager : MonoBehaviour
     }
     public bool HandlePlayerDefeat()
     {
-        if (currentRunData == null) return true;
-        currentRunData.playerData.steadfastDurability--;
-        Debug.Log($"Player was defeated! Steadfast Heart remaining: {currentRunData.playerData.steadfastDurability}");
-        if (playerStatusUI != null) playerStatusUI.UpdateSteadfastHeart(currentRunData.playerData.steadfastDurability);
-        RunSaveService.SaveRun(currentRunData);
-        return currentRunData.playerData.steadfastDurability <= 0;
+        if (currentRunData == null) return true; // Nếu không có data, coi như run kết thúc
+
+        // Chỉ kiểm tra xem người chơi CÓ CÒN "mạng" hay không.
+        // Tuyệt đối KHÔNG có dòng "steadfastDurability--" ở đây.
+        bool canRetry = currentRunData.playerData.steadfastDurability > 0;
+
+        Debug.Log($"Player was defeated! Can retry: {canRetry} (Hearts: {currentRunData.playerData.steadfastDurability})");
+
+        // Trả về "runEnded". 
+        // Nếu canRetry=true (còn mạng) => runEnded=false (chưa kết thúc).
+        // Nếu canRetry=false (hết mạng) => runEnded=true (kết thúc).
+        return !canRetry;
     }
 
     // HÀM MỚI: Dùng để hồi lại khi qua checkpoint
@@ -898,7 +961,7 @@ public class GameManager : MonoBehaviour
                     {
                         Debug.Log($"[LOAD EQUIPMENT] Slot {i}: Found item by name: '{loadedItem.name}' (itemName: '{loadedItem.itemName}')");
                     }
-                    
+
                     if (loadedItem == null)
                     {
                         Debug.LogWarning($"[LOAD EQUIPMENT] Slot {i} ({expectedSlotType}): Could not find item with ID '{itemId}'. Searched by name and itemName. Total items in allItems: {allItems?.Count ?? 0}");
@@ -934,16 +997,16 @@ public class GameManager : MonoBehaviour
         // This ensures that stat gains from events (via GainStat) are reflected in the Character component
         var playerStats = currentRunData.playerData.currentStats;
         var raceData = GetRaceByID(currentRunData.playerData.selectedRaceId);
-        
+
         if (raceData != null)
         {
             var raceStats = raceData.baseStats;
-            
+
             // Check if playerStats is initialized (not all zeros)
-            bool isPlayerStatsInitialized = !(playerStats.STR == 0 && playerStats.DEF == 0 && 
-                                               playerStats.INT == 0 && playerStats.MANA == 0 && 
+            bool isPlayerStatsInitialized = !(playerStats.STR == 0 && playerStats.DEF == 0 &&
+                                               playerStats.INT == 0 && playerStats.MANA == 0 &&
                                                playerStats.AGI == 0);
-            
+
             if (isPlayerStatsInitialized)
             {
                 // Set Character base stats directly from PlayerData.currentStats (which already includes race + gains)
@@ -964,18 +1027,18 @@ public class GameManager : MonoBehaviour
                 character.baseIntelligence = raceStats.INT;
                 character.baseAgility = raceStats.AGI;
             }
-            
+
             // IMPORTANT: Get active status effects BEFORE resetting stats
             List<StatusEffect> activeEffects = new List<StatusEffect>();
             if (StatusEffectManager.Instance != null)
             {
                 activeEffects = StatusEffectManager.Instance.GetActiveEffects(character);
             }
-            
+
             // Apply gear stats (this calls ResetToBaseStats internally, then applies gear bonuses)
             // This resets stats to base, so status effects are temporarily removed
             equipment.ApplyGearStats();
-            
+
             // IMPORTANT: Reapply status effects AFTER gear stats are applied
             // This ensures debuffs/buffs are applied on top of gear bonuses
             if (StatusEffectManager.Instance != null && activeEffects.Count > 0)
@@ -986,7 +1049,7 @@ public class GameManager : MonoBehaviour
                     effect.OnApply(character);
                 }
                 Debug.Log($"[LoadStateFromRunData] Reapplied {activeEffects.Count} status effects after resetting stats and applying gear.");
-                
+
                 // Update stats UI to show the reapplied effects
                 var statsUIManager = FindFirstObjectByType<PlayerInfoUIManager>();
                 if (statsUIManager != null && statsUIManager.statsPanel != null && statsUIManager.statsPanel.activeSelf)
@@ -1052,44 +1115,49 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
-        // Add all legendary items directly to inventory data
-        inventory.items.Clear();
+        // --- ✅ SỬA LẠI LOGIC NẠP ĐỒ ---
+        Debug.Log("[Cheat] Đang nạp đồ Legendary (chỉ vào data)...");
+        inventory.items.Clear(); // Xóa list data
         foreach (GearItem item in allItems)
         {
             if (item.rarity == ItemRarity.Legendary)
             {
+                // THAY ĐỔI: Thêm trực tiếp vào List data, KHÔNG GỌI inventory.AddItem(item)
                 inventory.items.Add(item);
+                // Debug.Log($"[Cheat] Đã thêm data: {item.itemName}"); // Bỏ log này để tránh spam
             }
-        } 
+        }
+        // XÓA: Không gọi cập nhật UI của scene cũ
+        // inventory.OnInventoryChanged?.Invoke(); 
     }
-    
+
     /// <summary>
     /// Toggles God Mode cheat: makes player invincible and able to one-shot enemies
     /// </summary>
     private void ToggleGodModeCheat()
     {
         godModeCheatActive = !godModeCheatActive;
-        
+
         if (playerInstance == null)
         {
             Debug.LogWarning("[CHEAT] Player instance not found!");
             return;
         }
-        
+
         Character playerCharacter = playerInstance.GetComponent<Character>();
         if (playerCharacter == null)
         {
             Debug.LogWarning("[CHEAT] Player Character component not found!");
             return;
         }
-        
+
         if (godModeCheatActive)
         {
             // Enable God Mode
             playerCharacter.isInvincible = true;
-            playerCharacter.cheatDamageMultiplier = 9999f;
-            
-            // Apply to battle character if in battle scene
+            playerCharacter.cheatDamageMultiplier = 9999f; // One-shot damage
+
+            // Apply to all characters in battle (if in battle scene)
             if (SceneManager.GetActiveScene().name == "MainGame")
             {
                 var battleManager = FindFirstObjectByType<BattleManager>();
@@ -1099,14 +1167,16 @@ public class GameManager : MonoBehaviour
                     battleManager.playerCharacter.cheatDamageMultiplier = 9999f;
                 }
             }
+
+            Debug.LogWarning("[CHEAT] God Mode ENABLED - Invincibility and One-Shot Damage Active!");
         }
         else
         {
             // Disable God Mode
             playerCharacter.isInvincible = false;
             playerCharacter.cheatDamageMultiplier = 1.0f;
-            
-            // Apply to battle character if in battle scene
+
+            // Apply to all characters in battle (if in battle scene)
             if (SceneManager.GetActiveScene().name == "MainGame")
             {
                 var battleManager = FindFirstObjectByType<BattleManager>();
@@ -1116,9 +1186,11 @@ public class GameManager : MonoBehaviour
                     battleManager.playerCharacter.cheatDamageMultiplier = 1.0f;
                 }
             }
+
+            Debug.LogWarning("[CHEAT] God Mode DISABLED");
         }
     }
-    
+
     /// <summary>
     /// Instantly kills the player
     /// </summary>
@@ -1129,14 +1201,14 @@ public class GameManager : MonoBehaviour
             Debug.LogWarning("[CHEAT] Player instance not found!");
             return;
         }
-        
+
         Character playerCharacter = playerInstance.GetComponent<Character>();
         if (playerCharacter == null)
         {
             Debug.LogWarning("[CHEAT] Player Character component not found!");
             return;
         }
-        
+
         // Check if in battle scene
         if (SceneManager.GetActiveScene().name == "MainGame")
         {
@@ -1144,12 +1216,93 @@ public class GameManager : MonoBehaviour
             if (battleManager != null && battleManager.playerCharacter != null)
             {
                 battleManager.playerCharacter.Kill();
+                Debug.LogWarning("[CHEAT] Player killed!");
                 return;
             }
         }
-        
+
         // Fallback: kill player character directly
         playerCharacter.Kill();
         Debug.LogWarning("[CHEAT] Player killed!");
     }
+
+    /// <summary>
+    /// Tìm và hiển thị DefeatPanel (trên PersistentUICanvas) từ GameManager.
+    /// Hàm này sẽ tự động ẩn nút Retry.
+    /// </summary>
+    public void ShowDefeatPanel()
+    {
+        Transform defeatPanelTransform = null;
+
+        // Logic tìm DefeatPanel (tương tự như trong DisableDefeatPanel)
+        if (playerStatusUI != null)
+        {
+            Transform persistentCanvas = playerStatusUI.transform.parent;
+            if (persistentCanvas != null)
+            {
+                defeatPanelTransform = persistentCanvas.Find("DefeatPanel");
+            }
+        }
+
+        if (defeatPanelTransform == null)
+        {
+            // Fallback: Tìm trong con của GameManager
+            Transform persistentCanvasTransform = transform.Find("PersistentUICanvas");
+            if (persistentCanvasTransform != null)
+            {
+                defeatPanelTransform = persistentCanvasTransform.Find("DefeatPanel");
+            }
+        }
+
+        if (defeatPanelTransform != null)
+        {
+            GameObject defeatPanel = defeatPanelTransform.gameObject;
+
+            // Tìm và xử lý các nút
+            Button[] allButtons = defeatPanel.GetComponentsInChildren<Button>(true);
+            foreach (Button btn in allButtons)
+            {
+                string buttonName = btn.name.ToLower();
+
+                // 1. ẨN nút Retry
+                if (buttonName.Contains("retry"))
+                {
+                    btn.gameObject.SetActive(false);
+                }
+
+                // 2. GÁN lại nút Quit (để chắc chắn nó gọi QuitToMainMenu)
+                if (buttonName.Contains("quit"))
+                {
+                    btn.onClick.RemoveAllListeners();
+                    btn.onClick.AddListener(QuitToMainMenu);
+                }
+            }
+
+            // 3. Hiển thị Panel
+            defeatPanel.SetActive(true);
+            Time.timeScale = 0f; // Tạm dừng game
+        }
+        else
+        {
+            Debug.LogError("[GameManager] Không thể tìm thấy DefeatPanel trên PersistentUICanvas!");
+        }
+    }
+
+    /// <summary>
+    /// Lưu trạng thái hiện tại của người chơi (HP, items, stats) làm checkpoint.
+    /// </summary>
+    public void SaveCheckpoint()
+    {
+        if (currentRunData == null || currentRunData.playerData == null) return;
+
+        // Sao chép sâu dữ liệu "sống" vào dữ liệu "checkpoint"
+        // Dùng hàm Clone() chúng ta đã tạo ở Bước 1
+        currentRunData.checkpointPlayerData = currentRunData.playerData.Clone();
+
+        // Lưu game ngay lập tức
+        RunSaveService.SaveRun(currentRunData);
+
+        Debug.Log($"[GameManager] CHECKPOINT SAVED. HP: {currentRunData.checkpointPlayerData.currentHP}, Gold: {currentRunData.checkpointPlayerData.gold}");
+    }
+
 }
