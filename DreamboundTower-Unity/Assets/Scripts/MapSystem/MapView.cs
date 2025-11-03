@@ -26,6 +26,13 @@ namespace Map
         public GameObject nodePrefab;
         [Tooltip("Offset of the start/end nodes of the map from the edges of the screen")]
         public float orientationOffset;
+
+        [Tooltip("Kéo toàn bộ bản đồ lên/xuống. Âm = đi xuống, Dương = đi lên")]
+        public float verticalOffset = 0f;
+        [Tooltip("Co/giãn toàn bộ bản đồ. 1 = 100%, 0.8 = 80%")]
+        [Range(0.1f, 1.5f)]
+        public float mapScale = 1f;
+
         [Header("Background Settings")]
         [Tooltip("If the background sprite is null, background will not be shown")]
         public Sprite background;
@@ -271,7 +278,11 @@ namespace Map
             Debug.Log("Map span in set orientation: " + span + " camera aspect: " + cam.aspect);
 
             // setting first parent to be right in front of the camera first:
-            firstParent.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0f);
+            //firstParent.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0f);
+            // --- SỬA DÒNG NÀY ---
+            firstParent.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y + verticalOffset, 10f);
+            Debug.Log("Map span in set orientation: " + span + " camera aspect: " + cam.aspect);
+            firstParent.transform.localScale = Vector3.one * mapScale;
             float offset = orientationOffset;
             switch (orientation)
             {
