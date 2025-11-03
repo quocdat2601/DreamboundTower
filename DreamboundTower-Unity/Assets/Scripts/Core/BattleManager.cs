@@ -69,6 +69,13 @@ public class BattleManager : MonoBehaviour
     public Button attackButton;
     private Button defeatRetryButton;
 
+    [Header("Backgrounds")]
+    [Tooltip("Danh sách các background cho trận đấu thường (sẽ chọn ngẫu nhiên)")]
+    public List<Sprite> regularBackgrounds;
+
+    [Tooltip("Danh sách các background đặc biệt cho các boss chỉ định")]
+    public List<BossBackgroundMapping> bossBackgrounds;
+
     [Header("Status Effect Display")]
     public GameObject statusEffectIconPrefab; // Prefab for status effect icons
     public StatusEffectIconDatabase statusEffectIconDatabase; // Database of status effect icons
@@ -157,7 +164,7 @@ public class BattleManager : MonoBehaviour
                 yield return null;
                 GameManager.Instance.currentRunData = new RunData();
                 // ✅ BÁO HIỆU RẰNG ĐÂY LÀ CHẾ ĐỘ DEBUG
-    GameManager.Instance.isDebugRun = true;
+                GameManager.Instance.isDebugRun = true;
             }
             else
             {
@@ -175,7 +182,7 @@ public class BattleManager : MonoBehaviour
         // Reset battle state flags
         isVictoryRoutineRunning = false;
         isDefeatRoutineRunning = false;
-
+        SetBattleBackground();
         // SpawnPlayer giờ chỉ còn 1 nhiệm vụ: tìm và đặt player vào vị trí
         SpawnPlayer();
 
@@ -502,16 +509,6 @@ public class BattleManager : MonoBehaviour
 
             if (template.name == "Mimic") // Tên file SO của bạn phải là "Mimic"
             {
-                // 1. Đổi background (giả sử sprite nền là Element 1)
-                if (battleBackground != null && template.sprites.Count > 1)
-                {
-                    battleBackground.sprite = template.sprites[1];
-                }
-                else if (battleBackground != null)
-                {
-                    Debug.LogWarning("Mimic template cần 2 sprites: [0] cho quái, [1] cho nền.");
-                }
-
                 // 2. Gán sprite cho quái (sprite quái là Element 0)
                 if (enemyImage != null)
                 {
@@ -2430,7 +2427,81 @@ public class BattleManager : MonoBehaviour
         {
             GameManager.Instance.RetryAtCheckpoint();
         }
-    }   
+    }
+    /// <summary>
+    /// Dùng để map ID của Boss (ArchetypeID) với Sprite background tương ứng
+    /// </summary>
+    [System.Serializable]
+    public class BossBackgroundMapping
+    {
+        [Tooltip("Tên file EnemyTemplateSO của Boss, ví dụ 'SkeletonBoss'")]
+        public string bossArchetypeID;
+        [Tooltip("Sprite background cho boss này")]
+        public Sprite backgroundSprite;
+    }
+
+    /// <summary>
+    /// Quyết định và cài đặt background cho trận đấu dựa trên loại kẻ địch.
+    /// </summary>
+    private void SetBattleBackground()
+    {
+        if (battleBackground == null) return;
+
+        // 1. Lấy thông tin kẻ địch (giống hệt SpawnEnemies)
+        string archetypeId = null;
+        bool isBoss = false;
+
+        if (overrideUseCustomStats)
+        {
+            isBoss = (overrideKind == EnemyKind.Boss);
+        }
+        else if (overrideUseTemplate)
+        {
+            isBoss = (overrideTemplate.kind == EnemyKind.Boss);
+            archetypeId = overrideTemplate.name; //
+        }
+        else if (GameManager.Instance != null && GameManager.Instance.currentRunData != null)
+        {
+            var mapData = GameManager.Instance.currentRunData.mapData;
+            archetypeId = mapData.pendingEnemyArchetypeId; //
+            isBoss = ((EnemyKind)mapData.pendingEnemyKind == EnemyKind.Boss); //
+        }
+
+        // 2. Ưu tiên 1: Kiểm tra Boss chỉ định (Tầng 10, 20, 30...)
+        if (isBoss && !string.IsNullOrEmpty(archetypeId) && bossBackgrounds != null)
+        {
+            // Tìm trong danh sách bossBackgrounds xem có ID nào khớp không
+            BossBackgroundMapping mapping = bossBackgrounds.FirstOrDefault(b => b.bossArchetypeID == archetypeId);
+
+            if (mapping != null && mapping.backgroundSprite != null)
+            {
+                // Tìm thấy! Gán background boss cụ thể.
+                battleBackground.sprite = mapping.backgroundSprite;
+                Debug.Log($"[Battle] Đã cài đặt background đặc biệt cho Boss: {archetypeId}");
+                return; // Xong
+            }
+        }
+
+        // 3. Ưu tiên 2: Kiểm tra Mimic (logic cũ)
+        if (archetypeId == "Mimic")
+        {
+            EnemyTemplateSO mimicTemplate = GameManager.Instance.allEnemyTemplates.FirstOrDefault(t => t.name == "Mimic");
+            if (mimicTemplate != null && mimicTemplate.sprites.Count > 1)
+            {
+                battleBackground.sprite = mimicTemplate.sprites[1]; // (Lấy sprite nền từ template)
+                Debug.Log("[Battle] Đã cài đặt background Mimic.");
+                return; // Xong
+            }
+        }
+
+        // 4. Ưu tiên 3: Background ngẫu nhiên (cho quái thường/elite/boss không có ID)
+        if (regularBackgrounds != null && regularBackgrounds.Count > 0)
+        {
+            battleBackground.sprite = regularBackgrounds[Random.Range(0, regularBackgrounds.Count)];
+            Debug.Log("[Battle] Đã cài đặt background ngẫu nhiên.");
+        }
+        // Nếu không có gì trong 3 danh sách, nó sẽ giữ nguyên background mặc định.
+    }
     #endregion
 
 }

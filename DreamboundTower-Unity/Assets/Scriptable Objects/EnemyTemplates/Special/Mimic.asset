@@ -15,6 +15,7 @@ MonoBehaviour:
   kind: 1
   gimmick: 0
   isUniqueOrEventOnly: 1
+  minFloor: 1
   summonableEnemies: []
   manaRegenPerTurnn: 0
   skills: []
