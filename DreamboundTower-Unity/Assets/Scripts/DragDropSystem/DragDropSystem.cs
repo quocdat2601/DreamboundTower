@@ -719,7 +719,6 @@ public class DragDropSystem : MonoBehaviour
         return isDragging;
     }
     
-    
     /// <summary>
     /// Update the inventory reference to match the LootManager's inventory
     /// </summary>
@@ -730,7 +729,4 @@ public class DragDropSystem : MonoBehaviour
             inventory = newInventory;
         }
     }
-    
-    
-    
 }

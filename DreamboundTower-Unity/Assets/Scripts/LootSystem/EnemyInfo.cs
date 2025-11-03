@@ -2,8 +2,8 @@ using UnityEngine;
 using Presets;
 
 /// <summary>
-/// Simple component to store enemy information (kind and template)
-/// Attached to enemy GameObjects during spawn
+/// Simple component to store enemy information (kind and template).
+/// Attached to enemy GameObjects during spawn by BattleManager.
 /// </summary>
 public class EnemyInfo : MonoBehaviour
 {

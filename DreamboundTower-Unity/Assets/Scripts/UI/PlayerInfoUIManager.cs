@@ -132,10 +132,35 @@ public class PlayerInfoUIManager : MonoBehaviour
         {
             // Lấy baseMana và chia cho MANA_UNIT để ra chỉ số gốc
             int baseManaStat = Mathf.RoundToInt((float)playerCharacter.baseMana / MANA_UNIT);
-            manaStatText.text = $"MANA: {baseManaStat}"; // Hiển thị chỉ số MANA gốc
+            int currentManaStat = Mathf.RoundToInt((float)playerCharacter.mana / MANA_UNIT);
+            int deltaMana = currentManaStat - baseManaStat;
+            manaStatText.text = deltaMana != 0 ? $"MANA: {baseManaStat} {(deltaMana > 0 ? "+" : "")} {deltaMana}".Replace("  ", " ") : $"MANA: {baseManaStat}";
         }
-        if (agiStatText != null) agiStatText.text = $"AGI: {playerCharacter.agility}";
-        if (critStatText != null) critStatText.text = $"CR: {playerCharacter.criticalChance}";
+        if (agiStatText != null)
+        {
+            int baseAgi = playerCharacter.baseAgility;
+            int deltaAgi = playerCharacter.agility - baseAgi;
+            agiStatText.text = deltaAgi != 0 ? $"AGI: {baseAgi} {(deltaAgi > 0 ? "+" : "")} {deltaAgi}".Replace("  ", " ") : $"AGI: {baseAgi}";
+        }
+        if (critStatText != null)
+        {
+            // Convert crit rate to percentage (0.5 = 50%, 1.0 = 100%)
+            int critRatePercent = Mathf.RoundToInt(playerCharacter.criticalChance * 100f);
+            // Convert crit damage multiplier to percentage (1.5 = 150%, 2.5 = 250%)
+            int critDmgPercent = Mathf.RoundToInt(playerCharacter.critDamageMultiplier * 100f);
+            // Format very compactly without spaces around pipe to prevent line breaks
+            // Use format: "CR:XX%|CD:XXX%" to minimize width
+            critStatText.text = $"CR: {critRatePercent}%|CD: {critDmgPercent}%";
+            // Disable word wrapping completely - set wrapping mode to NoWrap
+            critStatText.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            // Set overflow mode to allow horizontal overflow (no wrapping, no truncation)
+            critStatText.overflowMode = TMPro.TextOverflowModes.Overflow;
+            // Disable auto-sizing to keep consistent font size
+            if (critStatText.enableAutoSizing)
+            {
+                critStatText.enableAutoSizing = false;
+            }
+        }
 
         // (Nếu bạn có thêm Text cho các chỉ số khác, cập nhật chúng ở đây)
         Debug.Log("Stats Panel Updated!"); // Thêm log để biết hàm đã chạy
