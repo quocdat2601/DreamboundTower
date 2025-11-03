@@ -789,7 +789,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1852324491
 RectTransform:
   m_ObjectHideFlags: 0
@@ -913,9 +913,21 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 4462501714740186190, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: mapScale
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 4462501714740186190, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: verticalOffset
+      value: -2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4462501714740186190, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
       propertyPath: floorDisplayText
       value: 
       objectReference: {fileID: 1405962228}
+    - target: {fileID: 4462501714740186190, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: orientationOffset
+      value: -6
+      objectReference: {fileID: 0}
     - target: {fileID: 5243514246866534760, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
       propertyPath: m_Name
       value: MapObjects
@@ -958,6 +970,14 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7777755429843436003, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9124814956810944979, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: testZone
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 9124814956810944979, guid: 6dc8f4ee6004b5345a5925b01e34cb27, type: 3}
+      propertyPath: overrideZoneForTesting
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
