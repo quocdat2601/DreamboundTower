@@ -219,7 +219,7 @@ Prototype for educational purposes. For placeholders, consider assets from Kenne
 
 ## 🔗 Useful Links
 - 🧾 *GDD (Game Design Document)* | Full gameplay, systems, races, events, and design notes for Dreambound Tower | [📖 View GDD](https://docs.google.com/document/d/1H_eaLToqbxPRcF-PRwv9cIZgrl95_5Ynq3-ABvWYTXk/edit?pli=1&tab=t.0#bookmark=id.xsn53ui2ti82) |
-| - 📊 *DATA Sheet* | Master data table — weapons, items, races, skills, events, and balance values | [📘 View DATA](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868) |
+- 📊 *DATA Sheet* | Master data table — weapons, items, races, skills, events, and balance values | [📘 View DATA](https://docs.google.com/spreadsheets/d/15lJ9UKwbR84D2nuDMg84DAb7bgu6FQX3OjviFL9su_g/edit?gid=1555870868#gid=1555870868) |
 
 ---
 <div align="center">
