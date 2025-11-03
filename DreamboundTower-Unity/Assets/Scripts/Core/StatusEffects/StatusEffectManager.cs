@@ -121,10 +121,16 @@ public class StatusEffectManager : MonoBehaviour
     /// </summary>
     public void ProcessEndOfTurnEffects()
     {
+        Debug.Log($"[STATUS EFFECT] ProcessEndOfTurnEffects called - {charactersWithEffects.Count} characters with effects");
         foreach (var character in charactersWithEffects.ToArray())
         {
-            if (character == null) continue;
+            if (character == null)
+            {
+                Debug.LogWarning("[STATUS EFFECT] Found null character in charactersWithEffects, skipping");
+                continue;
+            }
             
+            Debug.Log($"[STATUS EFFECT] Processing end-of-turn effects for {character.name}");
             ProcessCharacterEffects(character, StatusEffects.EffectTiming.EndOfTurn);
         }
     }
@@ -218,10 +224,18 @@ public class StatusEffectManager : MonoBehaviour
     
     private void ProcessCharacterEffects(Character character, StatusEffects.EffectTiming timing)
     {
-        if (!activeEffects.ContainsKey(character)) return;
+        if (!activeEffects.ContainsKey(character))
+        {
+            Debug.Log($"[STATUS EFFECT] Character {character?.name} not in activeEffects dictionary");
+            return;
+        }
         
         // Don't process effects on dead characters
-        if (character.currentHP <= 0) return;
+        if (character.currentHP <= 0)
+        {
+            Debug.Log($"[STATUS EFFECT] Character {character?.name} is dead (HP: {character.currentHP}), skipping effects");
+            return;
+        }
         
         var effectsToRemove = new List<StatusEffect>();
         
@@ -229,6 +243,7 @@ public class StatusEffectManager : MonoBehaviour
         {
             if (effect.timing == timing)
             {
+                Debug.Log($"[STATUS EFFECT] Processing {effect.effectName} (timing: {timing}, intensity: {effect.intensity}, duration: {effect.duration}) on {character.name}");
                 effect.OnTick(character);
                 // Only decrement duration for non-event-based effects (combat effects)
                 // Event-based effects decrement per battle node, not per turn

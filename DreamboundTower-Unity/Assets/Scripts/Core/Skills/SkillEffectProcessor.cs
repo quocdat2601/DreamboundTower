@@ -45,7 +45,7 @@ public static class SkillEffectProcessor
         ProcessDamageEffects(skillData, caster, actualTarget);
         ProcessHealingEffects(skillData, caster, actualTarget);
         ProcessShieldEffects(skillData, actualTarget);
-        ProcessStatusEffects(skillData, actualTarget);
+        ProcessStatusEffects(skillData, caster, actualTarget);
         ProcessBuffDebuffEffects(skillData, actualTarget);
         ProcessSpecialEffects(skillData, actualTarget);
         ProcessRecoilEffects(skillData, caster);
@@ -82,6 +82,12 @@ public static class SkillEffectProcessor
             int bonusDamage = Mathf.RoundToInt(totalDamage * skillData.bonusDamageToStunned);
             totalDamage += bonusDamage;
             Debug.Log($"[SKILL EFFECT] Bonus damage to stunned target: +{bonusDamage} damage (total: {totalDamage})");
+        }
+        
+        // Apply cheat damage multiplier
+        if (caster != null && caster.cheatDamageMultiplier > 1.0f)
+        {
+            totalDamage = Mathf.RoundToInt(totalDamage * caster.cheatDamageMultiplier);
         }
         
         // Process multiple hits
@@ -218,14 +224,14 @@ public static class SkillEffectProcessor
     /// <summary>
     /// Processes status effects (apply and remove)
     /// </summary>
-    private static void ProcessStatusEffects(SkillData skillData, Character target)
+    private static void ProcessStatusEffects(SkillData skillData, Character caster, Character target)
     {
         if (StatusEffectManager.Instance == null) return;
         
         // Apply status effects
         foreach (var statusName in skillData.statusEffectsToApply)
         {
-            StatusEffect effect = CreateStatusEffect(statusName, skillData.statusEffectIntensity, skillData.statusEffectDuration);
+            StatusEffect effect = CreateStatusEffect(statusName, skillData.statusEffectIntensity, skillData.statusEffectDuration, caster, target);
             if (effect != null)
             {
                 StatusEffectManager.Instance.ApplyEffect(target, effect);
@@ -393,15 +399,16 @@ public static class SkillEffectProcessor
     /// <summary>
     /// Creates a status effect from string name
     /// </summary>
-    private static StatusEffect CreateStatusEffect(string statusName, int intensity, int duration)
+    private static StatusEffect CreateStatusEffect(string statusName, int intensity, int duration, Character attacker = null, Character target = null)
     {
         switch (statusName.ToLower())
         {
             case "shield": return new ShieldEffect(intensity, duration);
             case "reflect": return new ReflectEffect(intensity, duration, 0); // Note: radiantShieldAmount = 0 for manual reflect effects
             case "stun": return new StunEffect(duration);
-            case "burn": return new BurnEffect(intensity, duration);
-            case "poison": return new PoisonEffect(intensity, duration);
+            case "burn": return new BurnEffect(intensity, duration, attacker); // Pass attacker for INT scaling
+            case "poison": return new PoisonEffect(intensity, duration, false, target); // Pass target for max HP scaling
+            case "bleed": return new BleedEffect(intensity, duration);
             case "healbonus": return new HealBonusEffect(intensity, duration);
             case "pounce": return new PounceEffect(intensity, duration);
             default: return null;
@@ -420,6 +427,7 @@ public static class SkillEffectProcessor
             case "stun": return typeof(StunEffect);
             case "burn": return typeof(BurnEffect);
             case "poison": return typeof(PoisonEffect);
+            case "bleed": return typeof(BleedEffect);
             case "healbonus": return typeof(HealBonusEffect);
             case "pounce": return typeof(PounceEffect);
             default: return null;

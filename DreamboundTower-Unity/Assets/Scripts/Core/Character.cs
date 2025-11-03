@@ -74,8 +74,8 @@ public class Character : MonoBehaviour
     [Header("Passive Bonuses")]
     [Tooltip("Percentage bonus to mana regeneration from passive skills")]
     public float manaRegenBonus = 0f; // <-- THÊM MỚI
-    [Tooltip("Base HP regeneration per turn (percentage of max HP, e.g. 5 = 5% of max HP per turn)")]
-    public float baseHPRegenPerTurn = 5f; // Base HP regen per turn (5% of max HP)
+    [Tooltip("Base HP regeneration per turn (percentage of max HP, e.g. 3 = 3% of max HP per turn)")]
+    public float baseHPRegenPerTurn = 3f; // Base HP regen per turn (3% of max HP)
     [Tooltip("Percentage bonus to physical damage from passive skills")]
     public float physicalDamageBonus = 0f; // Physical damage bonus (0.05 = 5%)
     [Tooltip("Percentage bonus to magic damage from passive skills")]
@@ -230,6 +230,28 @@ public class Character : MonoBehaviour
         mana += gear.manaBonus;
         agility += gear.agiBonus;
 
+        // Add HP bonus to current HP as well (e.g., 50/100 -> 150/200 when +100 HP)
+        if (gear.hpBonus > 0)
+        {
+            currentHP += gear.hpBonus;
+        }
+
+        // Add Mana bonus to current Mana as well
+        if (gear.manaBonus > 0)
+        {
+            currentMana += gear.manaBonus;
+        }
+
+        // Cap current HP/Mana at max (in case it exceeds max due to rounding or edge cases)
+        if (currentHP > maxHP)
+        {
+            currentHP = maxHP;
+        }
+        if (currentMana > mana)
+        {
+            currentMana = mana;
+        }
+
         // Apply gear modifiers (effects)
         if (gear.modifiers != null)
         {
@@ -243,14 +265,6 @@ public class Character : MonoBehaviour
             }
         }
 
-        if (currentHP > maxHP)
-        {
-            currentHP = maxHP;
-        }
-        if (currentMana > mana)
-        {
-            currentMana = mana;
-        }
         UpdateDerivedStats();
         UpdateHPUI();
         UpdateManaUI();
@@ -259,6 +273,10 @@ public class Character : MonoBehaviour
     public void RemoveGearBonus(GearItem gear)
     {
         if (gear == null) return;
+
+        // Store old max values for proportional scaling
+        int oldMaxHP = maxHP;
+        int oldMaxMana = mana;
 
         // Remove gear modifiers (effects) first
         if (gear.modifiers != null)
@@ -288,11 +306,24 @@ public class Character : MonoBehaviour
         mana = Mathf.Max(mana, baseMana);
         agility = Mathf.Max(agility, baseAgility);
 
-        if (currentHP > maxHP)
+        // Scale current HP proportionally if max HP decreased
+        if (oldMaxHP > 0 && maxHP < oldMaxHP)
+        {
+            float hpPercentage = (float)currentHP / oldMaxHP;
+            currentHP = Mathf.RoundToInt(maxHP * hpPercentage);
+        }
+        else if (currentHP > maxHP)
         {
             currentHP = maxHP;
         }
-        if (currentMana > mana)
+
+        // Scale current Mana proportionally if max Mana decreased
+        if (oldMaxMana > 0 && mana < oldMaxMana)
+        {
+            float manaPercentage = (float)currentMana / oldMaxMana;
+            currentMana = Mathf.RoundToInt(mana * manaPercentage);
+        }
+        else if (currentMana > mana)
         {
             currentMana = mana;
         }
@@ -609,6 +640,58 @@ public class Character : MonoBehaviour
             conditionalManager.ApplyConditionalLifesteal(totalActualDamage);
             Debug.Log($"[CONDITIONAL LIFESTEAL] {name} using {totalActualDamage} actual damage (Physical: {actualPhysicalDamageDealt}, Magic: {actualMagicDamageDealt}) for conditional lifesteal");
         }
+        
+        // 6. Process gear modifiers that apply status effects on hit (e.g., bleed)
+        if (hitConnected && equipment != null && StatusEffectManager.Instance != null)
+        {
+            ProcessGearStatusEffectProcs(target, actualPhysicalDamageDealt);
+        }
+    }
+    
+    /// <summary>
+    /// Processes gear modifiers that apply status effects on attack (e.g., bleed proc)
+    /// Bleed scales with actual physical damage dealt (after DEF/damage reduction)
+    /// </summary>
+    private void ProcessGearStatusEffectProcs(Character target, int actualPhysicalDamageDealt)
+    {
+        if (target == null || equipment == null || equipment.equipmentSlots == null) return;
+        
+        // Check all equipped gear for modifiers with duration > 0 and targetStat == None
+        // These are proc-on-attack modifiers (e.g., ApplyBleed)
+        foreach (var gear in equipment.equipmentSlots)
+        {
+            if (gear == null || gear.modifiers == null) continue;
+            
+            foreach (var modifier in gear.modifiers)
+            {
+                if (modifier == null) continue;
+                
+                // Check if this is a proc modifier (duration > 0 and targetStat == None)
+                if (modifier.duration > 0 && modifier.targetStat == Assets.Scripts.Data.StatType.None)
+                {
+                    // Roll chance to proc (modifier.value is the proc chance, e.g., 0.1 = 10%)
+                    float procChance = modifier.value;
+                    if (UnityEngine.Random.value <= procChance)
+                    {
+                        // Apply bleed effect
+                        // Bleed only procs if physical damage was dealt
+                        if (actualPhysicalDamageDealt > 0)
+                        {
+                            // Damage per turn is calculated as 12% of actual physical damage dealt (after DEF/damage reduction)
+                            int bleedDamagePerTurn = Mathf.Max(1, Mathf.RoundToInt(actualPhysicalDamageDealt * 0.12f));
+                            var bleedEffect = new StatusEffects.BleedEffect(bleedDamagePerTurn, modifier.duration);
+                            
+                            StatusEffectManager.Instance.ApplyEffect(target, bleedEffect);
+                            Debug.Log($"[GEAR PROC] {name} applied BLEED to {target.name} ({bleedDamagePerTurn} damage/turn for {modifier.duration} turns) from {gear.itemName} (based on {actualPhysicalDamageDealt} physical damage dealt, {procChance * 100f}% chance)");
+                        }
+                        else
+                        {
+                            Debug.Log($"[GEAR PROC] {name} attempted to apply BLEED to {target.name} but no physical damage was dealt, so bleed cannot proc");
+                        }
+                    }
+                }
+            }
+        }
     }
     /// <summary>
     /// Tính toán sát thương cơ bản cho đòn Attack dựa trên vũ khí trang bị.
@@ -789,8 +872,9 @@ public class Character : MonoBehaviour
     /// <summary>
     /// Takes damage and returns the actual damage dealt after all reductions
     /// </summary>
+    /// <param name="suppressDamageNumber">If true, suppresses the damage number display (used by status effects that show their own damage numbers)</param>
     /// <returns>The actual damage dealt to HP</returns>
-    public int TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false, bool bypassDodge = false)
+    public int TakeDamage(int damage, Character attacker, DamageType damageType = DamageType.Physical, bool isCritical = false, bool bypassDodge = false, bool suppressDamageNumber = false)
     {
         if (isInvincible)
         {
@@ -907,7 +991,8 @@ public class Character : MonoBehaviour
         }
 
         // Show damage with appropriate color based on damage type and crit
-        if (CombatEffectManager.Instance != null)
+        // Skip damage number display if suppressed (e.g., status effects show their own damage numbers)
+        if (!suppressDamageNumber && CombatEffectManager.Instance != null)
         {
             Vector3 uiPosition = CombatEffectManager.Instance.GetCharacterUIPosition(this);
             
@@ -1182,12 +1267,13 @@ public class Character : MonoBehaviour
     
     /// <summary>
     /// Called when a new turn starts - regenerates HP based on percentage of max HP
+    /// Only works for player characters (enemies should not regenerate HP automatically)
     /// </summary>
     /// <param name="turn">The current turn number</param>
     public void OnNewTurnStarted(int turn)
     {
-        // Only regenerate if HP is below max and character is alive
-        if (currentHP < maxHP && currentHP > 0 && baseHPRegenPerTurn > 0f)
+        // Only regenerate if this is the player, HP is below max, and character is alive
+        if (isPlayer && currentHP < maxHP && currentHP > 0 && baseHPRegenPerTurn > 0f)
         {
             // Calculate heal amount as percentage of max HP
             int healAmount = Mathf.RoundToInt(maxHP * (baseHPRegenPerTurn / 100f));

@@ -804,7 +804,7 @@ public class ScriptReader : MonoBehaviour
         switch (debuffName)
         {
             case "POISON":
-                effect = new StatusEffects.PoisonEffect(5, duration, eventBased: true);
+                effect = new StatusEffects.PoisonEffect(5, duration, eventBased: true, target: player);
                 break;
             case "HEAL_MINUS_10":
                 effect = new StatusEffects.HealBonusEffect(-10, duration, eventBased: true);

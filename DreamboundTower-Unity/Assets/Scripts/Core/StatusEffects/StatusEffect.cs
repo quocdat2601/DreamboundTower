@@ -23,6 +23,7 @@ namespace StatusEffects
         Stun,
         Burn,
         Poison,
+        Bleed,
         HealBonus,
         Pounce
     }
@@ -89,18 +90,8 @@ public class ShieldEffect : StatusEffect
     public override void OnTick(Character target) { }
     public override void OnRemove(Character target)
     {
-        // When shield expires naturally, only remove reflect if Radiant Shield portion was still active
-        // Check if ReflectEffect exists and has radiantShieldAmount > 0 before removing
-        if (StatusEffectManager.Instance != null)
-        {
-            var reflectEffect = StatusEffectManager.Instance.GetEffect(target, typeof(ReflectEffect)) as ReflectEffect;
-            // Only remove ReflectEffect if it exists and was tied to Radiant Shield (radiantShieldAmount > 0)
-            // This ensures we don't remove reflect from other sources (e.g., gear-based reflect)
-            if (reflectEffect != null && reflectEffect.radiantShieldAmount > 0)
-            {
-                StatusEffectManager.Instance.RemoveEffect(target, typeof(ReflectEffect));
-            }
-        }
+        // When shield expires, reflect will remain but become inactive until shield is restored
+        // Reflect manages its own 2-turn duration independently
     }
 }
 
@@ -138,49 +129,118 @@ public class StunEffect : StatusEffect
 
 /// <summary>
 /// Burn effect that deals damage over time
+/// Scales with attacker's Intelligence (base + bonuses) - calculated once when applied
 /// </summary>
 public class BurnEffect : StatusEffect
 {
-    public BurnEffect(int damagePerTurn, int duration) : base("Burn", duration, damagePerTurn, EffectTiming.EndOfTurn, false, true)
+    public BurnEffect(int baseDamage, int duration, Character attacker = null) : base("Burn", duration, baseDamage, EffectTiming.EndOfTurn, false, true)
     {
+        // Calculate damage once when effect is created (scale with INT at that moment)
+        // Damage is "locked in" and does NOT recalculate each turn
+        if (attacker != null)
+        {
+            int intScaling = Mathf.RoundToInt(attacker.intelligence * 0.15f); // 15% of full INT (base + bonuses)
+            this.intensity = baseDamage + intScaling;
+        }
+        else
+        {
+            this.intensity = baseDamage;
+        }
     }
     
     public override void OnTick(Character target)
     {
         if (target != null)
         {
-            Debug.Log($"[BURN] Dealing {intensity} burn damage to {target.name}");
-            // Show visual damage number for burn effect
-            if (CombatEffectManager.Instance != null)
+            // Ensure intensity is at least 1 for visible damage
+            int actualDamage = Mathf.Max(1, intensity);
+            Debug.Log($"[BURN] Dealing {actualDamage} burn damage to {target.name} (intensity: {intensity})");
+            
+            // Only apply damage if intensity > 0
+            if (intensity > 0)
             {
-                CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, Color.red);
+                // Show visual damage number for burn effect (orange/fire-like color)
+                if (CombatEffectManager.Instance != null)
+                {
+                    CombatEffectManager.Instance.ShowStatusEffectDamage(target, actualDamage, new Color(1f, 0.5f, 0f)); // Orange
+                }
+                // Status effects like burn cannot be dodged (bypassDodge = true)
+                // Burn is magical fire, so use Magic damage type
+                // Suppress damage number display since we already show it above with custom color
+                target.TakeDamage(actualDamage, null, DamageType.Magic, false, bypassDodge: true, suppressDamageNumber: true);
             }
-            // Status effects like burn cannot be dodged (bypassDodge = true)
-            target.TakeDamage(intensity, null, DamageType.Physical, false, bypassDodge: true);
+            else
+            {
+                Debug.LogWarning($"[BURN] Burn effect on {target.name} has intensity 0, no damage dealt");
+            }
         }
     }
 }
 
 /// <summary>
 /// Poison effect that deals damage over time
+/// Scales with target's Max HP (2.5% of max HP) - calculated once when applied
 /// </summary>
 public class PoisonEffect : StatusEffect
 {
-    public PoisonEffect(int damagePerTurn, int duration, bool eventBased = false) : base("Poison", duration, damagePerTurn, EffectTiming.EndOfTurn, false, true, eventBased)
+    public PoisonEffect(int baseDamage, int duration, bool eventBased = false, Character target = null) : base("Poison", duration, baseDamage, EffectTiming.EndOfTurn, false, true, eventBased)
     {
+        // Calculate damage once when effect is created (scale with target's max HP at that moment)
+        // Damage is "locked in" and does NOT recalculate each turn
+        if (target != null)
+        {
+            // Scale damage with target's max HP (2.5% per turn)
+            int poisonDamage = Mathf.Max(1, Mathf.RoundToInt(target.maxHP * 0.025f));
+            this.intensity = poisonDamage;
+        }
+        else
+        {
+            // Fallback to base damage if target is not available
+            this.intensity = baseDamage;
+        }
     }
     
     public override void OnTick(Character target)
     {
         if (target != null)
         {
-            // Show visual damage number for poison effect
+            Debug.Log($"[POISON] Dealing {intensity} poison damage to {target.name}");
+            // Show visual damage number for poison effect (dark green)
             if (CombatEffectManager.Instance != null)
             {
-                CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, Color.magenta);
+                CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, new Color(0f, 0.5f, 0f)); // Dark green
             }
             // Status effects like poison cannot be dodged (bypassDodge = true)
-            target.TakeDamage(intensity, null, DamageType.Physical, false, bypassDodge: true);
+            // Suppress damage number display since we already show it above with custom color
+            target.TakeDamage(intensity, null, DamageType.Physical, false, bypassDodge: true, suppressDamageNumber: true);
+        }
+    }
+}
+
+/// <summary>
+/// Bleed effect that deals damage over time
+/// Scales with actual physical damage dealt (12% of physical damage)
+/// </summary>
+public class BleedEffect : StatusEffect
+{
+    public BleedEffect(int damagePerTurn, int duration, bool eventBased = false) : base("Bleed", duration, damagePerTurn, EffectTiming.EndOfTurn, false, true, eventBased)
+    {
+        // Intensity is set to the scaled damage value when effect is created
+    }
+    
+    public override void OnTick(Character target)
+    {
+        if (target != null)
+        {
+            Debug.Log($"[BLEED] Dealing {intensity} bleed damage to {target.name}");
+            // Show visual damage number for bleed effect (using red color, similar to burn but darker)
+            if (CombatEffectManager.Instance != null)
+            {
+                CombatEffectManager.Instance.ShowStatusEffectDamage(target, intensity, new Color(0.8f, 0f, 0f)); // Dark red
+            }
+            // Status effects like bleed cannot be dodged (bypassDodge = true)
+            // Suppress damage number display since we already show it above with custom color
+            target.TakeDamage(intensity, null, DamageType.Physical, false, bypassDodge: true, suppressDamageNumber: true);
         }
     }
 }
